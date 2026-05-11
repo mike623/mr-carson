@@ -6,7 +6,9 @@ import { downloadTelegramFile } from './download.js';
 import { escapeMd, formatExpensePreview } from './format.js';
 
 export function createBot(): Telegraf {
-  const bot = new Telegraf(config.botToken);
+  // Local Ollama OCR + extraction can take a minute on cold start; the default
+  // 90s Telegraf handler timeout fires before we can reply. Bump to 5 minutes.
+  const bot = new Telegraf(config.botToken, { handlerTimeout: 300_000 });
 
   // Allow-list guard: silently drop anything from non-allowed users.
   bot.use(async (ctx, next) => {
