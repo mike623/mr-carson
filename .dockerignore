@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+**/.turbo
+.git
+.env
+.env.*
+data
+*.duckdb
+*.duckdb.wal
+__pycache__
+**/__pycache__
+.venv

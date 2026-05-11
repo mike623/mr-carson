@@ -1,0 +1,31 @@
+{
+  "name": "@mr-carson/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').copyFileSync('src/schema.sql','dist/schema.sql')\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "^1.1.3-alpha.7",
+    "@mr-carson/shared-types": "workspace:*",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.5.4"
+  }
+}

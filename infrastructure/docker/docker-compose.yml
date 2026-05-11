@@ -1,0 +1,82 @@
+name: mr-carson
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  ocr:
+    build:
+      context: ../../apps/ocr-service
+      dockerfile: Dockerfile
+    environment:
+      OCR_MODEL: ${OCR_MODEL:-zai-org/GLM-OCR}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-GBP}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8001:8001"
+    volumes:
+      - uploads:/data/uploads
+      - hf_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8001/health').status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.node
+      args:
+        APP: api
+    command: ["node", "apps/api/dist/main.js"]
+    environment:
+      API_PORT: 3000
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-mistral-small}
+      OCR_SERVICE_URL: http://ocr:8001
+      DUCKDB_PATH: /data/db/mr-carson.duckdb
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-GBP}
+    ports:
+      - "3000:3000"
+    volumes:
+      - duckdb_data:/data/db
+      - uploads:/data/uploads
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ocr:
+        condition: service_started
+
+  bot:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.node
+      args:
+        APP: telegram-bot
+    command: ["node", "apps/telegram-bot/dist/main.js"]
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS}
+      API_URL: http://api:3000
+      UPLOADS_DIR: /data/uploads
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-GBP}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      - api
+
+volumes:
+  ollama_models:
+  hf_cache:
+  uploads:
+  duckdb_data:
