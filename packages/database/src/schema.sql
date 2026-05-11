@@ -53,3 +53,11 @@ CREATE TABLE IF NOT EXISTS pending_expenses (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pending_user_status ON pending_expenses (user_id, status);
+
+-- Chat sessions: one active conversation thread per user. /new rotates the
+-- active thread id; prior threads remain in Mastra Memory storage.
+CREATE TABLE IF NOT EXISTS chat_sessions (
+  user_id TEXT PRIMARY KEY,
+  active_thread_id TEXT NOT NULL,
+  started_at TIMESTAMP NOT NULL DEFAULT now()
+);

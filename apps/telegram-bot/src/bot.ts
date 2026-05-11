@@ -7,6 +7,7 @@ import {
   confirmPending,
   getPending,
   ingestReceipt,
+  newSession,
   rejectPending,
   type AskResponse,
 } from './api.js';
@@ -37,12 +38,22 @@ export function createBot(): Telegraf {
         'Commands:',
         '/start  — say hello',
         '/help   — this message',
+        '/new    — start a fresh chat (forget prior turns)',
         '/summary — recent spend summary',
         '/categories — list categories',
         '',
         'Or just send a receipt photo, or ask in plain English.',
       ].join('\n'),
     );
+  });
+
+  bot.command('new', async (ctx) => {
+    try {
+      await newSession(ctx.from!.id.toString());
+      await ctx.reply('New chat started. I have forgotten our previous turns.');
+    } catch (err) {
+      await ctx.reply(`Could not start a new chat: ${(err as Error).message}`);
+    }
   });
 
   bot.command('summary', async (ctx) => {
