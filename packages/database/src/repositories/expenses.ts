@@ -103,6 +103,69 @@ export async function queryExpenses(
   };
 }
 
+export type Granularity = 'day' | 'week' | 'month';
+
+export interface ByCategoryOverTimeArgs {
+  dateRange?: import('@mr-carson/shared-types').DateRange;
+  startDate?: string;
+  endDate?: string;
+  category?: string;
+  granularity?: Granularity;
+}
+
+export interface CategoryBucketRow {
+  bucket: string;
+  category: string;
+  total: number;
+}
+
+export async function byCategoryOverTime(
+  userId: string,
+  args: ByCategoryOverTimeArgs,
+): Promise<{ rows: CategoryBucketRow[]; granularity: Granularity; currency: string }> {
+  const granularity: Granularity = args.granularity ?? 'week';
+  const where: string[] = ['e.user_id = ?'];
+  const params: unknown[] = [userId];
+
+  if (args.category) {
+    where.push('LOWER(i.category) = LOWER(?)');
+    params.push(args.category);
+  }
+  const range = resolveDateRange({
+    dateRange: args.dateRange ?? 'last_month',
+    startDate: args.startDate,
+    endDate: args.endDate,
+  });
+  if (range) {
+    where.push('e.date >= ? AND e.date <= ?');
+    params.push(range.start, range.end);
+  }
+
+  const sql = `
+    SELECT
+      CAST(DATE_TRUNC('${granularity}', e.date) AS VARCHAR) AS bucket,
+      i.category AS category,
+      CAST(SUM(i.amount) AS DOUBLE) AS total,
+      ANY_VALUE(e.currency) AS currency
+    FROM expenses e
+    JOIN expense_items i ON i.expense_id = e.id
+    WHERE ${where.join(' AND ')}
+    GROUP BY bucket, i.category
+    ORDER BY bucket ASC, total DESC
+  `;
+  const raw = await query<{ bucket: string; category: string; total: number; currency: string }>(
+    sql,
+    params,
+  );
+  const rows: CategoryBucketRow[] = raw.map((r) => ({
+    bucket: r.bucket.slice(0, 10),
+    category: r.category,
+    total: Math.round(Number(r.total) * 100) / 100,
+  }));
+  const currency = raw[0]?.currency ?? (process.env.DEFAULT_CURRENCY ?? 'GBP');
+  return { rows, granularity, currency };
+}
+
 export async function topMerchants(
   userId: string,
   args: QueryExpensesArgs,

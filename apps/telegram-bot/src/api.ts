@@ -33,7 +33,10 @@ export async function getPending(id: string): Promise<PendingExpense> {
   return fetchJson(`/receipts/${id}`);
 }
 
-export async function ask(userId: string, message: string): Promise<{ reply: string }> {
+export async function ask(
+  userId: string,
+  message: string,
+): Promise<{ reply: string; imageBase64?: string }> {
   return fetchJson('/agent/ask', {
     method: 'POST',
     body: JSON.stringify({ userId, message }),

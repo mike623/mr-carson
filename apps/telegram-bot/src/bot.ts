@@ -30,6 +30,7 @@ export function createBot(): Telegraf {
         '/start  — say hello',
         '/help   — this message',
         '/summary — recent spend summary',
+        '/chart   — spending chart, last month by category',
         '/categories — list categories',
         '',
         'Or just send a receipt photo, or ask in plain English.',
@@ -39,12 +40,20 @@ export function createBot(): Telegraf {
 
   bot.command('summary', async (ctx) => {
     const reply = await ask(ctx.from!.id.toString(), 'Summarise my spending this month.');
-    await ctx.reply(reply.reply);
+    await deliverAgentReply(ctx, reply);
   });
 
   bot.command('categories', async (ctx) => {
     const reply = await ask(ctx.from!.id.toString(), 'List my expense categories.');
-    await ctx.reply(reply.reply);
+    await deliverAgentReply(ctx, reply);
+  });
+
+  bot.command('chart', async (ctx) => {
+    const reply = await ask(
+      ctx.from!.id.toString(),
+      'Chart my spending over the last month by category.',
+    );
+    await deliverAgentReply(ctx, reply);
   });
 
   // Photo / document handlers: ingest, then show confirmation buttons.
@@ -70,8 +79,8 @@ export function createBot(): Telegraf {
     const text = ctx.message.text;
     const userId = ctx.from.id.toString();
     await ctx.sendChatAction('typing');
-    const { reply } = await ask(userId, text);
-    if (reply.length > 0) await ctx.reply(reply);
+    const result = await ask(userId, text);
+    await deliverAgentReply(ctx, result);
   });
 
   bot.action(/^confirm:(.+)$/, async (ctx) => {
@@ -114,6 +123,24 @@ export function createBot(): Telegraf {
   });
 
   return bot;
+}
+
+// Telegram caption hard limit.
+const CAPTION_MAX = 1024;
+
+async function deliverAgentReply(
+  ctx: Context,
+  result: { reply: string; imageBase64?: string },
+): Promise<void> {
+  const reply = result.reply.trim();
+  if (result.imageBase64) {
+    const buf = Buffer.from(result.imageBase64, 'base64');
+    const caption = reply.length > 0 && reply.length <= CAPTION_MAX ? reply : undefined;
+    await ctx.replyWithPhoto({ source: buf }, caption ? { caption } : undefined);
+    if (reply.length > CAPTION_MAX) await ctx.reply(reply);
+    return;
+  }
+  if (reply.length > 0) await ctx.reply(reply);
 }
 
 async function handleFile(ctx: Context, fileId: string, name: string): Promise<void> {
