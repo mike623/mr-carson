@@ -93,12 +93,14 @@ export const QueryExpensesResultSchema = z.object({
   rows: z
     .array(
       z.object({
+        expenseId: z.string(),
         date: z.string(),
         merchant: z.string(),
         name: z.string(),
         category: z.string(),
         amount: z.number(),
         currency: z.string(),
+        sourceFile: z.string().nullable(),
       }),
     )
     .max(1000),

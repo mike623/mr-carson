@@ -33,11 +33,20 @@ export async function getPending(id: string): Promise<PendingExpense> {
   return fetchJson(`/receipts/${id}`);
 }
 
-export async function ask(userId: string, message: string): Promise<{ reply: string }> {
-  return fetchJson('/agent/ask', {
+export interface AskResponse {
+  reply: string;
+  attachments: string[];
+}
+
+export async function ask(userId: string, message: string): Promise<AskResponse> {
+  const res = await fetchJson<Partial<AskResponse>>('/agent/ask', {
     method: 'POST',
     body: JSON.stringify({ userId, message }),
   });
+  return {
+    reply: res.reply ?? '',
+    attachments: Array.isArray(res.attachments) ? res.attachments : [],
+  };
 }
 
 export async function newSession(userId: string): Promise<{ threadId: string }> {

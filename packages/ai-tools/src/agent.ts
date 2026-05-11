@@ -3,7 +3,10 @@ import { getModel } from './llm.js';
 import { getMemory } from './memory.js';
 import { ocrTool } from './tools/ocr.js';
 import { extractReceiptTool } from './tools/extractReceipt.js';
-import { makeQueryExpensesTool } from './tools/queryExpenses.js';
+import {
+  makeQueryExpensesTool,
+  type AttachmentCollector,
+} from './tools/queryExpenses.js';
 import { makeAnalyticsTool } from './tools/analytics.js';
 
 const SYSTEM = `You are Mr. Carson, a careful personal-finance assistant.
@@ -15,13 +18,21 @@ Hard rules:
   invent totals or item lists.
 - Reply in short, plain sentences. Use the user's currency.
 - If the user asks something you cannot answer from tools, say so.
-- Never expose internal IDs, file paths, or raw OCR text in replies.`;
+- Never expose internal IDs, file paths, or raw OCR text in replies.
+- When the user asks about a specific spend, merchant, or receipt, the matching
+  receipt image is sent back automatically by the host — do not describe the
+  image or apologise for not having one.`;
 
 /**
  * Each request builds a fresh agent that closes over the calling userId so
- * tool executions are tenant-scoped at construction time.
+ * tool executions are tenant-scoped at construction time. An optional
+ * attachment collector is threaded into the query tool so the host can
+ * surface receipt images alongside the reply.
  */
-export function buildAgent(userId: string): Agent {
+export function buildAgent(
+  userId: string,
+  attachments?: AttachmentCollector,
+): Agent {
   return new Agent({
     name: 'mr-carson',
     instructions: SYSTEM,
@@ -30,7 +41,7 @@ export function buildAgent(userId: string): Agent {
     tools: {
       ocr: ocrTool,
       extractReceipt: extractReceiptTool,
-      queryExpenses: makeQueryExpensesTool(userId),
+      queryExpenses: makeQueryExpensesTool(userId, attachments),
       topMerchants: makeAnalyticsTool(userId),
     },
   });
@@ -44,8 +55,9 @@ export async function runAgent(
   userId: string,
   threadId: string,
   message: string,
+  attachments?: AttachmentCollector,
 ): Promise<string> {
-  const agent = buildAgent(userId);
+  const agent = buildAgent(userId, attachments);
   const result = await agent.generate(message, {
     maxSteps: 6,
     threadId,

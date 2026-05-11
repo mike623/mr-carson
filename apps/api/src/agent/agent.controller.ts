@@ -18,8 +18,7 @@ export class AgentController {
   @Post('ask')
   async ask(@Body() body: unknown) {
     const parsed = AskBody.parse(body);
-    const reply = await this.agent.ask(parsed.userId, parsed.message);
-    return { reply };
+    return this.agent.ask(parsed.userId, parsed.message);
   }
 
   @Post('new')
