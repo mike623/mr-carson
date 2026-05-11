@@ -20,9 +20,10 @@
     "docker:down": "docker compose -f infrastructure/docker/docker-compose.yml down"
   },
   "devDependencies": {
-    "@types/node": "^20.14.10",
+    "@types/node": "^20.19.40",
     "prettier": "^3.3.3",
     "turbo": "^2.1.3",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^4.1.6"
   }
 }

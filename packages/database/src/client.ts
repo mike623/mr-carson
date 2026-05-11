@@ -28,7 +28,7 @@ export async function getConnection(config: DbConfig = {}): Promise<DuckDBConnec
 export async function closeConnection(): Promise<void> {
   if (connectionPromise) {
     const conn = await connectionPromise;
-    conn.close();
+    conn.closeSync();
     connectionPromise = null;
     instancePromise = null;
   }

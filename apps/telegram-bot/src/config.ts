@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+
 function required(name: string): string {
   const v = process.env[name];
   if (!v || v.length === 0) {
@@ -15,6 +17,8 @@ export const config = {
       .filter(Boolean),
   ),
   apiUrl: process.env.API_URL ?? 'http://localhost:3000',
-  uploadsDir: process.env.UPLOADS_DIR ?? '/data/uploads',
+  // Resolve to an absolute path so the path we hand to the API resolves the
+  // same way regardless of which package's CWD the API process is running in.
+  uploadsDir: resolve(process.env.UPLOADS_DIR ?? '/data/uploads'),
   defaultCurrency: process.env.DEFAULT_CURRENCY ?? 'GBP',
 };
