@@ -166,6 +166,46 @@ describe('queryExpenses', () => {
     const result = await queryExpenses(USER, {});
     expect(result.total).toBe(0.3);
   });
+
+  it('exposes expenseId and sourceFile on each row', async () => {
+    await run('DELETE FROM expense_items');
+    await run('DELETE FROM expenses');
+    const { id: tescoId } = await insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 1.5,
+        items: [
+          { name: 'Milk', amount: 1.0, category: 'Groceries' },
+          { name: 'Bread', amount: 0.5, category: 'Groceries' },
+        ],
+      },
+      sourceFile: '/uploads/2026-05-10-tesco.jpg',
+    });
+    await insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Sainsburys',
+        date: '2026-05-11',
+        currency: 'GBP',
+        total: 2.0,
+        items: [{ name: 'Eggs', amount: 2.0, category: 'Groceries' }],
+      },
+      // sourceFile omitted — should surface as null
+    });
+    const result = await queryExpenses(USER, {});
+    const tesco = result.rows.filter((r) => r.merchant === 'Tesco');
+    expect(tesco).toHaveLength(2);
+    for (const r of tesco) {
+      expect(r.expenseId).toBe(tescoId);
+      expect(r.sourceFile).toBe('/uploads/2026-05-10-tesco.jpg');
+    }
+    const sains = result.rows.find((r) => r.merchant === 'Sainsburys');
+    expect(sains?.sourceFile).toBeNull();
+    expect(sains?.expenseId).toMatch(/^[0-9a-f-]{36}$/);
+  });
 });
 
 describe('byCategoryOverTime', () => {

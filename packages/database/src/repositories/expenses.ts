@@ -43,12 +43,14 @@ export async function insertExpense(input: InsertExpenseInput): Promise<{ id: st
 }
 
 interface ItemRow {
+  expense_id: string;
   date: string;
   merchant: string;
   name: string;
   category: string;
   amount: number;
   currency: string;
+  source_file: string | null;
 }
 
 export async function queryExpenses(
@@ -77,12 +79,14 @@ export async function queryExpenses(
 
   const sql = `
     SELECT
+      CAST(e.id AS VARCHAR) AS expense_id,
       CAST(e.date AS VARCHAR) AS date,
       e.merchant AS merchant,
       i.name AS name,
       i.category AS category,
       CAST(i.amount AS DOUBLE) AS amount,
-      e.currency AS currency
+      e.currency AS currency,
+      e.source_file AS source_file
     FROM expenses e
     JOIN expense_items i ON i.expense_id = e.id
     WHERE ${where.join(' AND ')}
@@ -99,7 +103,16 @@ export async function queryExpenses(
     total: Math.round(total * 100) / 100,
     currency,
     count: rows.length,
-    rows: rows.map((r) => ({ ...r, amount: Number(r.amount) })),
+    rows: rows.map((r) => ({
+      expenseId: r.expense_id,
+      date: r.date,
+      merchant: r.merchant,
+      name: r.name,
+      category: r.category,
+      amount: Number(r.amount),
+      currency: r.currency,
+      sourceFile: r.source_file ?? null,
+    })),
   };
 }
 

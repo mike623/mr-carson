@@ -1,7 +1,15 @@
+import { existsSync } from 'node:fs';
 import { Context, Markup, Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { config } from './config.js';
-import { ask, confirmPending, getPending, ingestReceipt, rejectPending } from './api.js';
+import {
+  ask,
+  confirmPending,
+  getPending,
+  ingestReceipt,
+  rejectPending,
+  type AskResponse,
+} from './api.js';
 import { downloadTelegramFile } from './download.js';
 import { escapeMd, formatExpensePreview } from './format.js';
 
@@ -39,21 +47,27 @@ export function createBot(): Telegraf {
   });
 
   bot.command('summary', async (ctx) => {
-    const reply = await ask(ctx.from!.id.toString(), 'Summarise my spending this month.');
-    await deliverAgentReply(ctx, reply);
+    await sendAskResponse(
+      ctx,
+      await ask(ctx.from!.id.toString(), 'Summarise my spending this month.'),
+    );
   });
 
   bot.command('categories', async (ctx) => {
-    const reply = await ask(ctx.from!.id.toString(), 'List my expense categories.');
-    await deliverAgentReply(ctx, reply);
+    await sendAskResponse(
+      ctx,
+      await ask(ctx.from!.id.toString(), 'List my expense categories.'),
+    );
   });
 
   bot.command('chart', async (ctx) => {
-    const reply = await ask(
-      ctx.from!.id.toString(),
-      'Chart my spending over the last month by category.',
+    await sendAskResponse(
+      ctx,
+      await ask(
+        ctx.from!.id.toString(),
+        'Chart my spending over the last month by category.',
+      ),
     );
-    await deliverAgentReply(ctx, reply);
   });
 
   // Photo / document handlers: ingest, then show confirmation buttons.
@@ -79,8 +93,7 @@ export function createBot(): Telegraf {
     const text = ctx.message.text;
     const userId = ctx.from.id.toString();
     await ctx.sendChatAction('typing');
-    const result = await ask(userId, text);
-    await deliverAgentReply(ctx, result);
+    await sendAskResponse(ctx, await ask(userId, text));
   });
 
   bot.action(/^confirm:(.+)$/, async (ctx) => {
@@ -128,19 +141,30 @@ export function createBot(): Telegraf {
 // Telegram caption hard limit.
 const CAPTION_MAX = 1024;
 
-async function deliverAgentReply(
-  ctx: Context,
-  result: { reply: string; imageBase64?: string },
-): Promise<void> {
-  const reply = result.reply.trim();
-  if (result.imageBase64) {
-    const buf = Buffer.from(result.imageBase64, 'base64');
+async function sendAskResponse(ctx: Context, res: AskResponse): Promise<void> {
+  const reply = res.reply.trim();
+
+  if (res.imageBase64) {
+    // Chart image: send first, with the agent's text as caption when it fits.
+    const buf = Buffer.from(res.imageBase64, 'base64');
     const caption = reply.length > 0 && reply.length <= CAPTION_MAX ? reply : undefined;
     await ctx.replyWithPhoto({ source: buf }, caption ? { caption } : undefined);
     if (reply.length > CAPTION_MAX) await ctx.reply(reply);
-    return;
+  } else if (reply.length > 0) {
+    await ctx.reply(reply);
   }
-  if (reply.length > 0) await ctx.reply(reply);
+
+  for (const path of res.attachments) {
+    // The bot and api share the uploads volume in Docker, so the same path is
+    // readable from both sides. Older receipts saved before this feature may
+    // have no source file or one that has been cleaned up — skip silently.
+    if (!existsSync(path)) continue;
+    try {
+      await ctx.replyWithPhoto({ source: path });
+    } catch {
+      // A single failed photo shouldn't blow up the whole reply.
+    }
+  }
 }
 
 async function handleFile(ctx: Context, fileId: string, name: string): Promise<void> {

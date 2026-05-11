@@ -33,12 +33,22 @@ export async function getPending(id: string): Promise<PendingExpense> {
   return fetchJson(`/receipts/${id}`);
 }
 
-export async function ask(
-  userId: string,
-  message: string,
-): Promise<{ reply: string; imageBase64?: string }> {
-  return fetchJson('/agent/ask', {
+export interface AskResponse {
+  reply: string;
+  attachments: string[];
+  imageBase64?: string;
+}
+
+export async function ask(userId: string, message: string): Promise<AskResponse> {
+  const res = await fetchJson<Partial<AskResponse>>('/agent/ask', {
     method: 'POST',
     body: JSON.stringify({ userId, message }),
   });
+  return {
+    reply: res.reply ?? '',
+    attachments: Array.isArray(res.attachments) ? res.attachments : [],
+    ...(typeof res.imageBase64 === 'string' && res.imageBase64.length > 0
+      ? { imageBase64: res.imageBase64 }
+      : {}),
+  };
 }
