@@ -55,11 +55,13 @@ export function createBot(): Telegraf {
 
   bot.on(message('document'), async (ctx) => {
     const doc = ctx.message.document;
-    if (!doc.mime_type?.startsWith('image/') && doc.mime_type !== 'application/pdf') {
-      await ctx.reply('I can only read images or PDFs.');
+    // Telegram delivers images as "documents" when the user picks them as files
+    // (no compression) — those are fine. Anything else (PDFs, etc.) is rejected.
+    if (doc.mime_type?.startsWith('image/')) {
+      await handleFile(ctx, doc.file_id, doc.file_name ?? `doc-${doc.file_unique_id}`);
       return;
     }
-    await handleFile(ctx, doc.file_id, doc.file_name ?? `doc-${doc.file_unique_id}`);
+    await ctx.reply('Please send the receipt as a photo.');
   });
 
   bot.on(message('text'), async (ctx) => {

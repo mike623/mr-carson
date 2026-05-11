@@ -5,8 +5,9 @@ expenses and answers natural-language questions about your spending.
 
 ```
 Telegram → Telegraf bot → NestJS API → Mastra Agent → Tools → DuckDB
-                                                   ↘ GLM-OCR sidecar
-                                                   ↘ Ollama (local LLM)
+                                                   ↘ Ollama
+                                                       ├── glm-ocr (OCR)
+                                                       └── mistral-small (chat + extraction)
 ```
 
 ## Stack
@@ -15,8 +16,7 @@ Telegram → Telegraf bot → NestJS API → Mastra Agent → Tools → DuckDB
 | ------------ | ----------------------------------------------------- |
 | Bot          | Telegraf (Node.js)                                    |
 | API          | NestJS + Mastra                                       |
-| LLM runtime  | Ollama (`mistral-small` by default, env-overridable)  |
-| OCR          | GLM-OCR via Python FastAPI sidecar                    |
+| LLM runtime  | Ollama — `mistral-small` for chat, `glm-ocr` for OCR  |
 | Storage      | DuckDB (single embedded file)                         |
 | Monorepo     | pnpm workspaces + Turborepo                           |
 | Local deploy | Docker Compose                                        |
@@ -27,7 +27,6 @@ Telegram → Telegraf bot → NestJS API → Mastra Agent → Tools → DuckDB
 apps/
   telegram-bot/   Telegraf entry, allow-list, photo + text handlers
   api/            NestJS app, hosts the Mastra agent over HTTP
-  ocr-service/    Python FastAPI wrapping GLM-OCR
 packages/
   shared-types/   zod schemas shared by bot, api, tools
   database/       DuckDB client, schema, repositories, seed data
@@ -48,8 +47,15 @@ infrastructure/
    pnpm db:migrate
    pnpm docker:up
    ```
-4. In Telegram, send `/start` to your bot.
-5. Send a receipt photo. The bot OCRs it, extracts items, and asks you to confirm.
+4. Pull the models inside the Ollama container (first time only):
+   ```bash
+   docker compose -f infrastructure/docker/docker-compose.yml exec ollama \
+     ollama pull glm-ocr
+   docker compose -f infrastructure/docker/docker-compose.yml exec ollama \
+     ollama pull mistral-small
+   ```
+5. In Telegram, send `/start` to your bot.
+6. Send a receipt photo. The bot OCRs it, extracts items, and asks you to confirm.
 
 ## Common commands
 
@@ -62,20 +68,25 @@ pnpm db:seed           # seed default category taxonomy
 pnpm docker:up         # full local stack (api + bot + ocr + ollama)
 ```
 
-## Required services
+## Required models
 
-- **Ollama** running with `mistral-small` (or whatever `OLLAMA_MODEL` is set to)
-  pulled: `ollama pull mistral-small`
-- **OCR sidecar** loads GLM-OCR weights from
-  [`zai-org/GLM-OCR`](https://huggingface.co/zai-org/GLM-OCR) on first start
-  (allow several GB and a few minutes the first time).
+Run inside the `ollama` container:
+
+```bash
+ollama pull glm-ocr           # 0.9B vision model — receipt OCR
+ollama pull mistral-small     # text model — chat + structured extraction
+```
+
+`glm-ocr` is [Z.ai's GLM-OCR](https://ollama.com/library/glm-ocr) — purpose-built
+for document OCR (#1 on OmniDocBench V1.5). About 2.2 GB quantized.
 
 ## Conversation flow
 
-1. User sends a photo / PDF.
+1. User sends a receipt photo.
 2. Bot uploads it to the API.
-3. API → GLM-OCR sidecar → structured (or raw) text.
-4. Mastra agent normalizes into expense JSON with category mapping.
+3. API → Ollama `glm-ocr` ("Text Recognition:") → raw receipt text.
+4. API → Ollama `mistral-small` (`extractReceipt` tool) → strict Expense JSON
+   with categories normalized against the seeded taxonomy.
 5. Bot replies with itemized preview + inline Confirm / Edit / Reject buttons.
 6. On Confirm, the API inserts into DuckDB (`expenses` + `expense_items`).
 7. User can ask follow-up questions ("How much on Pets last week?"); the agent

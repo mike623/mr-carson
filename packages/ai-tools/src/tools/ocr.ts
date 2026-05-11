@@ -1,32 +1,49 @@
+import { readFileSync } from 'node:fs';
 import { createTool } from '@mastra/core/tools';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import { OcrResultSchema } from '@mr-carson/shared-types';
+import { getOllamaProvider } from '../llm.js';
 
 /**
- * Calls the GLM-OCR Python sidecar. The sidecar returns either:
- *   { structured: Expense, rawText, confidence } - structured extraction succeeded
- *   { structured: null,    rawText, confidence } - fallback: raw text only
+ * Calls Ollama's `glm-ocr` model directly. GLM-OCR is a 0.9B vision model from
+ * Z.ai specialized for document OCR — it accepts an image plus one of three
+ * prompt prefixes: "Text Recognition:", "Formula Recognition:", "Table
+ * Recognition:". We use Text Recognition for receipts and hand the result to
+ * `extractReceipt` for structured-JSON conversion.
+ *
+ * Image-only by design: PDFs are rejected at the bot edge so we never need a
+ * rasterizer here.
  */
 export const ocrTool = createTool({
   id: 'ocr',
   description:
-    'Run GLM-OCR on a receipt file (image or PDF) and return structured JSON when possible, raw text as fallback.',
+    'Run OCR on a receipt image via Ollama glm-ocr and return the recognized text. Structured extraction is done as a follow-up step.',
   inputSchema: z.object({
-    filePath: z.string().describe('Absolute path to the receipt file on the local filesystem.'),
+    filePath: z.string().describe('Absolute path to the receipt image on disk.'),
   }),
   outputSchema: OcrResultSchema,
   execute: async ({ context }) => {
-    const url = (process.env.OCR_SERVICE_URL ?? 'http://localhost:8001') + '/ocr';
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ file_path: context.filePath }),
+    const modelId = process.env.OLLAMA_OCR_MODEL ?? 'glm-ocr';
+    const model = getOllamaProvider().chatModel(modelId);
+    const image = readFileSync(context.filePath);
+
+    const { text } = await generateText({
+      model,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'image', image },
+            { type: 'text', text: 'Text Recognition:' },
+          ],
+        },
+      ],
     });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`ocr sidecar ${res.status}: ${text}`);
-    }
-    const json = await res.json();
-    return OcrResultSchema.parse(json);
+
+    return {
+      structured: null,
+      rawText: text,
+    };
   },
 });
