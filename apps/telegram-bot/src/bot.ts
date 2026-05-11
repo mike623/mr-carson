@@ -1,7 +1,15 @@
+import { existsSync } from 'node:fs';
 import { Context, Markup, Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { config } from './config.js';
-import { ask, confirmPending, getPending, ingestReceipt, rejectPending } from './api.js';
+import {
+  ask,
+  confirmPending,
+  getPending,
+  ingestReceipt,
+  rejectPending,
+  type AskResponse,
+} from './api.js';
 import { downloadTelegramFile } from './download.js';
 import { escapeMd, formatExpensePreview } from './format.js';
 
@@ -38,13 +46,17 @@ export function createBot(): Telegraf {
   });
 
   bot.command('summary', async (ctx) => {
-    const reply = await ask(ctx.from!.id.toString(), 'Summarise my spending this month.');
-    await ctx.reply(reply.reply);
+    await sendAskResponse(
+      ctx,
+      await ask(ctx.from!.id.toString(), 'Summarise my spending this month.'),
+    );
   });
 
   bot.command('categories', async (ctx) => {
-    const reply = await ask(ctx.from!.id.toString(), 'List my expense categories.');
-    await ctx.reply(reply.reply);
+    await sendAskResponse(
+      ctx,
+      await ask(ctx.from!.id.toString(), 'List my expense categories.'),
+    );
   });
 
   // Photo / document handlers: ingest, then show confirmation buttons.
@@ -70,8 +82,7 @@ export function createBot(): Telegraf {
     const text = ctx.message.text;
     const userId = ctx.from.id.toString();
     await ctx.sendChatAction('typing');
-    const { reply } = await ask(userId, text);
-    if (reply.length > 0) await ctx.reply(reply);
+    await sendAskResponse(ctx, await ask(userId, text));
   });
 
   bot.action(/^confirm:(.+)$/, async (ctx) => {
@@ -114,6 +125,21 @@ export function createBot(): Telegraf {
   });
 
   return bot;
+}
+
+async function sendAskResponse(ctx: Context, res: AskResponse): Promise<void> {
+  if (res.reply.length > 0) await ctx.reply(res.reply);
+  for (const path of res.attachments) {
+    // The bot and api share the uploads volume in Docker, so the same path is
+    // readable from both sides. Older receipts saved before this feature may
+    // have no source file or one that has been cleaned up — skip silently.
+    if (!existsSync(path)) continue;
+    try {
+      await ctx.replyWithPhoto({ source: path });
+    } catch {
+      // A single failed photo shouldn't blow up the whole reply.
+    }
+  }
 }
 
 async function handleFile(ctx: Context, fileId: string, name: string): Promise<void> {
