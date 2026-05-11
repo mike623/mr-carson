@@ -39,3 +39,10 @@ export async function ask(userId: string, message: string): Promise<{ reply: str
     body: JSON.stringify({ userId, message }),
   });
 }
+
+export async function newSession(userId: string): Promise<{ threadId: string }> {
+  return fetchJson('/agent/new', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+}

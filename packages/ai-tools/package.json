@@ -20,6 +20,8 @@
   "dependencies": {
     "@ai-sdk/openai-compatible": "^0.2.16",
     "@mastra/core": "^0.10.0",
+    "@mastra/libsql": "^0.11.2",
+    "@mastra/memory": "^0.11.5",
     "@mr-carson/database": "workspace:*",
     "@mr-carson/shared-types": "workspace:*",
     "ai": "^4.3.0",

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { buildAgent } from '@mr-carson/ai-tools';
-import { migrate, seedCategories } from '@mr-carson/database';
+import { runAgent } from '@mr-carson/ai-tools';
+import { chatSessionsRepo, migrate, seedCategories } from '@mr-carson/database';
 
 @Injectable()
 export class AgentService {
@@ -15,8 +15,13 @@ export class AgentService {
 
   async ask(userId: string, message: string): Promise<string> {
     await this.ensureSchema();
-    const agent = buildAgent(userId);
-    const result = await agent.generate(message, { maxSteps: 6 });
-    return result.text ?? '';
+    const threadId = await chatSessionsRepo.getOrCreateActiveThread(userId);
+    return runAgent(userId, threadId, message);
+  }
+
+  async newSession(userId: string): Promise<{ threadId: string }> {
+    await this.ensureSchema();
+    const threadId = await chatSessionsRepo.rotateActiveThread(userId);
+    return { threadId };
   }
 }

@@ -1,7 +1,14 @@
 import { Context, Markup, Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { config } from './config.js';
-import { ask, confirmPending, getPending, ingestReceipt, rejectPending } from './api.js';
+import {
+  ask,
+  confirmPending,
+  getPending,
+  ingestReceipt,
+  newSession,
+  rejectPending,
+} from './api.js';
 import { downloadTelegramFile } from './download.js';
 import { escapeMd, formatExpensePreview } from './format.js';
 
@@ -29,12 +36,22 @@ export function createBot(): Telegraf {
         'Commands:',
         '/start  — say hello',
         '/help   — this message',
+        '/new    — start a fresh chat (forget prior turns)',
         '/summary — recent spend summary',
         '/categories — list categories',
         '',
         'Or just send a receipt photo, or ask in plain English.',
       ].join('\n'),
     );
+  });
+
+  bot.command('new', async (ctx) => {
+    try {
+      await newSession(ctx.from!.id.toString());
+      await ctx.reply('New chat started. I have forgotten our previous turns.');
+    } catch (err) {
+      await ctx.reply(`Could not start a new chat: ${(err as Error).message}`);
+    }
   });
 
   bot.command('summary', async (ctx) => {

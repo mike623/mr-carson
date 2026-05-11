@@ -1,5 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { getModel } from './llm.js';
+import { getMemory } from './memory.js';
 import { ocrTool } from './tools/ocr.js';
 import { extractReceiptTool } from './tools/extractReceipt.js';
 import { makeQueryExpensesTool } from './tools/queryExpenses.js';
@@ -25,6 +26,7 @@ export function buildAgent(userId: string): Agent {
     name: 'mr-carson',
     instructions: SYSTEM,
     model: getModel(),
+    memory: getMemory(),
     tools: {
       ocr: ocrTool,
       extractReceipt: extractReceiptTool,
@@ -32,4 +34,22 @@ export function buildAgent(userId: string): Agent {
       topMerchants: makeAnalyticsTool(userId),
     },
   });
+}
+
+/**
+ * Run one conversational turn. `threadId` scopes Mastra Memory recall — a new
+ * threadId starts a fresh session (see /new).
+ */
+export async function runAgent(
+  userId: string,
+  threadId: string,
+  message: string,
+): Promise<string> {
+  const agent = buildAgent(userId);
+  const result = await agent.generate(message, {
+    maxSteps: 6,
+    threadId,
+    resourceId: userId,
+  });
+  return result.text ?? '';
 }
