@@ -11,6 +11,9 @@ coverage/
 *.duckdb.wal
 /data/
 /tmp/
+*.tsbuildinfo
+apps/*/data/
+.claude/
 __pycache__/
 *.pyc
 .venv/
