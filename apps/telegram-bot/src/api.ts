@@ -52,3 +52,10 @@ export async function ask(userId: string, message: string): Promise<AskResponse>
       : {}),
   };
 }
+
+export async function newSession(userId: string): Promise<{ threadId: string }> {
+  return fetchJson('/agent/new', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+}

@@ -1,5 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { getModel } from './llm.js';
+import { getMemory } from './memory.js';
 import { ocrTool } from './tools/ocr.js';
 import { extractReceiptTool } from './tools/extractReceipt.js';
 import {
@@ -43,6 +44,7 @@ export function buildAgent(userId: string, opts: BuildAgentOptions = {}): Agent 
     name: 'mr-carson',
     instructions: SYSTEM,
     model: getModel(),
+    memory: getMemory(),
     tools: {
       ocr: ocrTool,
       extractReceipt: extractReceiptTool,
@@ -51,4 +53,24 @@ export function buildAgent(userId: string, opts: BuildAgentOptions = {}): Agent 
       chartSpending: makeChartSpendingTool(userId, chartSink),
     },
   });
+}
+
+/**
+ * Run one conversational turn. `threadId` scopes Mastra Memory recall — a new
+ * threadId starts a fresh session (see /new). `opts` lets callers harvest
+ * receipt attachments and chart images produced during the turn.
+ */
+export async function runAgent(
+  userId: string,
+  threadId: string,
+  message: string,
+  opts: BuildAgentOptions = {},
+): Promise<string> {
+  const agent = buildAgent(userId, opts);
+  const result = await agent.generate(message, {
+    maxSteps: 6,
+    threadId,
+    resourceId: userId,
+  });
+  return result.text ?? '';
 }
