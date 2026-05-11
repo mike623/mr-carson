@@ -10,3 +10,4 @@ export { makeAnalyticsTool } from './tools/analytics.js';
 export { makeChartSpendingTool, type ChartSink } from './tools/chartSpending.js';
 export { processReceipt, commitConfirmed } from './pipeline.js';
 export { getModel, getOllamaProvider } from './llm.js';
+export { JsonLogger, agentLogger } from './logger.js';
