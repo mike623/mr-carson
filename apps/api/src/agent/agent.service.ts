@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { runAgent } from '@mr-carson/ai-tools';
+import { runAgent, type ChartSink } from '@mr-carson/ai-tools';
 import { chatSessionsRepo, migrate, seedCategories } from '@mr-carson/database';
 
 export interface AskResult {
   reply: string;
   attachments: string[];
+  imageBase64?: string;
 }
 
 // Cap how many receipt images we send back per question — keeps the bot
@@ -28,10 +29,15 @@ export class AgentService {
     const threadId = await chatSessionsRepo.getOrCreateActiveThread(userId);
     const seen = new Set<string>();
     const collector = { add: (p: string) => seen.add(p) };
-    const reply = await runAgent(userId, threadId, message, collector);
+    const chartSink: ChartSink = {};
+    const reply = await runAgent(userId, threadId, message, {
+      attachments: collector,
+      chartSink,
+    });
     return {
       reply,
       attachments: Array.from(seen).slice(0, MAX_ATTACHMENTS),
+      ...(chartSink.imageBase64 ? { imageBase64: chartSink.imageBase64 } : {}),
     };
   }
 

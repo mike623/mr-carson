@@ -40,6 +40,7 @@ export function createBot(): Telegraf {
         '/help   — this message',
         '/new    — start a fresh chat (forget prior turns)',
         '/summary — recent spend summary',
+        '/chart   — spending chart, last month by category',
         '/categories — list categories',
         '',
         'Or just send a receipt photo, or ask in plain English.',
@@ -67,6 +68,16 @@ export function createBot(): Telegraf {
     await sendAskResponse(
       ctx,
       await ask(ctx.from!.id.toString(), 'List my expense categories.'),
+    );
+  });
+
+  bot.command('chart', async (ctx) => {
+    await sendAskResponse(
+      ctx,
+      await ask(
+        ctx.from!.id.toString(),
+        'Chart my spending over the last month by category.',
+      ),
     );
   });
 
@@ -138,8 +149,22 @@ export function createBot(): Telegraf {
   return bot;
 }
 
+// Telegram caption hard limit.
+const CAPTION_MAX = 1024;
+
 async function sendAskResponse(ctx: Context, res: AskResponse): Promise<void> {
-  if (res.reply.length > 0) await ctx.reply(res.reply);
+  const reply = res.reply.trim();
+
+  if (res.imageBase64) {
+    // Chart image: send first, with the agent's text as caption when it fits.
+    const buf = Buffer.from(res.imageBase64, 'base64');
+    const caption = reply.length > 0 && reply.length <= CAPTION_MAX ? reply : undefined;
+    await ctx.replyWithPhoto({ source: buf }, caption ? { caption } : undefined);
+    if (reply.length > CAPTION_MAX) await ctx.reply(reply);
+  } else if (reply.length > 0) {
+    await ctx.reply(reply);
+  }
+
   for (const path of res.attachments) {
     // The bot and api share the uploads volume in Docker, so the same path is
     // readable from both sides. Older receipts saved before this feature may

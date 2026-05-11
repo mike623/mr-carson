@@ -107,6 +107,40 @@ export const QueryExpensesResultSchema = z.object({
 });
 export type QueryExpensesResult = z.infer<typeof QueryExpensesResultSchema>;
 
+export const GranularitySchema = z.enum(['day', 'week', 'month']);
+export type Granularity = z.infer<typeof GranularitySchema>;
+
+export const ChartTypeSchema = z.enum(['bar', 'line', 'pie', 'doughnut']);
+export type ChartType = z.infer<typeof ChartTypeSchema>;
+
+export const ChartSpendingArgsSchema = z.object({
+  category: z.string().optional(),
+  dateRange: DateRangeSchema.optional(),
+  startDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  granularity: GranularitySchema.optional(),
+  chartType: ChartTypeSchema.optional(),
+  stacked: z.boolean().optional(),
+});
+export type ChartSpendingArgs = z.infer<typeof ChartSpendingArgsSchema>;
+
+export const ChartSpendingResultSchema = z.object({
+  summary: z.string(),
+  chartType: ChartTypeSchema,
+  granularity: GranularitySchema,
+  currency: z.string(),
+  totalsByCategory: z.array(z.object({ category: z.string(), total: z.number() })),
+  buckets: z.array(z.string()),
+  imageBase64: z.string(),
+});
+export type ChartSpendingResult = z.infer<typeof ChartSpendingResultSchema>;
+
 export const OcrResultSchema = z.object({
   structured: ExpenseSchema.nullable(),
   rawText: z.string(),

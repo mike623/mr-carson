@@ -8,31 +8,38 @@ import {
   type AttachmentCollector,
 } from './tools/queryExpenses.js';
 import { makeAnalyticsTool } from './tools/analytics.js';
+import { makeChartSpendingTool, type ChartSink } from './tools/chartSpending.js';
 
 const SYSTEM = `You are Mr. Carson, a careful personal-finance assistant.
 
 You help one user track and query their expenses.
 
 Hard rules:
-- For data questions, ALWAYS call a tool (queryExpenses or topMerchants). Never
-  invent totals or item lists.
+- For numeric data questions, ALWAYS call a tool (queryExpenses, topMerchants, or chartSpending). Never invent totals or item lists.
+- When the user asks to "show", "chart", "graph", "visualize", "plot", or see a "trend" / "breakdown" / "by category", call chartSpending. The chart image is delivered to the user automatically; in your text reply, briefly describe what is on the chart instead of restating every number.
 - Reply in short, plain sentences. Use the user's currency.
 - If the user asks something you cannot answer from tools, say so.
-- Never expose internal IDs, file paths, or raw OCR text in replies.
+- Never expose internal IDs, file paths, raw OCR text, or base64 image data in replies.
 - When the user asks about a specific spend, merchant, or receipt, the matching
   receipt image is sent back automatically by the host — do not describe the
   image or apologise for not having one.`;
 
+export interface BuildAgentOptions {
+  chartSink?: ChartSink;
+  attachments?: AttachmentCollector;
+}
+
 /**
  * Each request builds a fresh agent that closes over the calling userId so
- * tool executions are tenant-scoped at construction time. An optional
- * attachment collector is threaded into the query tool so the host can
- * surface receipt images alongside the reply.
+ * tool executions are tenant-scoped at construction time.
+ *
+ * - `attachments` is threaded into queryExpenses so the host can surface
+ *   the original receipt image alongside the reply.
+ * - `chartSink` captures the PNG produced by chartSpending so the host can
+ *   deliver it to the user.
  */
-export function buildAgent(
-  userId: string,
-  attachments?: AttachmentCollector,
-): Agent {
+export function buildAgent(userId: string, opts: BuildAgentOptions = {}): Agent {
+  const chartSink: ChartSink = opts.chartSink ?? {};
   return new Agent({
     name: 'mr-carson',
     instructions: SYSTEM,
@@ -41,23 +48,25 @@ export function buildAgent(
     tools: {
       ocr: ocrTool,
       extractReceipt: extractReceiptTool,
-      queryExpenses: makeQueryExpensesTool(userId, attachments),
+      queryExpenses: makeQueryExpensesTool(userId, opts.attachments),
       topMerchants: makeAnalyticsTool(userId),
+      chartSpending: makeChartSpendingTool(userId, chartSink),
     },
   });
 }
 
 /**
  * Run one conversational turn. `threadId` scopes Mastra Memory recall — a new
- * threadId starts a fresh session (see /new).
+ * threadId starts a fresh session (see /new). `opts` lets callers harvest
+ * receipt attachments and chart images produced during the turn.
  */
 export async function runAgent(
   userId: string,
   threadId: string,
   message: string,
-  attachments?: AttachmentCollector,
+  opts: BuildAgentOptions = {},
 ): Promise<string> {
-  const agent = buildAgent(userId, attachments);
+  const agent = buildAgent(userId, opts);
   const result = await agent.generate(message, {
     maxSteps: 6,
     threadId,

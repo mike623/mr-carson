@@ -1,4 +1,4 @@
-export { buildAgent, runAgent } from './agent.js';
+export { buildAgent, runAgent, type BuildAgentOptions } from './agent.js';
 export { getMemory } from './memory.js';
 export { ocrTool } from './tools/ocr.js';
 export { extractReceiptTool } from './tools/extractReceipt.js';
@@ -7,5 +7,6 @@ export {
   type AttachmentCollector,
 } from './tools/queryExpenses.js';
 export { makeAnalyticsTool } from './tools/analytics.js';
+export { makeChartSpendingTool, type ChartSink } from './tools/chartSpending.js';
 export { processReceipt, commitConfirmed } from './pipeline.js';
 export { getModel, getOllamaProvider } from './llm.js';

@@ -36,6 +36,7 @@ export async function getPending(id: string): Promise<PendingExpense> {
 export interface AskResponse {
   reply: string;
   attachments: string[];
+  imageBase64?: string;
 }
 
 export async function ask(userId: string, message: string): Promise<AskResponse> {
@@ -46,6 +47,9 @@ export async function ask(userId: string, message: string): Promise<AskResponse>
   return {
     reply: res.reply ?? '',
     attachments: Array.isArray(res.attachments) ? res.attachments : [],
+    ...(typeof res.imageBase64 === 'string' && res.imageBase64.length > 0
+      ? { imageBase64: res.imageBase64 }
+      : {}),
   };
 }
 

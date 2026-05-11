@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { closeConnection, run } from '../client.js';
 import { migrate } from '../migrate.js';
 import { seedCategories } from '../seed.js';
-import { insertExpense, queryExpenses, topMerchants } from './expenses.js';
+import { byCategoryOverTime, insertExpense, queryExpenses, topMerchants } from './expenses.js';
 
 let tmp: string;
 
@@ -205,6 +205,109 @@ describe('queryExpenses', () => {
     const sains = result.rows.find((r) => r.merchant === 'Sainsburys');
     expect(sains?.sourceFile).toBeNull();
     expect(sains?.expenseId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
+
+describe('byCategoryOverTime', () => {
+  beforeEach(async () => {
+    // Three weeks of mixed categories for USER + one cross-user row.
+    await insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-04-06', // Mon, ISO week 15
+        currency: 'GBP',
+        total: 5,
+        items: [{ name: 'Milk', amount: 5, category: 'Groceries' }],
+      },
+    });
+    await insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-04-08',
+        currency: 'GBP',
+        total: 3,
+        items: [{ name: 'Bread', amount: 3, category: 'Groceries' }],
+      },
+    });
+    await insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Pets at Home',
+        date: '2026-04-13', // ISO week 16
+        currency: 'GBP',
+        total: 10,
+        items: [{ name: 'Cat food', amount: 10, category: 'Pets' }],
+      },
+    });
+    await insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-04-20', // ISO week 17
+        currency: 'GBP',
+        total: 7,
+        items: [{ name: 'Eggs', amount: 7, category: 'Groceries' }],
+      },
+    });
+    await insertExpense({
+      userId: 'other-user',
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-04-06',
+        currency: 'GBP',
+        total: 999,
+        items: [{ name: 'Leak', amount: 999, category: 'Groceries' }],
+      },
+    });
+  });
+
+  it('groups by week and category, isolated per user', async () => {
+    const result = await byCategoryOverTime(USER, {
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      granularity: 'week',
+    });
+    // 2 weeks × Groceries (wk15, wk17) + 1 week × Pets (wk16) = 3 rows.
+    expect(result.rows).toHaveLength(3);
+    expect(result.granularity).toBe('week');
+    // No 999 leak.
+    expect(result.rows.every((r) => r.total < 100)).toBe(true);
+
+    const groceriesWk15 = result.rows.find(
+      (r) => r.bucket === '2026-04-06' && r.category === 'Groceries',
+    );
+    expect(groceriesWk15?.total).toBe(8); // 5 + 3
+    const petsWk16 = result.rows.find(
+      (r) => r.bucket === '2026-04-13' && r.category === 'Pets',
+    );
+    expect(petsWk16?.total).toBe(10);
+  });
+
+  it('honours month granularity', async () => {
+    const result = await byCategoryOverTime(USER, {
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      granularity: 'month',
+    });
+    // One bucket (April) × 2 categories.
+    const buckets = new Set(result.rows.map((r) => r.bucket));
+    expect(buckets.size).toBe(1);
+    expect([...buckets][0]).toBe('2026-04-01');
+    expect(result.rows.length).toBe(2);
+  });
+
+  it('filters by category', async () => {
+    const result = await byCategoryOverTime(USER, {
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      granularity: 'week',
+      category: 'Pets',
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].category).toBe('Pets');
+    expect(result.rows[0].total).toBe(10);
   });
 });
 
