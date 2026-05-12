@@ -9,7 +9,7 @@ import {
   makeQueryExpensesTool,
   type AttachmentCollector,
 } from './tools/queryExpenses.js';
-import { makeAnalyticsTool } from './tools/analytics.js';
+import { analyticsTool } from './tools/analytics.js';
 import { makeChartSpendingTool, type ChartSink } from './tools/chartSpending.js';
 
 const SYSTEM = `You are Mr. Carson, a careful personal-finance assistant.
@@ -51,7 +51,7 @@ export function buildAgent(userId: string, opts: BuildAgentOptions = {}): Agent 
       ocr: ocrTool,
       extractReceipt: extractReceiptTool,
       queryExpenses: makeQueryExpensesTool(userId, opts.attachments),
-      topMerchants: makeAnalyticsTool(userId),
+      topMerchants: analyticsTool,
       chartSpending: makeChartSpendingTool(userId, chartSink),
     },
   });
