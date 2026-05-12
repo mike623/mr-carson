@@ -7,6 +7,7 @@
     "build": "tsc",
     "dev": "dotenv -e ../../.env -- tsx watch src/main.ts",
     "start": "node dist/main.js",
+    "studio": "dotenv -e ../../.env -- mastra dev --dir src",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "clean": "rm -rf dist .turbo"

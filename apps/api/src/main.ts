@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { z, ZodError } from 'zod'
+import './mastra.js'   // bootstraps OTel before any agent runs
 import { migrate, seedCategories, pendingRepo, chatSessionsRepo } from '@mr-carson/database'
 import { runAgent } from './agent.js'
 import type { ChartSink } from './tools/chartSpending.js'
