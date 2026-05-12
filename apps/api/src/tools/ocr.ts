@@ -23,10 +23,10 @@ export const ocrTool = createTool({
     filePath: z.string().describe('Absolute path to the receipt image on disk.'),
   }),
   outputSchema: OcrResultSchema,
-  execute: async ({ context }) => {
+  execute: async (inputData) => {
     const modelId = process.env.OLLAMA_OCR_MODEL ?? 'glm-ocr';
     const model = getOllamaProvider().chatModel(modelId);
-    const image = readFileSync(context.filePath);
+    const image = readFileSync(inputData.filePath);
 
     const { text } = await generateText({
       model,

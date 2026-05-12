@@ -31,33 +31,3 @@ export const queryExpensesTool = createTool({
     return result;
   },
 });
-
-/**
- * @deprecated Use queryExpensesTool directly with requestContext instead.
- * Factory kept for backward compatibility during migration to @mastra/core v1.
- */
-export function makeQueryExpensesTool(
-  userId: string,
-  attachments?: AttachmentCollector,
-) {
-  return createTool({
-    id: 'queryExpenses',
-    description:
-      "Aggregate the user's expenses by optional category / merchant / date range. Returns matching line items and the total.",
-    inputSchema: QueryExpensesArgsSchema,
-    outputSchema: QueryExpensesResultSchema,
-    execute: async ({ context }) => {
-      const result = await expensesRepo.queryExpenses(userId, context);
-      if (attachments) {
-        const seen = new Set<string>();
-        for (const row of result.rows) {
-          if (row.sourceFile && !seen.has(row.sourceFile)) {
-            seen.add(row.sourceFile);
-            attachments.add(row.sourceFile);
-          }
-        }
-      }
-      return result;
-    },
-  });
-}
