@@ -9,7 +9,7 @@ import {
   run,
   seedCategories,
 } from '@mr-carson/database';
-import { makeQueryExpensesTool } from './queryExpenses.js';
+import { queryExpensesTool } from './queryExpenses.js';
 
 let tmp: string;
 
@@ -32,7 +32,7 @@ beforeEach(async () => {
 
 const USER = 'u-1';
 
-describe('makeQueryExpensesTool', () => {
+describe('queryExpensesTool', () => {
   it('collects distinct non-null sourceFiles from result rows', async () => {
     await expensesRepo.insertExpense({
       userId: USER,
@@ -72,11 +72,12 @@ describe('makeQueryExpensesTool', () => {
     });
 
     const collected: string[] = [];
-    const tool = makeQueryExpensesTool(USER, {
-      add: (p) => collected.push(p),
-    });
+    const mockRequestContext = new Map([
+      ['userId', USER],
+      ['attachments', { add: (p: string) => collected.push(p) }],
+    ]);
 
-    const result = await tool.execute!({ context: {} } as never);
+    const result = await queryExpensesTool.execute!({}, { requestContext: mockRequestContext } as never);
     expect(result.count).toBe(4);
     expect(collected.sort()).toEqual(['/uploads/pets.jpg', '/uploads/tesco.jpg']);
   });
@@ -97,10 +98,11 @@ describe('makeQueryExpensesTool', () => {
       sourceFile: '/uploads/tesco.jpg',
     });
     const collected: string[] = [];
-    const tool = makeQueryExpensesTool(USER, {
-      add: (p) => collected.push(p),
-    });
-    await tool.execute!({ context: {} } as never);
+    const mockRequestContext = new Map([
+      ['userId', USER],
+      ['attachments', { add: (p: string) => collected.push(p) }],
+    ]);
+    await queryExpensesTool.execute!({}, { requestContext: mockRequestContext } as never);
     expect(collected).toEqual(['/uploads/tesco.jpg']);
   });
 
@@ -116,8 +118,8 @@ describe('makeQueryExpensesTool', () => {
       },
       sourceFile: '/uploads/tesco.jpg',
     });
-    const tool = makeQueryExpensesTool(USER);
-    const result = await tool.execute!({ context: {} } as never);
+    const mockRequestContext = new Map([['userId', USER]]);
+    const result = await queryExpensesTool.execute!({}, { requestContext: mockRequestContext } as never);
     expect(result.count).toBe(1);
   });
 });
