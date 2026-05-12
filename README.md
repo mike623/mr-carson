@@ -4,10 +4,10 @@ A local-first, privacy-respecting Telegram bot that turns receipt photos into st
 expenses and answers natural-language questions about your spending.
 
 ```
-Telegram → Telegraf bot → NestJS API → Mastra Agent → Tools → DuckDB
-                                                   ↘ Ollama
-                                                       ├── glm-ocr (OCR)
-                                                       └── mistral-small (chat + extraction)
+Telegram → Telegraf bot → Hono API → Mastra Agent → Tools → DuckDB
+                                                  ↘ Ollama
+                                                      ├── glm-ocr (OCR)
+                                                      └── mistral-small (chat + extraction)
 ```
 
 ## Stack
@@ -15,9 +15,9 @@ Telegram → Telegraf bot → NestJS API → Mastra Agent → Tools → DuckDB
 | Layer        | Choice                                                |
 | ------------ | ----------------------------------------------------- |
 | Bot          | Telegraf (Node.js)                                    |
-| API          | NestJS + Mastra                                       |
+| API          | Hono + Mastra                                         |
 | LLM runtime  | Ollama — `mistral-small` for chat, `glm-ocr` for OCR  |
-| Storage      | DuckDB (single embedded file)                         |
+| Storage      | DuckDB (expenses) + LibSQL (conversation memory)      |
 | Monorepo     | pnpm workspaces + Turborepo                           |
 | Local deploy | Docker Compose                                        |
 
@@ -26,11 +26,10 @@ Telegram → Telegraf bot → NestJS API → Mastra Agent → Tools → DuckDB
 ```
 apps/
   telegram-bot/   Telegraf entry, allow-list, photo + text handlers
-  api/            NestJS app, hosts the Mastra agent over HTTP
+  api/            Hono server + Mastra agent + all AI tools
 packages/
-  shared-types/   zod schemas shared by bot, api, tools
+  shared-types/   Zod schemas shared by bot and api
   database/       DuckDB client, schema, repositories, seed data
-  ai-tools/       Mastra agent + tools (ocr, extract, insert, query, analytics)
 infrastructure/
   docker/         docker-compose.yml + Dockerfiles
 ```
