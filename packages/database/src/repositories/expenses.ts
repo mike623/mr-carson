@@ -12,8 +12,8 @@ export interface InsertExpenseInput {
 export async function insertExpense(input: InsertExpenseInput): Promise<{ id: string }> {
   const id = uuid();
   await run(
-    `INSERT INTO expenses (id, user_id, merchant, date, currency, total, source_file)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO expenses (id, user_id, merchant, date, currency, total, vat, source_file)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.userId,
@@ -21,6 +21,7 @@ export async function insertExpense(input: InsertExpenseInput): Promise<{ id: st
       input.expense.date,
       input.expense.currency,
       input.expense.total,
+      input.expense.vat ?? 0,
       input.sourceFile ?? null,
     ],
   );

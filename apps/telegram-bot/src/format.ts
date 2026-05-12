@@ -31,6 +31,9 @@ export function formatExpensePreview(expense: Expense): string {
     );
   }
   lines.push('');
+  if (expense.vat && expense.vat > 0) {
+    lines.push(`*VAT:* ${escapeMd(money(expense.vat, expense.currency))}`);
+  }
   lines.push(`*Total:* ${escapeMd(money(expense.total, expense.currency))}`);
   return lines.join('\n');
 }
