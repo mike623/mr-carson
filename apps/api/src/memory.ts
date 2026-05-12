@@ -20,7 +20,7 @@ function memoryDbUrl(): string {
 export function getMemory(): Memory {
   if (singleton) return singleton;
   singleton = new Memory({
-    storage: new LibSQLStore({ url: memoryDbUrl() }),
+    storage: new LibSQLStore({ id: 'mr-carson-memory', url: memoryDbUrl() }),
     options: {
       lastMessages: 20,
     },
