@@ -20,9 +20,16 @@ CREATE TABLE IF NOT EXISTS expenses (
   date DATE NOT NULL,
   currency TEXT NOT NULL,
   total DECIMAL(12, 2) NOT NULL,
+  vat DECIMAL(12, 2) DEFAULT 0,
   source_file TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT now()
 );
+
+-- Backfill: existing DBs predate the vat column. DuckDB doesn't allow
+-- NOT NULL on ALTER ADD COLUMN, so we add nullable + DEFAULT 0, then
+-- backfill any rows that didn't get the default to 0.
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS vat DECIMAL(12, 2) DEFAULT 0;
+UPDATE expenses SET vat = 0 WHERE vat IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses (user_id, date);
 CREATE INDEX IF NOT EXISTS idx_expenses_user_merchant ON expenses (user_id, merchant);

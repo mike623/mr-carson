@@ -12,6 +12,7 @@ Rules:
 - Skip subtotal, tax, and duplicate total rows. Only include real line items.
 - Do NOT invent items. If a line is ambiguous, omit it.
 - "total" must equal the receipt's grand total, not the sum of items.
+- "vat" must equal the VAT/tax amount printed on the receipt (look for "VAT", "Tax", "GST", "Sales Tax", "TVA", "MwSt"). If no VAT line is present, set vat to 0.
 - "date" must be YYYY-MM-DD. If absent, use today's date.
 - "currency" must be a 3-letter ISO code. If unknown, use the provided default.
 - "category" for each item must be chosen from the allowed list. Use "Other" if uncertain.`;
