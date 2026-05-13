@@ -16,6 +16,8 @@
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "db:migrate": "pnpm --filter @mr-carson/database migrate",
     "db:seed": "pnpm --filter @mr-carson/database seed",
+    "db:backup": "pnpm --filter @mr-carson/database backup",
+    "db:export-csv": "pnpm --filter @mr-carson/database export-csv",
     "docker:up": "docker compose -f infrastructure/docker/docker-compose.yml up --build",
     "docker:down": "docker compose -f infrastructure/docker/docker-compose.yml down"
   },
