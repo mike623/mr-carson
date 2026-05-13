@@ -7,6 +7,7 @@
     "build": "tsc",
     "dev": "dotenv -e ../../.env -- tsx watch src/main.ts",
     "start": "node dist/main.js",
+    "studio": "dotenv -e ../../.env -- mastra dev --dir src",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "clean": "rm -rf dist .turbo"
@@ -16,9 +17,11 @@
     "@mr-carson/database": "workspace:*",
     "@mr-carson/shared-types": "workspace:*",
     "@ai-sdk/openai-compatible": "^0.2.16",
-    "@mastra/core": "^0.11.1",
-    "@mastra/libsql": "^0.11.2",
-    "@mastra/memory": "^0.11.5",
+    "@mastra/core": "^1.32.1",
+    "@mastra/libsql": "^1.0.0",
+    "@mastra/memory": "^1.0.0",
+    "@mastra/observability": "^1.11.1",
+    "@mastra/duckdb": "^1.0.0",
     "ai": "^4.3.0",
     "hono": "^4.7.10",
     "zod": "^3.23.8"

@@ -1,16 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { Agent } from '@mastra/core/agent';
+import { RequestContext } from '@mastra/core/request-context';
 import { getModel } from './llm.js';
 import { getMemory } from './memory.js';
 import { agentLogger } from './logger.js';
 import { ocrTool } from './tools/ocr.js';
 import { extractReceiptTool } from './tools/extractReceipt.js';
-import {
-  makeQueryExpensesTool,
-  type AttachmentCollector,
-} from './tools/queryExpenses.js';
-import { makeAnalyticsTool } from './tools/analytics.js';
-import { makeChartSpendingTool, type ChartSink } from './tools/chartSpending.js';
+import { queryExpensesTool } from './tools/queryExpenses.js';
+import type { AttachmentCollector } from './tools/queryExpenses.js';
+import { analyticsTool } from './tools/analytics.js';
+import { chartSpendingTool } from './tools/chartSpending.js';
+import type { ChartSink } from './tools/chartSpending.js';
 
 const SYSTEM = `You are Mr. Carson, a careful personal-finance assistant.
 
@@ -26,40 +26,25 @@ Hard rules:
   receipt image is sent back automatically by the host — do not describe the
   image or apologise for not having one.`;
 
-export interface BuildAgentOptions {
+export interface RunAgentOptions {
   chartSink?: ChartSink;
   attachments?: AttachmentCollector;
 }
 
-/**
- * Each request builds a fresh agent that closes over the calling userId so
- * tool executions are tenant-scoped at construction time.
- *
- * - `attachments` is threaded into queryExpenses so the host can surface
- *   the original receipt image alongside the reply.
- * - `chartSink` captures the PNG produced by chartSpending so the host can
- *   deliver it to the user.
- */
-export function buildAgent(userId: string, opts: BuildAgentOptions = {}): Agent {
-  const chartSink: ChartSink = opts.chartSink ?? {};
-  const agent = new Agent({
-    name: 'mr-carson',
-    instructions: SYSTEM,
-    model: getModel(),
-    memory: getMemory(),
-    tools: {
-      ocr: ocrTool,
-      extractReceipt: extractReceiptTool,
-      queryExpenses: makeQueryExpensesTool(userId, opts.attachments),
-      topMerchants: makeAnalyticsTool(userId),
-      chartSpending: makeChartSpendingTool(userId, chartSink),
-    },
-  });
-  // Routes Mastra's internal debug stream (memory, tool dispatch, LLM calls)
-  // through our structured JSON logger.
-  agent.__setLogger(agentLogger);
-  return agent;
-}
+export const mrCarsonAgent = new Agent({
+  id: 'mr-carson',
+  name: 'mr-carson',
+  instructions: SYSTEM,
+  model: getModel(),
+  memory: getMemory(),
+  tools: {
+    ocr: ocrTool,
+    extractReceipt: extractReceiptTool,
+    queryExpenses: queryExpensesTool,
+    topMerchants: analyticsTool,
+    chartSpending: chartSpendingTool,
+  },
+});
 
 function preview(s: string, n = 500): string {
   return s.length > n ? `${s.slice(0, n)}…(+${s.length - n})` : s;
@@ -123,7 +108,7 @@ export async function runAgent(
   userId: string,
   threadId: string,
   message: string,
-  opts: BuildAgentOptions = {},
+  opts: RunAgentOptions = {},
 ): Promise<string> {
   const runId = randomUUID();
   const startedAt = Date.now();
@@ -137,13 +122,17 @@ export async function runAgent(
     hasChartSink: Boolean(opts.chartSink),
   });
 
-  const agent = buildAgent(userId, opts);
+  const ctx = new RequestContext();
+  ctx.set('userId', userId);
+  if (opts.attachments) ctx.set('attachments', opts.attachments);
+  if (opts.chartSink) ctx.set('sink', opts.chartSink);
+
   try {
-    const result = await agent.generate(message, {
+    const result = await mrCarsonAgent.generate(message, {
       maxSteps: 6,
-      threadId,
-      resourceId: userId,
+      memory: { thread: threadId, resource: userId },
       runId,
+      requestContext: ctx,
       onStepFinish: ((step: StepLike) => {
         agentLogger.info('agent.step', { runId, ...summarizeStep(step) });
       }) as never,

@@ -30,12 +30,12 @@ export const extractReceiptTool = createTool({
       .optional(),
   }),
   outputSchema: ExpenseSchema,
-  execute: async ({ context }) => {
+  execute: async (inputData) => {
     const allowedCategories = await categoriesRepo
       .listCategories()
       .catch(() => [...DEFAULT_CATEGORIES]);
-    const defaultCurrency = context.defaultCurrency ?? process.env.DEFAULT_CURRENCY ?? 'GBP';
-    const today = context.today ?? new Date().toISOString().slice(0, 10);
+    const defaultCurrency = inputData.defaultCurrency ?? process.env.DEFAULT_CURRENCY ?? 'GBP';
+    const today = inputData.today ?? new Date().toISOString().slice(0, 10);
 
     const prompt = `Allowed categories: ${allowedCategories.join(', ')}
 Default currency: ${defaultCurrency}
@@ -43,7 +43,7 @@ Today's date: ${today}
 
 OCR text:
 """
-${context.rawText}
+${inputData.rawText}
 """`;
 
     const { object } = await generateObject({

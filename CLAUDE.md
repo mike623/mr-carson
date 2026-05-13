@@ -25,6 +25,7 @@ pnpm test                         # vitest across workspace
 pnpm --filter @mr-carson/api typecheck
 pnpm --filter @mr-carson/api test
 pnpm --filter @mr-carson/api test -- src/tools/chartSpending.test.ts
+pnpm --filter @mr-carson/api studio   # Mastra Studio at localhost:4111
 
 # Database
 pnpm db:migrate                   # apply DuckDB schema

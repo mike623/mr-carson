@@ -121,92 +121,68 @@ async function renderViaQuickChart(config: object): Promise<string> {
   return buf.toString('base64');
 }
 
-export function makeChartSpendingTool(userId: string, sink: ChartSink) {
-  return createTool({
-    id: 'chartSpending',
-    description:
-      'Render a chart of the user\'s spending over a date range, grouped by category. ' +
-      'Use this whenever the user asks to "show", "chart", "graph", "visualize", or see a "trend" / "breakdown" of spending. ' +
-      'Returns a summary; the chart image is delivered separately to the user.',
-    inputSchema: ChartSpendingArgsSchema,
-    outputSchema: ChartSpendingResultSchema,
-    execute: async ({ context }) => {
-      const { rows, granularity, currency } = await expensesRepo.byCategoryOverTime(userId, {
-        dateRange: context.dateRange,
-        startDate: context.startDate,
-        endDate: context.endDate,
-        category: context.category,
-        granularity: context.granularity,
-      });
+export const chartSpendingTool = createTool({
+  id: 'chartSpending',
+  description:
+    'Render a chart of the user\'s spending over a date range, grouped by category. ' +
+    'Use this whenever the user asks to "show", "chart", "graph", "visualize", or see a "trend" / "breakdown" of spending. ' +
+    'Returns a summary; the chart image is delivered separately to the user.',
+  inputSchema: ChartSpendingArgsSchema,
+  outputSchema: ChartSpendingResultSchema,
+  execute: async (inputData, { requestContext }) => {
+    const userId = requestContext?.get('userId') as string;
+    const sink = requestContext?.get('sink') as ChartSink | undefined;
 
-      const buckets = Array.from(new Set(rows.map((r) => r.bucket))).sort();
-      const categories = Array.from(new Set(rows.map((r) => r.category))).sort();
-      const matrix: number[][] = buckets.map(() => categories.map(() => 0));
-      const bucketIdx = new Map(buckets.map((b, i) => [b, i]));
-      const catIdx = new Map(categories.map((c, i) => [c, i]));
-      for (const r of rows) {
-        const bi = bucketIdx.get(r.bucket)!;
-        const ci = catIdx.get(r.category)!;
-        matrix[bi]![ci] = r.total;
-      }
+    const { rows, granularity, currency } = await expensesRepo.byCategoryOverTime(userId, {
+      dateRange: inputData.dateRange,
+      startDate: inputData.startDate,
+      endDate: inputData.endDate,
+      category: inputData.category,
+      granularity: inputData.granularity,
+    });
 
-      const totalsByCategory = categories
-        .map((cat) => ({
-          category: cat,
-          total: Math.round(
-            matrix.reduce((acc, row) => acc + (row[catIdx.get(cat)!] ?? 0), 0) * 100,
-          ) / 100,
-        }))
-        .sort((a, b) => b.total - a.total);
+    const buckets = Array.from(new Set(rows.map((r) => r.bucket))).sort();
+    const categories = Array.from(new Set(rows.map((r) => r.category))).sort();
+    const matrix: number[][] = buckets.map(() => categories.map(() => 0));
+    const bucketIdx = new Map(buckets.map((b, i) => [b, i]));
+    const catIdx = new Map(categories.map((c, i) => [c, i]));
+    for (const r of rows) {
+      const bi = bucketIdx.get(r.bucket)!;
+      const ci = catIdx.get(r.category)!;
+      matrix[bi]![ci] = r.total;
+    }
 
-      const grandTotal = totalsByCategory.reduce((a, b) => a + b.total, 0);
-      const chartType = pickChartType(context.chartType, buckets.length, categories.length);
-      const stacked = context.stacked ?? true;
+    const totalsByCategory = categories
+      .map((cat) => ({
+        category: cat,
+        total: Math.round(
+          matrix.reduce((acc, row) => acc + (row[catIdx.get(cat)!] ?? 0), 0) * 100,
+        ) / 100,
+      }))
+      .sort((a, b) => b.total - a.total);
 
-      const summary =
-        grandTotal === 0
-          ? 'No spending found in that range.'
-          : `Spent ${currency} ${grandTotal.toFixed(2)} across ${categories.length} categories over ${buckets.length} ${granularity}(s). Top: ${totalsByCategory
-              .slice(0, 3)
-              .map((c) => `${c.category} ${currency} ${c.total.toFixed(2)}`)
-              .join(', ')}.`;
+    const grandTotal = totalsByCategory.reduce((a, b) => a + b.total, 0);
+    const chartType = pickChartType(inputData.chartType, buckets.length, categories.length);
+    const stacked = inputData.stacked ?? true;
 
-      if (grandTotal === 0) {
-        return {
-          summary,
-          chartType,
-          granularity,
-          currency,
-          totalsByCategory,
-          buckets,
-          imageBase64: '',
-        };
-      }
+    const summary =
+      grandTotal === 0
+        ? 'No spending found in that range.'
+        : `Spent ${currency} ${grandTotal.toFixed(2)} across ${categories.length} categories over ${buckets.length} ${granularity}(s). Top: ${totalsByCategory
+            .slice(0, 3)
+            .map((c) => `${c.category} ${currency} ${c.total.toFixed(2)}`)
+            .join(', ')}.`;
 
-      const config = buildChartConfig({
-        buckets,
-        categories,
-        matrix,
-        totalsByCategory,
-        chartType,
-        currency,
-        stacked,
-      });
+    if (grandTotal === 0) {
+      return { summary, chartType, granularity, currency, totalsByCategory, buckets, imageBase64: '' };
+    }
 
-      const imageBase64 = await renderViaQuickChart(config);
-      sink.imageBase64 = imageBase64;
+    const config = buildChartConfig({ buckets, categories, matrix, totalsByCategory, chartType, currency, stacked });
+    const imageBase64 = await renderViaQuickChart(config);
+    if (sink) sink.imageBase64 = imageBase64;
 
-      return {
-        summary,
-        chartType,
-        granularity,
-        currency,
-        totalsByCategory,
-        buckets,
-        imageBase64,
-      };
-    },
-  });
-}
+    return { summary, chartType, granularity, currency, totalsByCategory, buckets, imageBase64 };
+  },
+});
 
 export { defaultGranularity, buildChartConfig };

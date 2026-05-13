@@ -17,9 +17,7 @@ export async function processReceipt(opts: {
   pendingId: string;
   filePath: string;
 }): Promise<Expense> {
-  const ocr: OcrResult = await ocrTool.execute!({
-    context: { filePath: opts.filePath },
-  } as never);
+  const ocr: OcrResult = await ocrTool.execute!({ filePath: opts.filePath }, {} as never) as OcrResult;
 
   await pendingRepo.setPendingOcr(opts.pendingId, ocr.rawText);
 
@@ -27,9 +25,7 @@ export async function processReceipt(opts: {
   if (ocr.structured) {
     expense = ExpenseSchema.parse(ocr.structured);
   } else {
-    expense = (await extractReceiptTool.execute!({
-      context: { rawText: ocr.rawText },
-    } as never)) as Expense;
+    expense = await extractReceiptTool.execute!({ rawText: ocr.rawText }, {} as never) as Expense;
   }
 
   await pendingRepo.setPendingExtraction(opts.pendingId, expense);
