@@ -16,6 +16,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "migrate": "tsx src/cli/migrate.ts",
     "seed": "tsx src/cli/seed.ts",
+    "backup": "tsx src/cli/backup.ts",
+    "export-csv": "tsx src/cli/export-csv.ts",
     "test": "vitest run",
     "clean": "rm -rf dist .turbo"
   },
