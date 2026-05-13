@@ -89,6 +89,7 @@ export type QueryExpensesArgs = z.infer<typeof QueryExpensesArgsSchema>;
 
 export const QueryExpensesResultSchema = z.object({
   total: z.number(),
+  vatTotal: z.number(),
   currency: z.string(),
   count: z.number().int().nonnegative(),
   rows: z

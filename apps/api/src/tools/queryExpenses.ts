@@ -12,7 +12,7 @@ export interface AttachmentCollector {
 export const queryExpensesTool = createTool({
   id: 'queryExpenses',
   description:
-    "Aggregate the user's expenses by optional category / merchant / date range. Returns matching line items and the total.",
+    "Aggregate the user's expenses by optional category / merchant / date range. Returns matching line items, the spend total, and the VAT total.",
   inputSchema: QueryExpensesArgsSchema,
   outputSchema: QueryExpensesResultSchema,
   execute: async (inputData, { requestContext }) => {

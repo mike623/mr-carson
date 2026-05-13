@@ -100,8 +100,32 @@ export async function queryExpenses(
   const total = rows.reduce((acc, r) => acc + Number(r.amount), 0);
   const currency = rows[0]?.currency ?? (process.env.DEFAULT_CURRENCY ?? 'GBP');
 
+  // VAT lives on expenses, not items — compute separately to avoid double-counting
+  const vatWhere: string[] = ['e.user_id = ?'];
+  const vatParams: unknown[] = [userId];
+  if (args.category) {
+    vatWhere.push(
+      'EXISTS (SELECT 1 FROM expense_items i WHERE i.expense_id = e.id AND LOWER(i.category) = LOWER(?))',
+    );
+    vatParams.push(args.category);
+  }
+  if (args.merchant) {
+    vatWhere.push('LOWER(e.merchant) LIKE LOWER(?)');
+    vatParams.push(`%${args.merchant}%`);
+  }
+  if (range) {
+    vatWhere.push('e.date >= ? AND e.date <= ?');
+    vatParams.push(range.start, range.end);
+  }
+  const [vatRow] = await query<{ vat_total: number }>(
+    `SELECT COALESCE(CAST(SUM(vat) AS DOUBLE), 0) AS vat_total FROM expenses e WHERE ${vatWhere.join(' AND ')}`,
+    vatParams,
+  );
+  const vatTotal = Math.round(Number(vatRow?.vat_total ?? 0) * 100) / 100;
+
   return {
     total: Math.round(total * 100) / 100,
+    vatTotal,
     currency,
     count: rows.length,
     rows: rows.map((r) => ({
