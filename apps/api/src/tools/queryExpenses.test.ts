@@ -106,6 +106,34 @@ describe('queryExpensesTool', () => {
     expect(collected).toEqual(['/uploads/tesco.jpg']);
   });
 
+  it('returns vatTotal summed from expenses', async () => {
+    await expensesRepo.insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 10.0,
+        vat: 1.67,
+        items: [{ name: 'Milk', amount: 10.0, category: 'Groceries' }],
+      },
+    });
+    await expensesRepo.insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Shell',
+        date: '2026-05-11',
+        currency: 'GBP',
+        total: 50.0,
+        vat: 8.33,
+        items: [{ name: 'Fuel', amount: 50.0, category: 'Transport' }],
+      },
+    });
+    const mockRequestContext = new Map([['userId', USER]]);
+    const result = await queryExpensesTool.execute!({}, { requestContext: mockRequestContext } as never);
+    expect(result.vatTotal).toBeCloseTo(10.0, 1);
+  });
+
   it('works without a collector (backward compatible)', async () => {
     await expensesRepo.insertExpense({
       userId: USER,
