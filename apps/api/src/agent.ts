@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Agent } from '@mastra/core/agent';
 import { RequestContext } from '@mastra/core/request-context';
-import { getModel } from './llm.js';
+import { getAgentModel } from './llm.js';
 import { getMemory } from './memory.js';
 import { agentLogger } from './logger.js';
 import { ocrTool } from './tools/ocr.js';
@@ -35,7 +35,7 @@ export const mrCarsonAgent = new Agent({
   id: 'mr-carson',
   name: 'mr-carson',
   instructions: SYSTEM,
-  model: getModel(),
+  model: getAgentModel(),
   memory: getMemory(),
   tools: {
     ocr: ocrTool,
