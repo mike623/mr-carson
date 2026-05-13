@@ -16,7 +16,7 @@ export const config = {
       .map((s) => s.trim())
       .filter(Boolean),
   ),
-  apiUrl: process.env.API_URL ?? 'http://localhost:3000',
+  apiUrl: process.env.API_URL ?? 'http://localhost:47821',
   // Resolve to an absolute path so the path we hand to the API resolves the
   // same way regardless of which package's CWD the API process is running in.
   uploadsDir: resolve(process.env.UPLOADS_DIR ?? '/data/uploads'),

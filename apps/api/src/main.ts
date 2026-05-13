@@ -97,7 +97,7 @@ app.post('/receipts/:id/reject', async c => {
   return c.json({ ok: true })
 })
 
-const port = Number(process.env.API_PORT ?? process.env.PORT ?? 3000)
+const port = Number(process.env.API_PORT ?? process.env.PORT ?? 47821)
 try {
   await migrate()
   await seedCategories()

@@ -21,7 +21,7 @@ services:
         APP: api
     command: ["node", "apps/api/dist/main.js"]
     environment:
-      API_PORT: 3000
+      API_PORT: 47821
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-mistral-small}
       OLLAMA_OCR_MODEL: ${OLLAMA_OCR_MODEL:-glm-ocr}
@@ -29,7 +29,7 @@ services:
       MEMORY_DB_PATH: /data/db/memory.db
       DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-GBP}
     ports:
-      - "3000:3000"
+      - "47821:47821"
     volumes:
       - duckdb_data:/data/db
       - uploads:/data/uploads
@@ -47,7 +47,7 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS}
-      API_URL: http://api:3000
+      API_URL: http://api:47821
       UPLOADS_DIR: /data/uploads
       DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-GBP}
     volumes:
