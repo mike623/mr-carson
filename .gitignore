@@ -19,3 +19,10 @@ __pycache__/
 .venv/
 .idea/
 .vscode/
+.mastra/
+.omc/
+apps/api/src/public/
+studio-presets.json
+*.db
+*.db-shm
+*.db-wal
