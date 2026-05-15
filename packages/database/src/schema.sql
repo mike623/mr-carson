@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS expenses (
 -- backfill any rows that didn't get the default to 0.
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS vat DECIMAL(12, 2) DEFAULT 0;
 UPDATE expenses SET vat = 0 WHERE vat IS NULL;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS image_hash TEXT;
+CREATE INDEX IF NOT EXISTS idx_expenses_image_hash ON expenses (image_hash);
 
 CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses (user_id, date);
 CREATE INDEX IF NOT EXISTS idx_expenses_user_merchant ON expenses (user_id, merchant);
