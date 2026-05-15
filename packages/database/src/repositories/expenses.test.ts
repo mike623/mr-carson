@@ -206,6 +206,66 @@ describe('queryExpenses', () => {
     expect(sains?.sourceFile).toBeNull();
     expect(sains?.expenseId).toMatch(/^[0-9a-f-]{36}$/);
   });
+
+  describe('queryExpenses – item name search', () => {
+    beforeEach(async () => {
+      await run('DELETE FROM expense_items');
+      await run('DELETE FROM expenses');
+      await insertExpense({
+        userId: USER,
+        expense: {
+          merchant: 'Wagamama',
+          date: '2026-05-10',
+          currency: 'GBP',
+          total: 12.0,
+          items: [{ name: 'Chicken Udon', amount: 12.0, category: 'Dining' }],
+        },
+      });
+      await insertExpense({
+        userId: USER,
+        expense: {
+          merchant: 'Pho Restaurant',
+          date: '2026-05-11',
+          currency: 'GBP',
+          total: 10.0,
+          items: [{ name: 'Beef Pho', amount: 10.0, category: 'Dining' }],
+        },
+      });
+      await insertExpense({
+        userId: USER,
+        expense: {
+          merchant: 'Tesco',
+          date: '2026-05-12',
+          currency: 'GBP',
+          total: 3.0,
+          items: [{ name: 'Milk', amount: 3.0, category: 'Groceries' }],
+        },
+      });
+    });
+
+    it('filters by single itemName (case-insensitive ILIKE)', async () => {
+      const result = await queryExpenses(USER, { itemName: 'udon' });
+      expect(result.count).toBe(1);
+      expect(result.rows[0].name).toBe('Chicken Udon');
+    });
+
+    it('filters by itemNames array (OR logic)', async () => {
+      const result = await queryExpenses(USER, {
+        itemNames: ['udon', 'pho'],
+      });
+      expect(result.count).toBe(2);
+      const names = result.rows.map((r) => r.name).sort();
+      expect(names).toEqual(['Beef Pho', 'Chicken Udon']);
+    });
+
+    it('itemNames with no matches returns empty rows', async () => {
+      const result = await queryExpenses(USER, {
+        itemNames: ['ramen', 'soba'],
+      });
+      expect(result.count).toBe(0);
+      expect(result.rows).toEqual([]);
+    });
+  });
 });
 
 describe('byCategoryOverTime', () => {

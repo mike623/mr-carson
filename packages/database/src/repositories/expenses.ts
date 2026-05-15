@@ -69,6 +69,15 @@ export async function queryExpenses(
     where.push('LOWER(e.merchant) LIKE LOWER(?)');
     params.push(`%${args.merchant}%`);
   }
+  if (args.itemName) {
+    where.push('LOWER(i.name) LIKE LOWER(?)');
+    params.push(`%${args.itemName}%`);
+  }
+  if (args.itemNames && args.itemNames.length > 0) {
+    const clauses = args.itemNames.map(() => 'LOWER(i.name) LIKE LOWER(?)').join(' OR ');
+    where.push(`(${clauses})`);
+    for (const n of args.itemNames) params.push(`%${n}%`);
+  }
 
   const range = resolveDateRange(args);
   if (range) {
@@ -112,6 +121,21 @@ export async function queryExpenses(
   if (args.merchant) {
     vatWhere.push('LOWER(e.merchant) LIKE LOWER(?)');
     vatParams.push(`%${args.merchant}%`);
+  }
+  if (args.itemName) {
+    vatWhere.push(
+      'EXISTS (SELECT 1 FROM expense_items i WHERE i.expense_id = e.id AND LOWER(i.name) LIKE LOWER(?))',
+    );
+    vatParams.push(`%${args.itemName}%`);
+  }
+  if (args.itemNames && args.itemNames.length > 0) {
+    const clauses = args.itemNames
+      .map(() => 'LOWER(i.name) LIKE LOWER(?)')
+      .join(' OR ');
+    vatWhere.push(
+      `EXISTS (SELECT 1 FROM expense_items i WHERE i.expense_id = e.id AND (${clauses}))`,
+    );
+    for (const n of args.itemNames) vatParams.push(`%${n}%`);
   }
   if (range) {
     vatWhere.push('e.date >= ? AND e.date <= ?');
