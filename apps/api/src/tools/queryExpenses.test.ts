@@ -150,4 +150,63 @@ describe('queryExpensesTool', () => {
     const result = await queryExpensesTool.execute!({}, { requestContext: mockRequestContext } as never);
     expect(result.count).toBe(1);
   });
+
+  it('filters by itemName through tool', async () => {
+    await expensesRepo.insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Wagamama',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 12.0,
+        items: [{ name: 'Chicken Udon', amount: 12.0, category: 'Dining' }],
+      },
+    });
+    await expensesRepo.insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 3.0,
+        items: [{ name: 'Milk', amount: 3.0, category: 'Groceries' }],
+      },
+    });
+    const mockRequestContext = new Map([['userId', USER]]);
+    const result = await queryExpensesTool.execute!(
+      { itemName: 'udon' },
+      { requestContext: mockRequestContext } as never,
+    );
+    expect(result.count).toBe(1);
+    expect(result.rows[0].name).toBe('Chicken Udon');
+  });
+
+  it('filters by itemNames array through tool', async () => {
+    await expensesRepo.insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Wagamama',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 12.0,
+        items: [{ name: 'Chicken Udon', amount: 12.0, category: 'Dining' }],
+      },
+    });
+    await expensesRepo.insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Ramen House',
+        date: '2026-05-11',
+        currency: 'GBP',
+        total: 11.0,
+        items: [{ name: 'Tonkotsu Ramen', amount: 11.0, category: 'Dining' }],
+      },
+    });
+    const mockRequestContext = new Map([['userId', USER]]);
+    const result = await queryExpensesTool.execute!(
+      { itemNames: ['udon', 'ramen'] },
+      { requestContext: mockRequestContext } as never,
+    );
+    expect(result.count).toBe(2);
+  });
 });
