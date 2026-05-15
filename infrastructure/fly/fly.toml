@@ -1,0 +1,49 @@
+app = "mr-carson"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "infrastructure/fly/Dockerfile"
+
+[env]
+  API_PORT = "47821"
+  PORT = "47821"
+  DUCKDB_PATH = "/data/mr-carson.duckdb"
+  MEMORY_DB_PATH = "/data/memory.db"
+  UPLOADS_DIR = "/data/uploads"
+  LOG_LEVEL = "info"
+  # API_URL points to localhost — bot and API share the same container
+  API_URL = "http://localhost:47821"
+
+# Secrets — set via: fly secrets set OPENROUTER_API_KEY=sk-or-... etc.
+# Required: OPENROUTER_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USER_IDS
+# Optional: OPENROUTER_MODEL, OPENROUTER_OCR_MODEL, DEFAULT_CURRENCY
+
+[[mounts]]
+  source = "mr_carson_data"
+  destination = "/data"
+
+# Expose API for health checks (not required externally — bot uses long-polling)
+[[services]]
+  internal_port = 47821
+  protocol = "tcp"
+  auto_stop_machines = false
+  auto_start_machines = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.http_checks]]
+    interval = 30000
+    timeout = 5000
+    grace_period = "30s"
+    method = "get"
+    path = "/health"
+
+[vm]
+  size = "shared-cpu-1x"
+  memory = "512mb"

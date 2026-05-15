@@ -5,11 +5,6 @@ function ollamaBase(): string {
   return base.replace(/\/$/, '');
 }
 
-/**
- * AI SDK v4 OpenAI-compatible provider pointed at Ollama's `/v1`.
- * Used by direct `generateText` / `generateObject` calls in tools
- * (ocr, extractReceipt) — NOT by the Mastra Agent.
- */
 export function getOllamaProvider() {
   return createOpenAICompatible({
     name: 'ollama',
@@ -17,18 +12,54 @@ export function getOllamaProvider() {
   });
 }
 
+function getOpenRouterProvider() {
+  return createOpenAICompatible({
+    name: 'openrouter',
+    baseURL: 'https://openrouter.ai/api/v1',
+    headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` },
+  });
+}
+
+function useOpenRouter(): boolean {
+  return Boolean(process.env.OPENROUTER_API_KEY);
+}
+
+/** Chat/extraction model — OpenRouter when key is set, Ollama otherwise. */
 export function getModel() {
+  if (useOpenRouter()) {
+    const modelId =
+      process.env.OPENROUTER_MODEL ?? 'mistralai/mistral-small-3.1-24b-instruct';
+    return getOpenRouterProvider().chatModel(modelId);
+  }
   const modelId = process.env.OLLAMA_MODEL ?? 'mistral-small';
   return getOllamaProvider().chatModel(modelId);
 }
 
+/** Vision/OCR model — OpenRouter when key is set, Ollama otherwise. */
+export function getOcrModel() {
+  if (useOpenRouter()) {
+    const modelId = process.env.OPENROUTER_OCR_MODEL ?? 'google/gemma-3n-e4b-it:free';
+    return getOpenRouterProvider().chatModel(modelId);
+  }
+  const modelId = process.env.OLLAMA_OCR_MODEL ?? 'MedAIBase/PaddleOCR-VL:0.9b';
+  return getOllamaProvider().chatModel(modelId);
+}
+
 /**
- * Mastra-native model config for the Agent. Routes through Mastra's
- * model router straight to local Ollama's OpenAI-compatible endpoint.
- * Required by Mastra >=1.30, which rejects AI SDK v4 LanguageModel
- * objects in `Agent.generate()`.
+ * Mastra-native model config for the Agent. Routes through Mastra's model
+ * router. Required by Mastra >=1.30 which rejects AI SDK v4 LanguageModel
+ * objects in Agent.generate().
  */
 export function getAgentModel() {
+  if (useOpenRouter()) {
+    const modelId =
+      process.env.OPENROUTER_MODEL ?? 'mistralai/mistral-small-3.1-24b-instruct';
+    return {
+      id: modelId as `${string}/${string}`,
+      url: 'https://openrouter.ai/api/v1',
+      apiKey: process.env.OPENROUTER_API_KEY as string,
+    };
+  }
   const modelId = process.env.OLLAMA_MODEL ?? 'mistral-small';
   return {
     id: `ollama/${modelId}` as `${string}/${string}`,
