@@ -19,7 +19,7 @@ export const queryExpensesTool = createTool({
     const userId = requestContext?.get('userId') as string;
     const attachments = requestContext?.get('attachments') as AttachmentCollector | undefined;
     const result = await expensesRepo.queryExpenses(userId, inputData);
-    if (attachments) {
+    if (attachments && inputData.includeImages) {
       const seen = new Set<string>();
       for (const row of result.rows) {
         if (row.sourceFile && !seen.has(row.sourceFile)) {

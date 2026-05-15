@@ -77,7 +77,7 @@ describe('queryExpensesTool', () => {
       ['attachments', { add: (p: string) => collected.push(p) }],
     ]);
 
-    const result = await queryExpensesTool.execute!({}, { requestContext: mockRequestContext } as never);
+    const result = await queryExpensesTool.execute!({ includeImages: true }, { requestContext: mockRequestContext } as never);
     expect(result.count).toBe(4);
     expect(collected.sort()).toEqual(['/uploads/pets.jpg', '/uploads/tesco.jpg']);
   });
@@ -102,7 +102,7 @@ describe('queryExpensesTool', () => {
       ['userId', USER],
       ['attachments', { add: (p: string) => collected.push(p) }],
     ]);
-    await queryExpensesTool.execute!({}, { requestContext: mockRequestContext } as never);
+    await queryExpensesTool.execute!({ includeImages: true }, { requestContext: mockRequestContext } as never);
     expect(collected).toEqual(['/uploads/tesco.jpg']);
   });
 

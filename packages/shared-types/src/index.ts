@@ -84,6 +84,7 @@ export const QueryExpensesArgsSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   limit: z.number().int().positive().max(1000).optional(),
+  includeImages: z.boolean().optional(),
 });
 export type QueryExpensesArgs = z.infer<typeof QueryExpensesArgsSchema>;
 
