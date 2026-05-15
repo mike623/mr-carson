@@ -40,11 +40,13 @@ export async function commitConfirmed(opts: {
   userId: string;
   expense: Expense;
   sourceFile?: string | null;
+  imageHash?: string | null;
 }): Promise<{ id: string }> {
   const result = await expensesRepo.insertExpense({
     userId: opts.userId,
     expense: opts.expense,
     sourceFile: opts.sourceFile ?? null,
+    imageHash: opts.imageHash ?? null,
   });
   await pendingRepo.setPendingStatus(opts.pendingId, 'INSERTED');
   return result;
