@@ -2,6 +2,13 @@
 
 All notable changes to Mr. Carson are documented here.
 
+## [0.0.2.0] - 2026-05-15
+
+### Added
+
+- OpenRouter support as a remote LLM gateway — set `OPENROUTER_API_KEY` to route all inference (chat, OCR, agent) through OpenRouter instead of local Ollama. Defaults: `mistralai/mistral-small-3.1-24b-instruct` for chat, `google/gemma-3n-e4b-it:free` for OCR.
+- Fly.io deployment config (`infrastructure/fly/`) — single-app setup running API and bot in one container with a shared `/data` volume, targeting ~$2–4/mo on a 512 MB shared-CPU machine.
+
 ## [0.0.1.0] - 2026-05-15
 
 ### Changed
