@@ -7,13 +7,14 @@ export interface InsertExpenseInput {
   userId: string;
   expense: Expense;
   sourceFile?: string | null;
+  imageHash?: string | null;
 }
 
 export async function insertExpense(input: InsertExpenseInput): Promise<{ id: string }> {
   const id = uuid();
   await run(
-    `INSERT INTO expenses (id, user_id, merchant, date, currency, total, vat, source_file)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO expenses (id, user_id, merchant, date, currency, total, vat, source_file, image_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.userId,
@@ -23,6 +24,7 @@ export async function insertExpense(input: InsertExpenseInput): Promise<{ id: st
       input.expense.total,
       input.expense.vat ?? 0,
       input.sourceFile ?? null,
+      input.imageHash ?? null,
     ],
   );
 
@@ -41,6 +43,48 @@ export async function insertExpense(input: InsertExpenseInput): Promise<{ id: st
   );
 
   return { id };
+}
+
+export async function findByImageHash(
+  userId: string,
+  hash: string,
+): Promise<string | null> {
+  const rows = await query<{ id: string }>(
+    `SELECT CAST(id AS VARCHAR) AS id FROM expenses WHERE user_id = ? AND image_hash = ? LIMIT 1`,
+    [userId, hash],
+  );
+  return rows[0]?.id ?? null;
+}
+
+export interface SoftDuplicateMatch {
+  id: string;
+  merchant: string;
+  date: string;
+  total: number;
+}
+
+export async function findSoftDuplicate(
+  userId: string,
+  fields: { merchant: string; date: string; total: number; currency: string },
+): Promise<SoftDuplicateMatch | null> {
+  const rows = await query<{ id: string; merchant: string; date: string; total: number }>(
+    `SELECT CAST(id AS VARCHAR) AS id, merchant, CAST(date AS VARCHAR) AS date, CAST(total AS DOUBLE) AS total
+     FROM expenses
+     WHERE user_id = ?
+       AND LOWER(merchant) = LOWER(?)
+       AND date = ?
+       AND CAST(total AS DOUBLE) = ?
+       AND currency = ?
+     LIMIT 1`,
+    [userId, fields.merchant, fields.date, fields.total, fields.currency],
+  );
+  if (!rows[0]) return null;
+  return {
+    id: rows[0].id,
+    merchant: rows[0].merchant,
+    date: rows[0].date.slice(0, 10),
+    total: Number(rows[0].total),
+  };
 }
 
 interface ItemRow {

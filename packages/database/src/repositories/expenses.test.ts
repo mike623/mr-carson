@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { closeConnection, run } from '../client.js';
 import { migrate } from '../migrate.js';
 import { seedCategories } from '../seed.js';
-import { byCategoryOverTime, insertExpense, queryExpenses, topMerchants } from './expenses.js';
+import { byCategoryOverTime, findByImageHash, findSoftDuplicate, insertExpense, queryExpenses, topMerchants } from './expenses.js';
 
 let tmp: string;
 
@@ -320,5 +320,119 @@ describe('topMerchants', () => {
     expect(top[0].total).toBe(22);
     expect(top[1].merchant).toBe('Tesco');
     expect(top[1].total).toBe(4.5);
+  });
+});
+
+describe('findByImageHash', () => {
+  it('returns null when no match', async () => {
+    const result = await findByImageHash(USER, 'abc123');
+    expect(result).toBeNull();
+  });
+
+  it('returns the expense id when hash matches', async () => {
+    const { id } = await insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 4.5,
+        items: [{ name: 'Milk', amount: 4.5, category: 'Groceries' }],
+      },
+      imageHash: 'deadbeef',
+    });
+    const result = await findByImageHash(USER, 'deadbeef');
+    expect(result).toBe(id);
+  });
+
+  it("does not match another user's hash", async () => {
+    await insertExpense({
+      userId: 'other-user',
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 4.5,
+        items: [{ name: 'Milk', amount: 4.5, category: 'Groceries' }],
+      },
+      imageHash: 'sharedHash',
+    });
+    const result = await findByImageHash(USER, 'sharedHash');
+    expect(result).toBeNull();
+  });
+});
+
+describe('findSoftDuplicate', () => {
+  it('returns null when no match', async () => {
+    const result = await findSoftDuplicate(USER, {
+      merchant: 'Tesco',
+      date: '2026-05-10',
+      total: 4.5,
+      currency: 'GBP',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns matching expense when fields align', async () => {
+    const { id } = await insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 4.5,
+        items: [{ name: 'Milk', amount: 4.5, category: 'Groceries' }],
+      },
+    });
+    const result = await findSoftDuplicate(USER, {
+      merchant: 'Tesco',
+      date: '2026-05-10',
+      total: 4.5,
+      currency: 'GBP',
+    });
+    expect(result?.id).toBe(id);
+    expect(result?.merchant).toBe('Tesco');
+    expect(result?.date).toBe('2026-05-10');
+    expect(result?.total).toBeCloseTo(4.5);
+  });
+
+  it('is case-insensitive on merchant', async () => {
+    const { id } = await insertExpense({
+      userId: USER,
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 4.5,
+        items: [{ name: 'Milk', amount: 4.5, category: 'Groceries' }],
+      },
+    });
+    const result = await findSoftDuplicate(USER, {
+      merchant: 'TESCO',
+      date: '2026-05-10',
+      total: 4.5,
+      currency: 'GBP',
+    });
+    expect(result?.id).toBe(id);
+  });
+
+  it('does not match a different user', async () => {
+    await insertExpense({
+      userId: 'other-user',
+      expense: {
+        merchant: 'Tesco',
+        date: '2026-05-10',
+        currency: 'GBP',
+        total: 4.5,
+        items: [{ name: 'Milk', amount: 4.5, category: 'Groceries' }],
+      },
+    });
+    const result = await findSoftDuplicate(USER, {
+      merchant: 'Tesco',
+      date: '2026-05-10',
+      total: 4.5,
+      currency: 'GBP',
+    });
+    expect(result).toBeNull();
   });
 });

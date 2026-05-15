@@ -1,4 +1,5 @@
-import { mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { Mastra } from '@mastra/core';
 import { registerApiRoute } from '@mastra/core/server';
@@ -8,11 +9,20 @@ import { DuckDBStore } from '@mastra/duckdb';
 import { Observability, DefaultExporter } from '@mastra/observability';
 import { z, ZodError } from 'zod';
 import { HTTPException } from 'hono/http-exception';
-import { migrate, seedCategories, pendingRepo, chatSessionsRepo } from '@mr-carson/database';
+import { migrate, seedCategories, pendingRepo, expensesRepo, chatSessionsRepo } from '@mr-carson/database';
 import { mrCarsonAgent, runAgent } from './agent.js';
 import { processReceipt, commitConfirmed } from './pipeline.js';
 import type { ChartSink } from './tools/chartSpending.js';
 import { agentLogger } from './logger.js';
+
+function hashFile(filePath: string): string {
+  return createHash('sha256').update(readFileSync(filePath)).digest('hex');
+}
+
+function hashFileIfExists(filePath: string | null | undefined): string | undefined {
+  if (!filePath || !existsSync(filePath)) return undefined;
+  return createHash('sha256').update(readFileSync(filePath)).digest('hex');
+}
 
 function mastraDbUrl(): string {
   const raw = process.env.MASTRA_DB_PATH ?? './data/mastra.db';
@@ -116,10 +126,31 @@ export const mastra = new Mastra({
             throw new HTTPException(400, { message: 'invalid JSON' });
           }
           const input = IngestBody.parse(body);
+
+          // Hard dedup: reject identical file before OCR runs.
+          const imageHash = hashFile(input.filePath);
+          const existingId = await expensesRepo.findByImageHash(input.userId, imageHash);
+          if (existingId) {
+            return c.json({ error: 'duplicate', existingId }, 409);
+          }
+
           const pendingId = await pendingRepo.createPending(input);
           try {
             const expense = await processReceipt({ pendingId, filePath: input.filePath });
-            return c.json({ pendingId, expense });
+
+            // Soft dedup: warn if fields match a previous expense (different image).
+            const softDuplicate = await expensesRepo.findSoftDuplicate(input.userId, {
+              merchant: expense.merchant,
+              date: expense.date,
+              total: expense.total,
+              currency: expense.currency,
+            });
+
+            return c.json({
+              pendingId,
+              expense,
+              ...(softDuplicate ? { softDuplicate } : {}),
+            });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             await pendingRepo.setPendingStatus(pendingId, 'FAILED', msg);
@@ -142,12 +173,14 @@ export const mastra = new Mastra({
           const pending = await pendingRepo.getPending(id);
           if (!pending || !pending.extracted) throw new HTTPException(404);
           if (pending.status === 'INSERTED') return c.json({ id });
+          const imageHash = hashFileIfExists(pending.filePath);
           return c.json(
             await commitConfirmed({
               pendingId: id,
               userId: pending.userId,
               expense: pending.extracted,
               sourceFile: pending.filePath,
+              imageHash,
             }),
           );
         },
