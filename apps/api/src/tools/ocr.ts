@@ -6,25 +6,21 @@ import { OcrResultSchema } from '@mr-carson/shared-types';
 import { getOllamaProvider } from '../llm.js';
 
 /**
- * Calls Ollama's `glm-ocr` model directly. GLM-OCR is a 0.9B vision model from
- * Z.ai specialized for document OCR — it accepts an image plus one of three
- * prompt prefixes: "Text Recognition:", "Formula Recognition:", "Table
- * Recognition:". We use Text Recognition for receipts and hand the result to
- * `extractReceipt` for structured-JSON conversion.
- *
- * Image-only by design: PDFs are rejected at the bot edge so we never need a
- * rasterizer here.
+ * Calls the configured Ollama vision model for receipt OCR. Defaults to
+ * PaddleOCR-VL:0.9b (936MB, 128K ctx, SOTA doc parsing) but can be swapped
+ * via OLLAMA_OCR_MODEL. Image-only by design: PDFs are rejected at the bot
+ * edge so we never need a rasterizer here.
  */
 export const ocrTool = createTool({
   id: 'ocr',
   description:
-    'Run OCR on a receipt image via Ollama glm-ocr and return the recognized text. Structured extraction is done as a follow-up step.',
+    'Run OCR on a receipt image via an Ollama vision model and return the recognized text. Structured extraction is done as a follow-up step.',
   inputSchema: z.object({
     filePath: z.string().describe('Absolute path to the receipt image on disk.'),
   }),
   outputSchema: OcrResultSchema,
   execute: async (inputData) => {
-    const modelId = process.env.OLLAMA_OCR_MODEL ?? 'glm-ocr';
+    const modelId = process.env.OLLAMA_OCR_MODEL ?? 'MedAIBase/PaddleOCR-VL:0.9b';
     const model = getOllamaProvider().chatModel(modelId);
     const image = readFileSync(inputData.filePath);
 
@@ -35,7 +31,7 @@ export const ocrTool = createTool({
           role: 'user',
           content: [
             { type: 'image', image },
-            { type: 'text', text: 'Text Recognition:' },
+            { type: 'text', text: 'Extract all text from this receipt image.' },
           ],
         },
       ],
