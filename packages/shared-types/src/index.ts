@@ -74,6 +74,8 @@ export type DateRange = z.infer<typeof DateRangeSchema>;
 export const QueryExpensesArgsSchema = z.object({
   category: z.string().optional(),
   merchant: z.string().optional(),
+  itemName: z.string().optional(),
+  itemNames: z.array(z.string()).max(20).optional(),
   dateRange: DateRangeSchema.optional(),
   startDate: z
     .string()

@@ -12,7 +12,13 @@ export interface AttachmentCollector {
 export const queryExpensesTool = createTool({
   id: 'queryExpenses',
   description:
-    "Aggregate the user's expenses by optional category / merchant / date range. Returns matching line items, the spend total, and the VAT total.",
+    "Aggregate the user's expenses by optional filters. " +
+    'Filters: category (e.g. "Dining"), merchant (ILIKE), ' +
+    'itemName (single ILIKE on receipt line-item name, e.g. "udon"), ' +
+    'itemNames (array of terms ORed together — use this for concept expansion, ' +
+    'e.g. ["udon","ramen","pho","soba","pad thai","lo mein"] for "noodles"), ' +
+    'dateRange / startDate+endDate. ' +
+    'Returns matching line items, spend total, and VAT total.',
   inputSchema: QueryExpensesArgsSchema,
   outputSchema: QueryExpensesResultSchema,
   execute: async (inputData, { requestContext }) => {
