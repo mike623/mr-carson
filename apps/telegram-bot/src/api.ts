@@ -69,3 +69,13 @@ export interface ModelInfo {
 export async function getModelInfo(): Promise<ModelInfo> {
   return fetchJson('/model');
 }
+
+export interface HealthResponse {
+  ok: boolean;
+  model: string;
+  ocrModel: string;
+}
+
+export async function checkHealth(): Promise<HealthResponse> {
+  return fetchJson<HealthResponse>('/health');
+}
