@@ -5,6 +5,7 @@ import { config } from './config.js';
 import {
   ask,
   confirmPending,
+  getModelInfo,
   getPending,
   ingestReceipt,
   newSession,
@@ -42,6 +43,7 @@ export function createBot(): Telegraf {
         '/summary — recent spend summary',
         '/chart   — spending chart, last month by category',
         '/categories — list categories',
+        '/model  — show active LLM and OCR models',
         '',
         'Or just send a receipt photo, or ask in plain English.',
       ].join('\n'),
@@ -54,6 +56,21 @@ export function createBot(): Telegraf {
       await ctx.reply('New chat started. I have forgotten our previous turns.');
     } catch (err) {
       await ctx.reply(`Could not start a new chat: ${(err as Error).message}`);
+    }
+  });
+
+  bot.command('model', async (ctx) => {
+    try {
+      const info = await getModelInfo();
+      await ctx.reply(
+        [
+          `Provider: ${info.provider}`,
+          `Agent model: ${info.agentModel}`,
+          `OCR model: ${info.ocrModel}`,
+        ].join('\n'),
+      );
+    } catch (err) {
+      await ctx.reply(`Could not fetch model info: ${(err as Error).message}`);
     }
   });
 

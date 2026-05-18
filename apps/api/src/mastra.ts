@@ -78,6 +78,21 @@ export const mastra = new Mastra({
         method: 'GET',
         handler: (c) => c.json({ ok: true }),
       }),
+      registerApiRoute('/model', {
+        method: 'GET',
+        handler: (c) => {
+          const useOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
+          return c.json({
+            provider: useOpenRouter ? 'openrouter' : 'ollama',
+            agentModel: useOpenRouter
+              ? (process.env.OPENROUTER_MODEL ?? 'mistralai/mistral-small-3.1-24b-instruct')
+              : (process.env.OLLAMA_MODEL ?? 'mistral-small'),
+            ocrModel: useOpenRouter
+              ? (process.env.OPENROUTER_OCR_MODEL ?? 'google/gemma-3n-e4b-it:free')
+              : (process.env.OLLAMA_OCR_MODEL ?? 'MedAIBase/PaddleOCR-VL:0.9b'),
+          });
+        },
+      }),
       registerApiRoute('/agent/ask', {
         method: 'POST',
         handler: async (c) => {

@@ -49,6 +49,7 @@ ${inputData.rawText}
     const { object } = await generateObject({
       model: getModel(),
       schema: ExpenseSchema,
+      mode: 'json',
       system: SYSTEM,
       prompt,
     });

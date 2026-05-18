@@ -59,3 +59,13 @@ export async function newSession(userId: string): Promise<{ threadId: string }> 
     body: JSON.stringify({ userId }),
   });
 }
+
+export interface ModelInfo {
+  provider: string;
+  agentModel: string;
+  ocrModel: string;
+}
+
+export async function getModelInfo(): Promise<ModelInfo> {
+  return fetchJson('/model');
+}
