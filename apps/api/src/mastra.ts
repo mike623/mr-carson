@@ -76,7 +76,18 @@ export const mastra = new Mastra({
     apiRoutes: [
       registerApiRoute('/health', {
         method: 'GET',
-        handler: (c) => c.json({ ok: true }),
+        handler: (c) =>
+          c.json({
+            ok: true,
+            model:
+              process.env.OPENROUTER_MODEL ??
+              process.env.OLLAMA_MODEL ??
+              'unknown',
+            ocrModel:
+              process.env.OPENROUTER_OCR_MODEL ??
+              process.env.OLLAMA_OCR_MODEL ??
+              'unknown',
+          }),
       }),
       registerApiRoute('/model', {
         method: 'GET',
