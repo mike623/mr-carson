@@ -4,6 +4,7 @@ import { message } from 'telegraf/filters';
 import { config } from './config.js';
 import {
   ask,
+  checkHealth,
   confirmPending,
   getModelInfo,
   getPending,
@@ -44,6 +45,7 @@ export function createBot(): Telegraf {
         '/chart   — spending chart, last month by category',
         '/categories — list categories',
         '/model  — show active LLM and OCR models',
+        '/health — check bot and model status',
         '',
         'Or just send a receipt photo, or ask in plain English.',
       ].join('\n'),
@@ -96,6 +98,17 @@ export function createBot(): Telegraf {
         'Chart my spending over the last month by category.',
       ),
     );
+  });
+
+  bot.command('health', async (ctx) => {
+    try {
+      const h = await checkHealth();
+      await ctx.reply(
+        `✅ Mr. Carson is running\nModel: ${h.model}\nOCR model: ${h.ocrModel}`,
+      );
+    } catch {
+      await ctx.reply('❌ API unreachable');
+    }
   });
 
   // Photo / document handlers: ingest, then show confirmation buttons.
