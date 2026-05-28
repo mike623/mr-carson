@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [development]
+
+permissions:
+  contents: read
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.10.0'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile=false
+
+      - run: pnpm test
+
+  e2e:
+    needs: unit-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.10.0'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile=false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image (amd64, no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.node
+          build-args: APP=api
+          platforms: linux/amd64
+          load: true
+          tags: mr-carson-api:e2e
+          cache-from: type=gha,scope=e2e
+          cache-to: type=gha,mode=max,scope=e2e
+
+      - name: Start API container
+        run: |
+          docker run -d \
+            --name mr-carson-api-e2e \
+            -p 47821:47821 \
+            -e API_PORT=47821 \
+            -e DUCKDB_PATH=/tmp/e2e.duckdb \
+            -e MEMORY_DB_PATH=/tmp/memory.db \
+            -e MASTRA_DB_PATH=/tmp/mastra.db \
+            -e NODE_ENV=production \
+            mr-carson-api:e2e \
+            node apps/api/.mastra/output/index.mjs
+
+      - name: Wait for /health (60s timeout)
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:47821/health > /dev/null; then
+              echo "API ready after $((i * 2))s"
+              exit 0
+            fi
+            echo "Attempt $i/30, waiting 2s..."
+            sleep 2
+          done
+          echo "API failed to start within 60s"
+          docker logs mr-carson-api-e2e
+          exit 1
+
+      - name: Run e2e tests
+        run: pnpm --filter @mr-carson/e2e run e2e
+        env:
+          API_BASE_URL: http://localhost:47821
+
+      - name: Dump API container logs on failure
+        if: failure()
+        run: docker logs mr-carson-api-e2e || true
+
+      - name: Stop API container
+        if: always()
+        run: docker rm -f mr-carson-api-e2e || true
+
+  build-push:
+    needs: e2e
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, telegram-bot]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get short SHA
+        id: sha
+        run: echo "sha7=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Build and push ${{ matrix.app }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.node
+          build-args: APP=${{ matrix.app }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/mr-carson-${{ matrix.app }}:latest
+            ghcr.io/${{ github.repository_owner }}/mr-carson-${{ matrix.app }}:${{ steps.sha.outputs.sha7 }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}

@@ -2,12 +2,13 @@ name: mr-carson
 
 services:
   api:
+    image: ghcr.io/mike623/mr-carson-api:latest
     build:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile.node
       args:
         APP: api
-    command: ["node", "apps/api/dist/main.js"]
+    command: ["node", "apps/api/.mastra/output/index.mjs"]
     restart: unless-stopped
     environment:
       API_PORT: 47821
@@ -38,6 +39,7 @@ services:
         max-file: "3"
 
   bot:
+    image: ghcr.io/mike623/mr-carson-bot:latest
     build:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile.node
