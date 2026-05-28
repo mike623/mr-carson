@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [development]
+  pull_request:
 
 permissions:
   contents: read
@@ -100,6 +101,7 @@ jobs:
 
   build-push:
     needs: e2e
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
     runs-on: ubuntu-latest
     strategy:
       matrix:
