@@ -74,7 +74,7 @@ export const mastra = new Mastra({
       return c.json({ error: 'internal server error' }, 500);
     },
     apiRoutes: [
-      registerApiRoute('/health', {
+      registerApiRoute('/healthz', {
         method: 'GET',
         handler: (c) =>
           c.json({
