@@ -1,8 +1,8 @@
 const BASE = process.env.API_BASE_URL ?? 'http://localhost:47821';
 
 describe('API e2e', () => {
-  test('GET /health returns ok', async () => {
-    const res = await fetch(`${BASE}/health`);
+  test('GET /healthz returns ok', async () => {
+    const res = await fetch(`${BASE}/healthz`);
     expect(res.status).toBe(200);
     const body = await res.json() as Record<string, unknown>;
     expect(body.ok).toBe(true);
