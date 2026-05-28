@@ -1,7 +1,7 @@
 # Shared Dockerfile for the Node apps (api, telegram-bot).
 # Build with: --build-arg APP=api  or  --build-arg APP=telegram-bot
 
-ARG NODE_VERSION=20.10.0
+ARG NODE_VERSION=20.19.0
 
 # ---------- builder ----------
 FROM node:${NODE_VERSION}-bookworm AS builder
