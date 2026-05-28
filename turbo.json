@@ -17,7 +17,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".mastra/output/**"]
     },
     "dev": {
       "cache": false,
