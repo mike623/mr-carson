@@ -4,6 +4,8 @@ dist
 **/dist
 .turbo
 **/.turbo
+.mastra
+**/.mastra
 .git
 .env
 .env.*

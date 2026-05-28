@@ -5,10 +5,8 @@ services:
     image: ghcr.io/mike623/mr-carson-api:latest
     build:
       context: ../..
-      dockerfile: infrastructure/docker/Dockerfile.node
-      args:
-        APP: api
-    command: ["node", "apps/api/.mastra/output/index.mjs"]
+      dockerfile: infrastructure/docker/Dockerfile.api
+    command: ["node", "index.mjs"]
     restart: unless-stopped
     environment:
       API_PORT: 47821
@@ -24,8 +22,8 @@ services:
     ports:
       - "47821:47821"
     volumes:
-      - duckdb_data:/data/db
-      - uploads:/data/uploads
+      - ../../apps/api/data:/data/db
+      - ../../apps/api/data/uploads:/data/uploads
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:47821/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 30s
@@ -42,10 +40,8 @@ services:
     image: ghcr.io/mike623/mr-carson-bot:latest
     build:
       context: ../..
-      dockerfile: infrastructure/docker/Dockerfile.node
-      args:
-        APP: telegram-bot
-    command: ["node", "apps/telegram-bot/dist/main.js"]
+      dockerfile: infrastructure/docker/Dockerfile.bot
+    command: ["node", "dist/main.js"]
     restart: unless-stopped
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
@@ -54,7 +50,7 @@ services:
       UPLOADS_DIR: /data/uploads
       DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-GBP}
     volumes:
-      - uploads:/data/uploads
+      - ../../apps/api/data/uploads:/data/uploads
     depends_on:
       api:
         condition: service_healthy
@@ -64,6 +60,3 @@ services:
         max-size: "10m"
         max-file: "3"
 
-volumes:
-  uploads:
-  duckdb_data:
