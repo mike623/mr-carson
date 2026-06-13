@@ -1,5 +1,24 @@
 default_platform(:ios)
 
+def app_identifier
+  ENV['APP_IDENTIFIER'] || 'com.mrcarson.mrCarson'
+end
+
+def match_profile_name
+  mapping = Actions.lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING] || {}
+  mapping[app_identifier] || "match AppStore #{app_identifier}"
+end
+
+# gym spawns its own xcodebuild, whose Flutter "Run Script" build phase
+# (xcode_backend.sh) re-invokes `flutter`. fastlane runs under Homebrew Ruby and
+# exports GEM_HOME/GEM_PATH/BUNDLE_GEMFILE, which leak into that subprocess and
+# deadlock flutter's dartvm during the archive. Strip those vars (safe: fastlane
+# is already loaded) and make sure flutter is on PATH for the embedded call.
+def clean_flutter_subprocess_env!
+  %w[GEM_HOME GEM_PATH BUNDLE_GEMFILE BUNDLE_BIN_PATH RUBYOPT RUBYLIB].each { |k| ENV.delete(k) }
+  ENV["PATH"] = "/opt/homebrew/bin:#{ENV['PATH']}" unless ENV["PATH"].to_s.include?("/opt/homebrew/bin")
+end
+
 # ---------------------------------------------------------------------------
 # Mr. Carson — iOS TestFlight delivery
 #
@@ -22,8 +41,14 @@ default_platform(:ios)
 platform :ios do
   desc "Provision signing assets via match (read-only, CI-safe)"
   lane :setup_signing do
-    setup_ci # creates a temporary keychain in CI; no-op on a normal dev machine
-    match(type: "appstore", readonly: true)
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: ENV["ASC_KEY_FILEPATH"],
+      in_house: false
+    )
+    setup_ci(force: true) # always create a temp keychain w/ codesign partition list (avoids local keychain auth prompt that deadlocks the archive)
+    match(type: "appstore", readonly: true, api_key: api_key)
   end
 
   desc "Build a signed App Store IPA WITHOUT uploading (verification only)."
@@ -34,7 +59,7 @@ platform :ios do
       key_filepath: ENV["ASC_KEY_FILEPATH"],
       in_house: false
     )
-    setup_ci
+    setup_ci(force: true)
     match(type: "appstore", readonly: true, api_key: api_key)
     # Pin the Runner target to manual signing with the team + match profile, so
     # `flutter build` (xcodebuild) doesn't error "requires a development team".
@@ -43,10 +68,11 @@ platform :ios do
       path: "Runner.xcodeproj",
       team_id: ENV["APPLE_TEAM_ID"],
       code_sign_identity: "Apple Distribution",
-      profile_name: "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.mrcarson.mrCarson'}",
+      profile_name: match_profile_name,
       targets: ["Runner"]
     )
     sh("cd ../.. && env -u GEM_HOME -u GEM_PATH -u BUNDLE_GEMFILE PATH=/opt/homebrew/bin:$PATH flutter build ios --release --no-codesign")
+    clean_flutter_subprocess_env!
     ipa = build_app(
       workspace: "Runner.xcworkspace",
       scheme: "Runner",
@@ -67,14 +93,14 @@ platform :ios do
     )
 
     # 2. Prepare a clean keychain (CI) and fetch the appstore signing assets.
-    setup_ci
+    setup_ci(force: true)
     match(type: "appstore", readonly: true, api_key: api_key)
     update_code_signing_settings(
       use_automatic_signing: false,
       path: "Runner.xcodeproj",
       team_id: ENV["APPLE_TEAM_ID"],
       code_sign_identity: "Apple Distribution",
-      profile_name: "match AppStore #{ENV['APP_IDENTIFIER'] || 'com.mrcarson.mrCarson'}",
+      profile_name: match_profile_name,
       targets: ["Runner"]
     )
 
@@ -99,6 +125,7 @@ platform :ios do
     #    fastlane (gym) archive + sign + export the IPA using the match profile.
     sh("cd ../.. && env -u GEM_HOME -u GEM_PATH -u BUNDLE_GEMFILE PATH=/opt/homebrew/bin:$PATH flutter build ios --release --no-codesign")
 
+    clean_flutter_subprocess_env!
     ipa_path = build_app(
       workspace: "Runner.xcworkspace",
       scheme: "Runner",

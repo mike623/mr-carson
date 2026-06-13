@@ -1,7 +1,11 @@
 # fastlane match configuration — https://docs.fastlane.tools/actions/match/
 # Certs/profiles are stored in a dedicated git repo (NOT the app repo).
 
-git_url(ENV.fetch("MATCH_GIT_URL", "https://github.com/YOUR_ORG/ios-certs"))
+git_url(ENV.fetch("MATCH_GIT_URL"))
+
+# Shared Apple-team signing branch copied from Catty2/PurrSafe.
+# Distribution cert is team/account-level; provisioning profiles remain app/bundle-id-level.
+git_branch(ENV["MATCH_GIT_BRANCH"] || "apple-team-Z6KK7N4RQ4")
 
 storage_mode("git")
 
@@ -15,5 +19,3 @@ app_identifier([ENV["APP_IDENTIFIER"] || "com.mrcarson.mrCarson"])
 # (run once by an admin) overrides this to read-write.
 readonly(ENV["MATCH_READONLY"].nil? ? true : ENV["MATCH_READONLY"] == "true")
 
-# Optional: pin the branch in the certs repo.
-git_branch(ENV["MATCH_GIT_BRANCH"]) if ENV["MATCH_GIT_BRANCH"]
