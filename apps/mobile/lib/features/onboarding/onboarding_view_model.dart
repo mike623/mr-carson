@@ -54,6 +54,7 @@ class OnboardingState {
 class OnboardingViewModel extends AutoDisposeNotifier<OnboardingState> {
   Timer? _mockTimer;
   StreamSubscription<int>? _downloadSub;
+  bool _loadStarted = false;
 
   @override
   OnboardingState build() {
@@ -103,17 +104,34 @@ class OnboardingViewModel extends AutoDisposeNotifier<OnboardingState> {
             downloadPct: clamped,
             done: clamped >= 100,
           );
+          if (clamped >= 100) _loadModel();
         },
         onError: (_) => _startMockRamp(),
         onDone: () {
           if (!state.done) {
             state = state.copyWith(downloadPct: 100, done: true);
           }
+          _loadModel();
         },
         cancelOnError: true,
       );
     } catch (_) {
       _startMockRamp();
+    }
+  }
+
+  /// Loads the downloaded model into the inference engine so the rest of the
+  /// app sees `GemmaState.ready`. Best-effort: a failure (e.g. the iOS
+  /// simulator's software GPU can't satisfy MediaPipe's delegate) leaves the
+  /// service in `GemmaState.error` and the chat falls back to canned replies —
+  /// onboarding still completes so the user isn't stuck.
+  Future<void> _loadModel() async {
+    if (_loadStarted) return;
+    _loadStarted = true;
+    try {
+      await ref.read(gemmaServiceProvider).loadModel();
+    } catch (_) {
+      // Swallowed by design — GemmaService records the error in its own state.
     }
   }
 
