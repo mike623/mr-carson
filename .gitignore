@@ -26,3 +26,6 @@ studio-presets.json
 *.db
 *.db-shm
 *.db-wal
+
+# wrangler local state
+.wrangler/
