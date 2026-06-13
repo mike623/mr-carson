@@ -80,6 +80,55 @@ platform :ios do
        "Requires WRITE access to the ios-certs repo and an Apple account with " \
        "admin rights. Run this once by the project owner, NOT in CI."
   lane :certificates do
-    match(type: "appstore")
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: ENV["ASC_KEY_FILEPATH"],
+      in_house: false
+    )
+    # readonly:false so match can create + push the missing cert/profile.
+    match(type: "appstore", readonly: false, api_key: api_key)
+  end
+
+  desc "One-time: register the App ID on the Developer Portal and create the " \
+       "App Store Connect app record (idempotent — skips what already exists)."
+  lane :bootstrap do
+    # `produce` registers the App ID via the LEGACY Developer Portal (Apple ID +
+    # 2FA), which can't run headless. The App Store Connect API key can do both
+    # the bundle-id registration and the app-record creation directly through
+    # spaceship's ConnectAPI — no Apple-ID login. Idempotent: skips what exists.
+    # Sets Spaceship::ConnectAPI.token globally (set_spaceship_token defaults true).
+    app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: ENV["ASC_KEY_FILEPATH"],
+      in_house: false
+    )
+
+    ident = ENV["APP_IDENTIFIER"] || "com.mrcarson.mrCarson"
+    name  = ENV["APP_NAME"] || "Mr. Carson"
+
+    bundle = Spaceship::ConnectAPI::BundleId.all.detect { |b| b.identifier == ident }
+    if bundle.nil?
+      bundle = Spaceship::ConnectAPI::BundleId.create(
+        name: name.gsub(/[^0-9A-Za-z ]/, ""), identifier: ident, platform: "IOS"
+      )
+      UI.success("Registered bundle id #{ident}")
+    else
+      UI.message("Bundle id #{ident} already registered")
+    end
+
+    # NOTE: Apple's App Store Connect API does NOT permit creating app records
+    # ('apps' allows only GET/UPDATE). The app record must be created once in the
+    # ASC web UI (or via legacy Apple-ID + 2FA `produce`). We detect it here.
+    app = Spaceship::ConnectAPI::App.find(ident)
+    if app.nil?
+      UI.important("App Store Connect record for #{ident} does NOT exist yet.")
+      UI.important("Create it once at https://appstoreconnect.apple.com → Apps → +")
+      UI.important("  Platform: iOS · Name: '#{name}' · Bundle ID: #{ident} · SKU: #{ENV["APP_SKU"] || "mrcarson"}")
+      UI.important("The bundle id is already registered, so it will appear in the dropdown.")
+    else
+      UI.success("App Store Connect record for #{ident} already exists ✅")
+    end
   end
 end
