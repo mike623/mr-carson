@@ -7,8 +7,12 @@ import 'package:flutter_gemma/core/model.dart';
 import 'package:flutter_gemma/pigeon.g.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// TODO: point at self-hosted Gemma 3n .litertlm
-const String kDefaultModelUrl = 'https://example.com/gemma-3n.litertlm';
+// Self-hosted on Cloudflare R2 (public, tokenless). The object must be uploaded
+// to the `mr-carson-models` bucket as `gemma-3n.litertlm` (see
+// apps/mobile/scripts/setup-r2.sh). Until the file is uploaded this 404s and the
+// onboarding ViewModel falls back to the mock download ramp.
+const String kDefaultModelUrl =
+    'https://pub-577b868d66aa4fd691ef6564611f0fc0.r2.dev/gemma-3n.litertlm';
 
 /// Lifecycle state of the on-device Gemma model.
 enum GemmaState {
