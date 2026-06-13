@@ -306,15 +306,16 @@ class _StepDownload extends StatelessWidget {
   final VoidCallback onTogglePause;
   final VoidCallback onEnter;
 
-  // Fabricate plausible download stats from pct (0–100).
+  /// Real on-device model size (gemma-3n-E2B-it-int4.litertlm, 3655827456 B).
+  static const double _totalMb = 3487.0;
+
+  // [pct] is the REAL download percentage from GemmaService's progress stream,
+  // so the byte count below tracks the actual download. flutter_gemma's stream
+  // is percent-only (no byte/speed signal), so speed + ETA remain estimates.
   static _DownloadStats _stats(double pct) {
-    const gb = 1.9;
-    final mb = (pct / 100 * gb * 1024).clamp(0, gb * 1024);
-    // speed varies 45–120 MB/s
-    final speed = 45 + 75 * (0.5 + 0.5 * math.sin(pct * 0.25));
-    final remaining = pct >= 100
-        ? 0.0
-        : ((gb * 1024 - mb) / speed); // seconds
+    final mb = (pct / 100 * _totalMb).clamp(0, _totalMb);
+    final speed = 45 + 75 * (0.5 + 0.5 * math.sin(pct * 0.25)); // estimated MB/s
+    final remaining = pct >= 100 ? 0.0 : ((_totalMb - mb) / speed); // seconds
     return _DownloadStats(
       mb: mb.toStringAsFixed(0),
       speed: speed.toStringAsFixed(1),
@@ -617,7 +618,7 @@ class _StatsCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${stats.mb} of 1,945 MB',
+                    '${stats.mb} of 3,487 MB',
                     style: MrCarsonType.ui(size: 14),
                   ),
                   Text(

@@ -1,0 +1,7 @@
+app_identifier(ENV["APP_IDENTIFIER"] || "com.mrcarson.mrCarson") # The bundle identifier of your app
+apple_id(ENV["APPLE_ID"])            # Apple ID — optional when uploading via App Store Connect API key
+itc_team_id(ENV["ITC_TEAM_ID"])      # App Store Connect (iTunes Connect) Team ID
+team_id(ENV["APPLE_TEAM_ID"])        # Apple Developer Portal Team ID
+
+# Every value is sourced from the environment so no credentials live in the repo.
+# See fastlane/.env.example for the full list of expected variables.

@@ -32,3 +32,18 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+# fastlane
+fastlane/.env
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output
+*.p8
+*.mobileprovision
+*.ipa
+*.app.dSYM.zip
+build/
+
+# bundler (local gem install path)
+.bundle/
+vendor/bundle/
