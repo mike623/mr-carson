@@ -45,6 +45,20 @@ Nothing the user does in the UI reaches the database.
 - **Empty state:** real empty states; no seeded sample data.
 - **Architecture:** Approach A — `ExpenseRepository` + reactive Riverpod
   providers over drift `.watch()` streams.
+- **Image input/storage:** add `image_picker` (camera + library). Copy the
+  picked file into `<app documents>/receipts/<uuid>.jpg`, store that stable path
+  in `pending_expenses.file_path` → `expenses.source_file`, plus a sha256
+  `image_hash` for dedup. Picker temp paths are not persistent, so the copy is
+  required. No image bytes in the DB.
+
+## Data store (reference)
+
+- **DB engine:** drift over SQLite (`sqlite3_flutter_libs`). Single file
+  `mr_carson.sqlite` in `getApplicationDocumentsDirectory()`
+  (`app_database.dart:364`). On-device, per-app, restart-safe.
+- **Tables:** expenses, expense_items, categories, merchants, pending_expenses.
+- **Images:** filesystem (`<docs>/receipts/`), referenced by path columns
+  (`source_file`, `file_path`) + `image_hash`. No bytes in DB.
 
 ## Architecture
 
@@ -76,6 +90,11 @@ Domain models as needed: `ExpenseSummary`, `MonthlySummary`, `ExpenseDetail`
 
 ### 2. Capture → confirm → persist
 
+- **Image input:** add `image_picker`. `capturePhoto` (camera) and `startUpload`
+  (gallery) obtain an `XFile`, then a new `ReceiptImageStore` copies it to
+  `<app documents>/receipts/<uuid>.<ext>` and returns the stable path. That path
+  (never the picker temp path) is what flows into `processReceipt`. The store
+  also exposes the receipts dir for cleanup of rejected receipts.
 - `ConfirmScreen` → `ConsumerWidget` taking a `pendingId`. Loads the real
   `ExpenseDraft` (from the pending row's `extractedJson` or the in-memory
   pipeline result), pre-fills **editable** merchant, category, line items, total.
@@ -145,6 +164,10 @@ Ask: user msg → ChatService.send → (tool: queryExpenses/topMerchants/chartSp
 
 ## Build / codegen
 
+- `flutter pub add image_picker crypto` (crypto for sha256 `image_hash`).
+- iOS `Info.plist`: add `NSCameraUsageDescription` +
+  `NSPhotoLibraryUsageDescription`. Android: image_picker needs no manifest
+  perms for gallery; camera capture adds `<uses-feature camera>` as needed.
 - `dart run build_runner build --delete-conflicting-outputs` after new drift
   `.watch()` methods and any new freezed/json models.
 
@@ -157,6 +180,7 @@ Ask: user msg → ChatService.send → (tool: queryExpenses/topMerchants/chartSp
 ## File touch list (estimate)
 
 - New: `lib/data/repositories/expense_repository.dart`,
+  `lib/data/receipt_image_store.dart` (copy picked image into `<docs>/receipts/`),
   `lib/ui/core/widgets/{loading,error_retry,empty}_state.dart`,
   chart widget under `lib/features/ask/`.
 - Edit: `app_database.dart` (watch methods), `providers.dart`,
