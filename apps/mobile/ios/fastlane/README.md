@@ -23,6 +23,14 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 Provision signing assets via match (read-only, CI-safe)
 
+### ios build
+
+```sh
+[bundle exec] fastlane ios build
+```
+
+Build a signed App Store IPA WITHOUT uploading (verification only).
+
 ### ios beta
 
 ```sh
