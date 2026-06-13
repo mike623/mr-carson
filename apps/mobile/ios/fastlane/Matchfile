@@ -1,0 +1,19 @@
+# fastlane match configuration — https://docs.fastlane.tools/actions/match/
+# Certs/profiles are stored in a dedicated git repo (NOT the app repo).
+
+git_url(ENV["MATCH_GIT_URL"] || "https://github.com/mike623/ios-certs")
+
+storage_mode("git")
+
+# "appstore" provides the distribution certificate + App Store provisioning
+# profile required for TestFlight / App Store uploads.
+type(ENV["MATCH_TYPE"] || "appstore")
+
+app_identifier([ENV["APP_IDENTIFIER"] || "com.mrcarson.mrCarson"])
+
+# CI-safe: never create or mutate certs from CI runs. The `certificates` lane
+# (run once by an admin) overrides this to read-write.
+readonly(ENV["MATCH_READONLY"].nil? ? true : ENV["MATCH_READONLY"] == "true")
+
+# Optional: pin the branch in the certs repo.
+git_branch(ENV["MATCH_GIT_BRANCH"]) if ENV["MATCH_GIT_BRANCH"]

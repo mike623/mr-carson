@@ -2,3 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
   - "e2e"
+  # apps/mobile is a Flutter (Dart) app, not a JS package. pnpm already skips
+  # dirs without a package.json, but exclude it explicitly to be unambiguous.
+  - "!apps/mobile"

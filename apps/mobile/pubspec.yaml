@@ -1,0 +1,47 @@
+name: mr_carson
+description: Mr. Carson — offline-first receipt expense tracker (Flutter + on-device Gemma).
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Local DB
+  drift: ^2.20.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Models / immutability
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+  uuid: ^4.5.0
+
+  # On-device LLM (OCR + extraction + chat)
+  flutter_gemma: ^0.9.0
+
+  # State
+  flutter_riverpod: ^2.5.1
+
+  # Charts (replaces QuickChart.io)
+  fl_chart: ^0.69.0
+
+  # Design system fonts: Cormorant Garamond (display) + Hanken Grotesk (UI)
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.13
+  drift_dev: ^2.20.0
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

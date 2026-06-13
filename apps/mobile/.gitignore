@@ -1,0 +1,19 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# Generated code (regenerate via build_runner)
+*.g.dart
+*.freezed.dart
+
+# Downloaded on-device model (large, never commit)
+*.litertlm
+*.bin
+*.task
+
+# flutter run log
+run.log
