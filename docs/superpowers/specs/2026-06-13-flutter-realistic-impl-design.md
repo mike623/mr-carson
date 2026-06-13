@@ -50,6 +50,11 @@ Nothing the user does in the UI reaches the database.
   in `pending_expenses.file_path` → `expenses.source_file`, plus a sha256
   `image_hash` for dedup. Picker temp paths are not persistent, so the copy is
   required. No image bytes in the DB.
+- **Tool calling:** upgrade `flutter_gemma` `^0.9.0` → `^0.16.x` and replace the
+  manual `TOOL:` text-protocol loop with **native function calling**
+  (`Tool` defs + `FunctionCallResponse` + `Message.toolResponse`). Gemma3n (our
+  model) is on the supported-for-function-calling list. Mastra has no Dart SDK
+  and would require a server, so it is rejected for the on-device app.
 
 ## Data store (reference)
 
@@ -61,6 +66,26 @@ Nothing the user does in the UI reaches the database.
   (`source_file`, `file_path`) + `image_hash`. No bytes in DB.
 
 ## Architecture
+
+### 0. flutter_gemma upgrade + native function calling
+
+- Bump `flutter_gemma` `^0.9.0` → `^0.16.x`. The modern API replaces the legacy
+  `FlutterGemmaPlugin.instance` singleton (exact current API — model creation,
+  vision session, install/download — to be confirmed against 0.16.x docs during
+  implementation).
+- Migrate the three AI files:
+  - `gemma_service.dart` — model load + `createVisionSession` + `createChat` to
+    the modern API; keep the `GemmaState` lifecycle.
+  - `receipt_pipeline.dart` — vision session call sites.
+  - `chat_service.dart` — **rewrite**: delete the manual `TOOL:` parser/loop and
+    the outdated v0.9.0 header comment; define `Tool`s for `queryExpenses`,
+    `topMerchants`, `chartSpending`; handle `FunctionCallResponse` by running the
+    drift query and replying with `Message.toolResponse`. LLM still never writes
+    SQL — it emits tool name + args; drift compiles the query.
+- **Risk:** the build just shipped to TestFlight is on 0.9.0. This upgrade
+  requires a full on-device re-test (vision OCR + chat + function calling on a
+  real device, not just the simulator). Treat as its own implementation phase
+  with a device smoke test before the UI wiring lands.
 
 ### 1. Data layer
 
@@ -114,11 +139,12 @@ Domain models as needed: `ExpenseSummary`, `MonthlySummary`, `ExpenseDetail`
 
 ### 4. Ask + charts
 
-- Add `chartSpending` case to `chat_service.dart` `_runTool`, returning the
-  `byCategoryOverTime` buckets as JSON; teach the tool protocol preamble about it.
-- Replace `ask_view_model` `hasChart` bool with structured chart data attached to
-  the message; render a real `fl_chart` widget (bar/line over category buckets)
-  in `ask_screen.dart`.
+- Native function calling (see §0): register `Tool`s for `queryExpenses`,
+  `topMerchants`, and `chartSpending` on the chat; handle `FunctionCallResponse`
+  → run the drift query → `Message.toolResponse` → model narrates the answer.
+- `chartSpending` returns `byCategoryOverTime` buckets; attach structured chart
+  data to the message and render a real `fl_chart` widget (bar/line over category
+  buckets) in `ask_screen.dart` (replaces the fake `hasChart` bool).
 - Remove `_replies`/`_mockReply`. When model not ready, surface an honest
   "AI unavailable" message (no fabricated answer).
 
@@ -164,7 +190,8 @@ Ask: user msg → ChatService.send → (tool: queryExpenses/topMerchants/chartSp
 
 ## Build / codegen
 
-- `flutter pub add image_picker crypto` (crypto for sha256 `image_hash`).
+- Bump `flutter_gemma` to `^0.16.x`; `flutter pub add image_picker crypto`
+  (crypto for sha256 `image_hash`).
 - iOS `Info.plist`: add `NSCameraUsageDescription` +
   `NSPhotoLibraryUsageDescription`. Android: image_picker needs no manifest
   perms for gallery; camera capture adds `<uses-feature camera>` as needed.
