@@ -313,8 +313,9 @@ class _StepDownload extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onEnter;
 
-  /// Real on-device model size (gemma-3n-E2B-it-int4.litertlm, 3655827456 B).
-  static const double _totalMb = 3487.0;
+  /// Real on-device model size (gemma-4-e2b.litertlm, 2.41 GiB on R2 —
+  /// see apps/mobile/scripts/setup-r2.sh and kModelHostedOnR2).
+  static const double _totalMb = 2467.0;
 
   // [pct] is the REAL download percentage from GemmaService's progress stream,
   // so the byte count below tracks the actual download. flutter_gemma's stream
@@ -636,7 +637,7 @@ class _StatsCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${stats.mb} of 3,487 MB',
+                    '${stats.mb} of 2,467 MB',
                     style: MrCarsonType.ui(size: 14),
                   ),
                   Text(

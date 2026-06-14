@@ -24,6 +24,11 @@ class _FakeImageStore extends ReceiptImageStore {
   Future<void> cleanup(String path) async {
     cleaned.add(path);
   }
+
+  // commitConfirmed hashes through the store; return a deterministic value so
+  // the commit path never performs real disk I/O in the fake-async zone.
+  @override
+  Future<String?> hashFile(String path) async => 'fake-hash-for-$path';
 }
 
 void main() {

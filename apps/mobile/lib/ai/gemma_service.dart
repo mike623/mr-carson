@@ -4,12 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Self-hosted on Cloudflare R2 (public, tokenless). The object must be uploaded
-// to the `mr-carson-models` bucket as `gemma-4-e2b.litertlm` (see
-// apps/mobile/scripts/setup-r2.sh). NOTE: the Gemma 4 E2B `.litertlm` file does
-// NOT exist in the bucket yet — uploading it is a separate infra task. Until it
-// is uploaded this URL 404s and the onboarding ViewModel falls back to the mock
-// download ramp.
+// Self-hosted on Cloudflare R2 (public, tokenless). The Gemma 4 E2B
+// `.litertlm` object lives in the `mr-carson-models` bucket as
+// `gemma-4-e2b.litertlm` (see apps/mobile/scripts/setup-r2.sh) and the public
+// URL serves it (HTTP 200; [kModelHostedOnR2] is true). The onboarding flow
+// drives the REAL download from this URL. If [kModelHostedOnR2] were ever
+// flipped back to false, onboarding shows an honest error — there is no longer
+// a mock download ramp.
 const String kDefaultModelUrl =
     'https://pub-577b868d66aa4fd691ef6564611f0fc0.r2.dev/gemma-4-e2b.litertlm';
 

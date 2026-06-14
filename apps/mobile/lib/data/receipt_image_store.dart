@@ -41,6 +41,20 @@ class ReceiptImageStore {
     return dir;
   }
 
+  /// SHA-256 hex digest of the bytes of the file at [path], or `null` if the
+  /// file is missing/unreadable. This is the single source of truth for the
+  /// receipt image-hash format: both [persist] (the up-front dedup pre-check)
+  /// and the commit-time persistence in [ReceiptPipelineService] hash through
+  /// here, so the recorded `expenses.image_hash` always matches the pre-check.
+  Future<String?> hashFile(String path) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      return sha256.convert(bytes).toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Copies the file at [sourcePath] into the receipts directory under a fresh
   /// UUID filename (preserving the original extension), computes its SHA-256
   /// hash, and returns the stable [StoredReceiptImage].

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
 import '../data/providers.dart';
+import '../data/receipt_image_store.dart';
 import '../data/repositories/pending_repository.dart';
 import '../domain/models/ai_models.dart';
 import 'gemma_service.dart';
@@ -58,11 +59,12 @@ class ReceiptResult {
 /// 3. [commitConfirmed] — user approves; row is inserted into `expenses`.
 /// 4. [reject]          — user declines; row is marked rejected.
 class ReceiptPipelineService {
-  ReceiptPipelineService(this._gemma, this._db, this._pending);
+  ReceiptPipelineService(this._gemma, this._db, this._pending, this._images);
 
   final GemmaService _gemma;
   final AppDatabase _db;
   final PendingRepository _pending;
+  final ReceiptImageStore _images;
 
   // --- public API -----------------------------------------------------------
 
@@ -143,9 +145,20 @@ class ReceiptPipelineService {
         'awaitingConfirmation state (status: ${pending?.status ?? "not found"})',
       );
     }
+    // Recompute the SHA-256 of the on-disk image so `expenses.image_hash` is
+    // persisted, making the up-front `findByImageHash` pre-check meaningful
+    // across sessions. We hash through ReceiptImageStore.hashFile — the same
+    // code path the pre-check uses — so the recorded hash always matches. If
+    // the file is missing/unreadable, hashFile returns null and we skip the
+    // hash rather than fail the commit.
+    final filePath = pending.filePath;
+    final imageHash =
+        filePath == null ? null : await _images.hashFile(filePath);
+
     final id = await _db.insertExpense(
       draft,
       sourceFile: pending.filePath,
+      imageHash: imageHash,
     );
     await _pending.setStatus(pendingId, PendingStatus.inserted);
     return id;
@@ -187,5 +200,6 @@ final receiptPipelineProvider = Provider<ReceiptPipelineService>((ref) {
     ref.watch(gemmaServiceProvider),
     ref.watch(appDatabaseProvider),
     ref.watch(pendingRepositoryProvider),
+    ref.watch(receiptImageStoreProvider),
   );
 });
