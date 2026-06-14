@@ -73,6 +73,17 @@ class GemmaService {
   // Private handle to the loaded model.
   InferenceModel? _model;
 
+  // --- install check --------------------------------------------------------
+
+  /// Whether a model has already been installed and registered as active in a
+  /// previous session (synchronous; delegates to [FlutterGemma.hasActiveModel]).
+  ///
+  /// Returning users hit this true on app start so onboarding can skip the
+  /// multi-GB download and go straight to [loadModel]. Read-only — it neither
+  /// downloads nor loads; it only reports whether the install step can be
+  /// skipped.
+  bool hasActiveModel() => FlutterGemma.hasActiveModel();
+
   // --- download -------------------------------------------------------------
 
   /// Downloads and installs the model from [url].

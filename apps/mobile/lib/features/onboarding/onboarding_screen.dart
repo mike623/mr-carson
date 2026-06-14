@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mr_carson/theme/app_theme.dart';
 import 'package:mr_carson/ui/core/widgets/carson_monogram.dart';
+import 'package:mr_carson/ui/core/widgets/error_retry_state.dart';
 
 import 'onboarding_view_model.dart';
 
@@ -102,7 +103,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           pct: s.downloadPct,
           done: s.done,
           paused: s.paused,
+          error: s.error,
           onTogglePause: vm.togglePause,
+          onRetry: vm.retry,
           onEnter: widget.onEnter,
         );
       default:
@@ -296,14 +299,18 @@ class _StepDownload extends StatelessWidget {
     required this.pct,
     required this.done,
     required this.paused,
+    required this.error,
     required this.onTogglePause,
+    required this.onRetry,
     required this.onEnter,
   });
 
   final double pct;
   final bool done;
   final bool paused;
+  final String? error;
   final VoidCallback onTogglePause;
+  final VoidCallback onRetry;
   final VoidCallback onEnter;
 
   /// Real on-device model size (gemma-3n-E2B-it-int4.litertlm, 3655827456 B).
@@ -333,6 +340,17 @@ class _StepDownload extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Honest error arm — the real download or model load failed. Reuse the
+    // shared §6 ErrorRetryState; its Retry button restarts the real download.
+    if (error != null) {
+      return ErrorRetryState(
+        title: 'A hiccup, sir.',
+        message: error!,
+        onRetry: onRetry,
+        retryLabel: 'Try again',
+      );
+    }
+
     final stats = _stats(pct);
 
     return Column(
