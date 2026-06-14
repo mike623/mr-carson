@@ -9,6 +9,15 @@ def match_profile_name
   mapping[app_identifier] || "match AppStore #{app_identifier}"
 end
 
+def install_signing_assets(api_key)
+  # Do not call setup_ci/create_keychain here: those create and switch to a
+  # Fastlane temp keychain (for example fastlane_tmp_keychain-db). Local builds
+  # should use the current user default keychain (normally login.keychain-db).
+  # App Store Connect API-key auth avoids Apple ID/2FA, but macOS codesigning
+  # still requires the distribution private key to be available via a keychain.
+  match(type: "appstore", readonly: true, api_key: api_key)
+end
+
 # gym spawns its own xcodebuild, whose Flutter "Run Script" build phase
 # (xcode_backend.sh) re-invokes `flutter`. fastlane runs under Homebrew Ruby and
 # exports GEM_HOME/GEM_PATH/BUNDLE_GEMFILE, which leak into that subprocess and
@@ -47,8 +56,7 @@ platform :ios do
       key_filepath: ENV["ASC_KEY_FILEPATH"],
       in_house: false
     )
-    setup_ci(force: true) # always create a temp keychain w/ codesign partition list (avoids local keychain auth prompt that deadlocks the archive)
-    match(type: "appstore", readonly: true, api_key: api_key)
+    install_signing_assets(api_key)
   end
 
   desc "Build a signed App Store IPA WITHOUT uploading (verification only)."
@@ -59,8 +67,7 @@ platform :ios do
       key_filepath: ENV["ASC_KEY_FILEPATH"],
       in_house: false
     )
-    setup_ci(force: true)
-    match(type: "appstore", readonly: true, api_key: api_key)
+    install_signing_assets(api_key)
     # Pin the Runner target to manual signing with the team + match profile, so
     # `flutter build` (xcodebuild) doesn't error "requires a development team".
     update_code_signing_settings(
@@ -71,7 +78,12 @@ platform :ios do
       profile_name: match_profile_name,
       targets: ["Runner"]
     )
-    sh("cd ../.. && env -u GEM_HOME -u GEM_PATH -u BUNDLE_GEMFILE PATH=/opt/homebrew/bin:$PATH flutter build ios --release --no-codesign")
+    # Keep the bundler/mise env intact here: this repo has ios/Gemfile, so the
+    # Flutter tool runs `bundle exec pod install`, which needs the bundled
+    # cocoapods (mise Ruby). Stripping GEM_*/BUNDLE_* drops it to system Ruby 2.6
+    # where the bundle isn't installed. The gym step below isolates its own
+    # subprocess env via clean_flutter_subprocess_env!.
+    sh("cd ../.. && flutter build ios --release --no-codesign")
     clean_flutter_subprocess_env!
     ipa = build_app(
       workspace: "Runner.xcworkspace",
@@ -92,9 +104,8 @@ platform :ios do
       in_house: false
     )
 
-    # 2. Prepare a clean keychain (CI) and fetch the appstore signing assets.
-    setup_ci(force: true)
-    match(type: "appstore", readonly: true, api_key: api_key)
+    # 2. Fetch the appstore signing assets into the current default keychain.
+    install_signing_assets(api_key)
     update_code_signing_settings(
       use_automatic_signing: false,
       path: "Runner.xcodeproj",
@@ -123,7 +134,12 @@ platform :ios do
 
     # 4. Compile the Flutter iOS artifacts WITHOUT codesigning, then let
     #    fastlane (gym) archive + sign + export the IPA using the match profile.
-    sh("cd ../.. && env -u GEM_HOME -u GEM_PATH -u BUNDLE_GEMFILE PATH=/opt/homebrew/bin:$PATH flutter build ios --release --no-codesign")
+    # Keep the bundler/mise env intact here: this repo has ios/Gemfile, so the
+    # Flutter tool runs `bundle exec pod install`, which needs the bundled
+    # cocoapods (mise Ruby). Stripping GEM_*/BUNDLE_* drops it to system Ruby 2.6
+    # where the bundle isn't installed. The gym step below isolates its own
+    # subprocess env via clean_flutter_subprocess_env!.
+    sh("cd ../.. && flutter build ios --release --no-codesign")
 
     clean_flutter_subprocess_env!
     ipa_path = build_app(
