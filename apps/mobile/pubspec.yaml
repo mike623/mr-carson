@@ -4,7 +4,7 @@ publish_to: none
 version: 0.1.0+1
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
+  sdk: ">=3.10.0 <4.0.0"
   flutter: ">=3.22.0"
 
 dependencies:
@@ -12,18 +12,18 @@ dependencies:
     sdk: flutter
 
   # Local DB
-  drift: ^2.20.0
+  drift: ^2.34.0
   sqlite3_flutter_libs: ^0.5.24
   path_provider: ^2.1.4
   path: ^1.9.0
 
   # Models / immutability
-  freezed_annotation: ^2.4.4
+  freezed_annotation: ^3.0.0
   json_annotation: ^4.9.0
   uuid: ^4.5.0
 
   # On-device LLM (OCR + extraction + chat)
-  flutter_gemma: ^0.9.0
+  flutter_gemma: ^0.16.5
 
   # State
   flutter_riverpod: ^2.5.1
@@ -38,8 +38,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   build_runner: ^2.4.13
-  drift_dev: ^2.20.0
-  freezed: ^2.5.7
+  drift_dev: ^2.34.0
+  freezed: ^3.0.0
   json_serializable: ^6.8.0
   flutter_lints: ^4.0.0
 
