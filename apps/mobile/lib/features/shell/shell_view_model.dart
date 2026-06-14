@@ -1,29 +1,32 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
-import '../../ai/gemma_service.dart';
+import '../../data/image_picker_provider.dart';
+import '../../data/providers.dart';
+import '../../data/receipt_image_store.dart';
 import '../../ai/receipt_pipeline.dart';
-import '../ledger/ledger_screen.dart' show LedgerPending;
 
 /// Which screen the shell is currently presenting.
 enum ShellScreen { ask, ledger, detail, confirm }
 
 /// Immutable state for the in-app shell.
+///
+/// The pending-receipt list is no longer held here — it is streamed from
+/// [pendingReceiptsProvider] (the §1 reactive data layer) straight into the
+/// ledger. This view-model owns navigation, the butler toast, and which pending
+/// id is currently under review.
 @immutable
 class ShellState {
   const ShellState({
     this.screen = ShellScreen.ask,
-    this.pending = const [],
     this.reviewingId,
     this.toast,
   });
 
   final ShellScreen screen;
-  final List<LedgerPending> pending;
 
   /// The pending id currently being reviewed on the confirm screen, if any.
   final String? reviewingId;
@@ -36,15 +39,14 @@ class ShellState {
 
   ShellState copyWith({
     ShellScreen? screen,
-    List<LedgerPending>? pending,
     Object? reviewingId = _unset,
     Object? toast = _unset,
   }) {
     return ShellState(
       screen: screen ?? this.screen,
-      pending: pending ?? this.pending,
-      reviewingId:
-          identical(reviewingId, _unset) ? this.reviewingId : reviewingId as String?,
+      reviewingId: identical(reviewingId, _unset)
+          ? this.reviewingId
+          : reviewingId as String?,
       toast: identical(toast, _unset) ? this.toast : toast as String?,
     );
   }
@@ -52,24 +54,20 @@ class ShellState {
   static const _unset = Object();
 }
 
-/// Drives the in-app shell: navigation, the pending receipt list, and the
-/// butler toast.
+/// Drives the in-app shell: navigation, the butler toast, and kicking off the
+/// real capture → process pipeline.
 ///
-/// Real path: a chosen receipt is run through
-/// [ReceiptPipelineService.processReceipt]; on success the pending card is
-/// marked ready.
-///
-/// Fallback: when the Gemma model isn't [GemmaState.ready] or no real image
-/// path is supplied (the demo's "Upload from library" action), the original
-/// mock progress ramp is used so the prototype flow is preserved exactly.
+/// Capture flow: a receipt is picked via [ImagePicker], copied into durable
+/// storage by [ReceiptImageStore], then run through
+/// [ReceiptPipelineService.processReceipt]. The pipeline writes a row into
+/// `pending_expenses`, which streams back to the ledger via
+/// [pendingReceiptsProvider] — there is no in-memory pending list here.
 class ShellViewModel extends AutoDisposeNotifier<ShellState> {
-  Timer? _procTimer;
   Timer? _toastTimer;
 
   @override
   ShellState build() {
     ref.onDispose(() {
-      _procTimer?.cancel();
       _toastTimer?.cancel();
     });
     return const ShellState();
@@ -89,108 +87,62 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
 
   // --- add sheet outcomes --------------------------------------------------
 
-  /// "Take a photograph" — open the confirm screen for a fresh capture.
-  void capturePhoto() {
-    state = state.copyWith(reviewingId: null, screen: ShellScreen.confirm);
-  }
-
-  /// "Upload from library" — start background processing.
+  /// "Take a photograph" — open the camera, then process the captured receipt.
   ///
-  /// [imagePath] is supplied when a real file is chosen; when null (the demo's
-  /// library action), the mock ramp runs.
-  void startUpload({String? imagePath}) {
-    final id = 'p${DateTime.now().millisecondsSinceEpoch}';
-    final pending = [
-      LedgerPending(
-        id: id,
-        ready: false,
-        stage: 'Reading the receipt…',
-        pct: 0,
-      ),
-      ...state.pending,
-    ];
-    state = state.copyWith(pending: pending, screen: ShellScreen.ledger);
+  /// [imagePath] may be supplied directly (tests) to bypass the live picker.
+  Future<void> capturePhoto({String? imagePath}) =>
+      _pickAndProcess(ImageSource.camera, imagePath: imagePath);
+
+  /// "Upload from library" — pick from the gallery, then process the receipt.
+  ///
+  /// [imagePath] may be supplied directly (tests) to bypass the live picker.
+  Future<void> startUpload({String? imagePath}) =>
+      _pickAndProcess(ImageSource.gallery, imagePath: imagePath);
+
+  // --- real capture → process pipeline -------------------------------------
+
+  Future<void> _pickAndProcess(
+    ImageSource source, {
+    String? imagePath,
+  }) async {
+    // 1. Obtain a source path — from the injected value (tests) or the picker.
+    String? pickedPath = imagePath;
+    if (pickedPath == null) {
+      final XFile? file =
+          await ref.read(imagePickerProvider).pickImage(source: source);
+      if (file == null) return; // user cancelled
+      pickedPath = file.path;
+    }
+
+    // 2. Copy into durable storage + hash for dedup.
+    final StoredReceiptImage stored;
+    try {
+      stored = await ref.read(receiptImageStoreProvider).persist(pickedPath);
+    } catch (e) {
+      showToast('I could not save that image, sir.');
+      return;
+    }
+
+    // 3. Dedup: skip an image we have already filed.
+    final existing =
+        await ref.read(appDatabaseProvider).findByImageHash(stored.imageHash);
+    if (existing != null) {
+      await ref.read(receiptImageStoreProvider).cleanup(stored.path);
+      showToast('I have already filed this receipt, sir.');
+      go(ShellScreen.ledger);
+      return;
+    }
+
+    // 4. Hand off to the real pipeline. It writes the pending row (which
+    //    streams to the ledger) and runs OCR + extraction.
+    go(ShellScreen.ledger);
     showToast('Very good, sir. Reading it in the background.');
 
-    final gemma = ref.read(gemmaServiceProvider);
-    if (imagePath != null &&
-        File(imagePath).existsSync() &&
-        gemma.state == GemmaState.ready) {
-      _realProcess(id, imagePath);
-    } else {
-      _mockProcess(id);
+    final result =
+        await ref.read(receiptPipelineProvider).processReceipt(stored.path);
+    if (!result.ok) {
+      showToast('I struggled with that receipt, sir.');
     }
-  }
-
-  // --- real path -----------------------------------------------------------
-
-  Future<void> _realProcess(String id, String imagePath) async {
-    try {
-      final result =
-          await ref.read(receiptPipelineProvider).processReceipt(imagePath);
-      final draft = result.draft;
-      if (result.ok && draft != null) {
-        _markReady(
-          id,
-          merchant: draft.merchant,
-          total: '${draft.currency} ${draft.total.toStringAsFixed(2)}',
-        );
-      } else {
-        // On failure fall back to the mock ramp so the card still completes.
-        _mockProcess(id);
-      }
-    } catch (_) {
-      _mockProcess(id);
-    }
-  }
-
-  // --- fallback (mock) path ------------------------------------------------
-
-  void _mockProcess(String id) {
-    final rng = Random();
-    _procTimer?.cancel();
-    _procTimer = Timer.periodic(const Duration(milliseconds: 260), (t) {
-      final pending = List<LedgerPending>.from(state.pending);
-      final i = pending.indexWhere((p) => p.id == id);
-      if (i < 0) {
-        t.cancel();
-        return;
-      }
-      final p = pending[i];
-      final pct = p.pct + 3 + rng.nextInt(5);
-      if (pct >= 100) {
-        t.cancel();
-        pending[i] = LedgerPending(
-          id: id,
-          ready: true,
-          stage: 'Ready for your review',
-          pct: 100,
-          merchant: 'Caffè Nero',
-          total: '£6.15',
-        );
-      } else {
-        final stage = pct < 45
-            ? 'Reading the receipt…'
-            : (pct < 80 ? 'Extracting the figures…' : 'Tidying up…');
-        pending[i] = LedgerPending(id: id, ready: false, stage: stage, pct: pct);
-      }
-      state = state.copyWith(pending: pending);
-    });
-  }
-
-  void _markReady(String id, {required String merchant, required String total}) {
-    final pending = List<LedgerPending>.from(state.pending);
-    final i = pending.indexWhere((p) => p.id == id);
-    if (i < 0) return;
-    pending[i] = LedgerPending(
-      id: id,
-      ready: true,
-      stage: 'Ready for your review',
-      pct: 100,
-      merchant: merchant,
-      total: total,
-    );
-    state = state.copyWith(pending: pending);
   }
 
   // --- review / confirm ----------------------------------------------------
@@ -199,22 +151,12 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
     state = state.copyWith(reviewingId: id, screen: ShellScreen.confirm);
   }
 
-  void saveConfirm() {
-    var pending = state.pending;
-    final reviewingId = state.reviewingId;
-    if (reviewingId != null) {
-      pending = pending.where((p) => p.id != reviewingId).toList();
-    }
-    state = state.copyWith(
-      pending: pending,
-      reviewingId: null,
-      screen: ShellScreen.ledger,
-    );
-    showToast('Very good, sir.');
-  }
-
-  void discardConfirm() {
+  /// Called by the confirm screen once a draft has been committed or rejected;
+  /// returns to the ledger. The ledger's pending list updates itself from the
+  /// stream — nothing to remove here.
+  void closeConfirm({String? toast}) {
     state = state.copyWith(reviewingId: null, screen: ShellScreen.ledger);
+    if (toast != null) showToast(toast);
   }
 }
 

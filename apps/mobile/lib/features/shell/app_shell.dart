@@ -1,12 +1,28 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/db/app_database.dart';
+import '../../data/providers.dart';
+import '../../domain/models/ai_models.dart';
 import '../../theme/app_theme.dart';
 import '../ask/ask_screen.dart';
 import '../confirm/confirm_screen.dart';
 import '../detail/detail_screen.dart';
 import '../ledger/ledger_screen.dart';
 import 'shell_view_model.dart';
+
+/// Formats an amount with a currency symbol (falling back to the ISO code).
+String _money(String currency, double amount) {
+  final prefix = switch (currency.toUpperCase()) {
+    'GBP' => '£',
+    'USD' => '\$',
+    'EUR' => '€',
+    _ => '$currency ',
+  };
+  return '$prefix${amount.toStringAsFixed(2)}';
+}
 
 /// The in-app navigation shell — everything after onboarding.
 ///
@@ -16,8 +32,9 @@ import 'shell_view_model.dart';
 /// background-pending flow (upload → processes on device → "Ready for your
 /// review" → Confirm). Detail and Confirm present over the active tab.
 ///
-/// A dumb view: navigation, the pending list, and the toast live in
-/// [ShellViewModel]; this widget only renders state and forwards taps.
+/// A dumb view: navigation and the toast live in [ShellViewModel]; the pending
+/// list is streamed from [pendingReceiptsProvider]. This widget only renders
+/// state and forwards taps.
 class AppShell extends ConsumerWidget {
   const AppShell({super.key});
 
@@ -29,31 +46,73 @@ class AppShell extends ConsumerWidget {
       builder: (_) => const _AddSheet(),
     );
     if (choice == 'photo') {
-      vm.capturePhoto();
+      await vm.capturePhoto();
     } else if (choice == 'upload') {
-      vm.startUpload();
+      await vm.startUpload();
     }
   }
 
-  Widget _body(ShellState s, ShellViewModel vm) {
+  /// Maps a `pending_expenses` row to the ledger's [LedgerPending] view model.
+  ///
+  /// Ready (awaitingConfirmation) rows show merchant + total parsed from the
+  /// stored draft; in-flight rows show a processing label.
+  LedgerPending _toLedgerPending(PendingExpense row) {
+    final ready = row.status == PendingStatus.awaitingConfirmation.name;
+    String? merchant;
+    String? total;
+    if (ready && row.extractedJson != null && row.extractedJson!.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(row.extractedJson!);
+        if (decoded is Map<String, dynamic>) {
+          final draft = ExpenseDraft.fromJson(decoded);
+          merchant = draft.merchant;
+          total = _money(draft.currency, draft.total);
+        }
+      } catch (_) {
+        // Leave merchant/total null — the card still renders.
+      }
+    }
+    return LedgerPending(
+      id: row.id,
+      ready: ready,
+      stage: ready ? 'Ready for your review' : 'Reading the receipt…',
+      pct: ready ? 100 : 50,
+      merchant: merchant,
+      total: total,
+    );
+  }
+
+  Widget _body(
+    ShellState s,
+    ShellViewModel vm,
+    List<LedgerPending> pending,
+  ) {
     switch (s.screen) {
       case ShellScreen.ask:
         return const AskScreen();
       case ShellScreen.ledger:
         return LedgerScreen(
-          pending: s.pending,
+          pending: pending,
           onOpenExpense: (_) => vm.go(ShellScreen.detail),
           onReviewPending: vm.reviewPending,
         );
       case ShellScreen.detail:
         return DetailScreen(onBack: () => vm.go(ShellScreen.ledger));
       case ShellScreen.confirm:
+        final id = s.reviewingId;
+        if (id == null) {
+          // No receipt selected — nothing to confirm; return to the ledger.
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => vm.go(ShellScreen.ledger),
+          );
+          return const SizedBox.shrink();
+        }
         return ConfirmScreen(
-          note: s.reviewingId != null
-              ? 'All done while you were away, sir. Two figures want a glance.'
-              : 'I read this just now, sir. Two figures want a glance.',
-          onDiscard: vm.discardConfirm,
-          onSave: vm.saveConfirm,
+          pendingId: id,
+          note: 'All done while you were away, sir. '
+              'Two figures want a glance.',
+          onDone: () => vm.closeConfirm(toast: 'Very good, sir.'),
+          onDiscarded: () => vm.closeConfirm(),
         );
     }
   }
@@ -63,11 +122,16 @@ class AppShell extends ConsumerWidget {
     final s = ref.watch(shellViewModelProvider);
     final vm = ref.read(shellViewModelProvider.notifier);
 
+    final pending = ref.watch(pendingReceiptsProvider).maybeWhen(
+          data: (rows) => rows.map(_toLedgerPending).toList(),
+          orElse: () => const <LedgerPending>[],
+        );
+
     return Scaffold(
       backgroundColor: MrCarsonColors.bg,
       body: Stack(
         children: [
-          Positioned.fill(child: _body(s, vm)),
+          Positioned.fill(child: _body(s, vm, pending)),
           if (s.navVisible)
             Positioned(
               left: 0,
@@ -75,7 +139,7 @@ class AppShell extends ConsumerWidget {
               bottom: 0,
               child: _BottomNav(
                 current: s.screen == ShellScreen.ask ? 0 : 1,
-                hasPending: s.pending.isNotEmpty,
+                hasPending: pending.isNotEmpty,
                 onAsk: () => vm.go(ShellScreen.ask),
                 onLedger: () => vm.go(ShellScreen.ledger),
                 onAdd: () => _openAddSheet(context, vm),

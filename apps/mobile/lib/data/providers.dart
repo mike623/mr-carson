@@ -47,3 +47,17 @@ final pendingReceiptsProvider =
     StreamProvider<List<PendingExpense>>((ref) {
   return ref.watch(pendingRepositoryProvider).watchActive();
 });
+
+/// Streams a single active pending receipt by id, or null if it is no longer
+/// active (inserted / rejected / failed / not found). Derived from
+/// [pendingReceiptsProvider] so the confirm screen reacts to the same stream
+/// that drives the ledger's pending list.
+final pendingReceiptByIdProvider =
+    Provider.family<AsyncValue<PendingExpense?>, String>((ref, id) {
+  return ref.watch(pendingReceiptsProvider).whenData((rows) {
+    for (final r in rows) {
+      if (r.id == id) return r;
+    }
+    return null;
+  });
+});

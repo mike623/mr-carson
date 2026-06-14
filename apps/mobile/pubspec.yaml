@@ -33,6 +33,8 @@ dependencies:
 
   # Design system fonts: Cormorant Garamond (display) + Hanken Grotesk (UI)
   google_fonts: ^6.2.1
+  image_picker: ^1.2.2
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

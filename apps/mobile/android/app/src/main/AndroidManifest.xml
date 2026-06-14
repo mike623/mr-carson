@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Camera is used to photograph receipts, but the app remains usable
+         (gallery upload) on devices without one. -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
     <application
         android:label="mr_carson"
         android:name="${applicationName}"
