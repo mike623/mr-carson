@@ -26,7 +26,7 @@ const List<String> kDefaultCategories = [
 ];
 
 @freezed
-class ExpenseItemDraft with _$ExpenseItemDraft {
+abstract class ExpenseItemDraft with _$ExpenseItemDraft {
   const factory ExpenseItemDraft({
     required String name,
     required double amount,
@@ -39,7 +39,7 @@ class ExpenseItemDraft with _$ExpenseItemDraft {
 
 /// The structured expense Gemma extracts from a receipt, before it's persisted.
 @freezed
-class ExpenseDraft with _$ExpenseDraft {
+abstract class ExpenseDraft with _$ExpenseDraft {
   const factory ExpenseDraft({
     required String merchant,
     required String date, // YYYY-MM-DD
@@ -54,7 +54,7 @@ class ExpenseDraft with _$ExpenseDraft {
 }
 
 @freezed
-class OcrResult with _$OcrResult {
+abstract class OcrResult with _$OcrResult {
   const factory OcrResult({
     ExpenseDraft? structured,
     required String rawText,
@@ -91,7 +91,7 @@ enum Granularity { day, week, month }
 enum ChartType { bar, line, pie, doughnut }
 
 @freezed
-class QueryExpensesArgs with _$QueryExpensesArgs {
+abstract class QueryExpensesArgs with _$QueryExpensesArgs {
   const factory QueryExpensesArgs({
     String? category,
     String? merchant,
@@ -109,7 +109,7 @@ class QueryExpensesArgs with _$QueryExpensesArgs {
 }
 
 @freezed
-class QueryRow with _$QueryRow {
+abstract class QueryRow with _$QueryRow {
   const factory QueryRow({
     required String expenseId,
     required String date,
@@ -126,7 +126,7 @@ class QueryRow with _$QueryRow {
 }
 
 @freezed
-class QueryExpensesResult with _$QueryExpensesResult {
+abstract class QueryExpensesResult with _$QueryExpensesResult {
   const factory QueryExpensesResult({
     required double total,
     required double vatTotal,
@@ -140,7 +140,7 @@ class QueryExpensesResult with _$QueryExpensesResult {
 }
 
 @freezed
-class CategoryBucket with _$CategoryBucket {
+abstract class CategoryBucket with _$CategoryBucket {
   const factory CategoryBucket({
     required String bucket,
     required String category,

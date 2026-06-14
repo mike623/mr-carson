@@ -1,78 +1,53 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:flutter_gemma/core/chat.dart';
-import 'package:flutter_gemma/core/message.dart';
+import 'package:flutter_gemma/flutter_gemma.dart'
+    show
+        FunctionCallResponse,
+        InferenceChat,
+        Message,
+        ModelResponse,
+        ParallelFunctionCallResponse,
+        TextResponse,
+        ThinkingResponse,
+        Tool,
+        ToolChoice;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
+import '../data/providers.dart' show appDatabaseProvider;
 import '../domain/models/ai_models.dart';
 import 'gemma_service.dart';
 import 'prompts.dart';
-import '../data/providers.dart' show appDatabaseProvider;
 
 // ---------------------------------------------------------------------------
-// Tool-calling path: MANUAL (not native function-calling).
+// Tool-calling path: NATIVE function calling (flutter_gemma 0.16.5).
 //
-// flutter_gemma v0.9.0 does NOT expose a function-calling / Tool API. Its
-// `InferenceChat` (lib/core/chat.dart) only offers addQueryChunk(Message),
-// generateChatResponse(), and the streaming generateChatResponseAsync(); the
-// `Message` type (lib/core/message.dart) is plain text + optional image, with
-// no tool-call / tool-result variants. There is therefore no native hook to
-// register `queryExpenses` / `topMerchants` as model-callable functions.
+// Gemma 4 E2B (.litertlm) emits structured `<|tool_call>...<tool_call|>` tokens
+// which the SDK parses into a sealed `ModelResponse` union. We register three
+// `Tool`s (queryExpenses, topMerchants, chartSpending) at chat-creation time;
+// the model decides when to call them. We run a bounded agent loop: each turn
+// either streams a final TextResponse to the UI, or surfaces a
+// FunctionCallResponse / ParallelFunctionCallResponse which we execute against
+// the local drift DB and feed back via Message.toolResponse, then re-generate.
 //
-// So this service implements the documented manual single-step tool loop:
-//   1. The system persona (kChatSystemPersona) plus a tool protocol preamble
-//      instruct the model to EITHER answer directly OR emit a single first
-//      line `TOOL: <name> {json-args}`.
-//   2. send() runs a first (buffered) generation, detects that prefix, runs
-//      the query against the DB, feeds the JSON result back, and then streams
-//      the model's final natural-language answer to the UI.
-// The LLM never writes SQL — it only produces QueryExpensesArgs-shaped JSON;
-// AppDatabase compiles the parameterized query.
+// The LLM never writes SQL — it only produces QueryExpensesArgs-shaped args;
+// AppDatabase compiles the parameterized query. This replaces the old manual
+// `TOOL:` text-protocol parser entirely (native FC needs no text protocol).
 // ---------------------------------------------------------------------------
 
-/// Prefix the model emits on the first line when it wants to call a tool.
-const String _kToolPrefix = 'TOOL:';
+/// Maximum number of agent turns (generate → maybe tool-call → generate …)
+/// before we give up and emit a fallback. Prevents a runaway tool loop.
+const int _kMaxAgentTurns = 5;
 
-/// Tool protocol preamble appended to [kChatSystemPersona] when the chat is
-/// seeded. Teaches the manual single-step calling convention.
-const String _kToolProtocol = '''
+/// Fallback shown if the agent loop exhausts its turn budget with no answer.
+const String _kAgentFallback =
+    "I'm sorry, I wasn't able to look that up right now. Please try again.";
 
-## Tool protocol
-
-You have access to local tools that read the user's expense database. You do
-NOT write SQL — you only emit a tool name and JSON arguments.
-
-When a question needs data, your reply MUST be exactly one line, nothing else:
-
-TOOL: queryExpenses {"category":"Dining","dateRange":"thisMonth"}
-
-or:
-
-TOOL: topMerchants {"dateRange":"thisMonth","topN":5}
-
-Rules for tool calls:
-- The line must start with `TOOL:` followed by the tool name, then a single
-  JSON object of arguments. No prose before or after it.
-- Tools available: `queryExpenses` and `topMerchants`.
-- Argument keys follow the queryExpenses shape: category, merchant, itemName,
-  itemNames (array), dateRange, startDate, endDate, limit, includeImages.
-  `topMerchants` also accepts `topN`.
-- dateRange must be one of: today, yesterday, thisWeek, lastWeek, thisMonth,
-  lastMonth, thisYear, allTime.
-- Emit only ONE tool call per turn. After I run it I will hand you the JSON
-  result and ask you to answer the user.
-
-If the question does NOT need data, just answer the user directly in plain
-sentences (no TOOL: line).''';
-
-/// On-device butler chat ("Mr. Carson") backed by Gemma 3n.
+/// On-device butler chat ("Mr. Carson") backed by Gemma 4 E2B.
 ///
-/// Manages a single [InferenceChat] for the conversation and runs a manual
-/// single-step tool loop so the model can read the local expense database
-/// before narrating an answer. See the file header for why the loop is manual
-/// rather than native function-calling.
+/// Manages a single [InferenceChat] (with native function-calling tools) for
+/// the conversation and runs a bounded agent loop so the model can read the
+/// local expense database before narrating an answer.
 ///
 /// Lifecycle:
 /// 1. [start] — create + seed the chat with the butler persona.
@@ -87,44 +62,71 @@ class ChatService {
 
   InferenceChat? _chat;
 
+  /// Native tool declarations exposed to Gemma 4. Descriptions are kept tight
+  /// because they are rendered into the prompt and consume context.
+  late final List<Tool> _tools = [
+    Tool(
+      name: 'queryExpenses',
+      description:
+          'Look up the user\'s expenses. Filter by category, merchant, item '
+          'name(s), or date range. Returns matching rows plus totals.',
+      parameters: _queryExpensesSchema(),
+    ),
+    Tool(
+      name: 'topMerchants',
+      description:
+          'Rank the merchants the user spent the most at over a date range. '
+          'Returns each merchant with its total.',
+      parameters: _topMerchantsSchema(),
+    ),
+    Tool(
+      name: 'chartSpending',
+      description:
+          'Break spending down by category over time (day/week/month buckets) '
+          'for a date range. Use for trend, breakdown, or "over time" questions. '
+          'Returns the buckets so you can describe the trend in words.',
+      parameters: _chartSpendingSchema(),
+    ),
+  ];
+
   // --- lifecycle ------------------------------------------------------------
 
-  /// Creates the chat and seeds it with [kChatSystemPersona] plus the tool
-  /// protocol as the first system turn.
+  /// Creates the chat (with native tools) and seeds it with
+  /// [kChatSystemPersona] as the first turn.
   ///
   /// If a chat is already open (e.g. after a stream error left one behind),
   /// it is closed before the new one is created, preventing session leaks.
   /// Throws [StateError] if the Gemma model is not loaded.
   Future<void> start() async {
-    // Close any previously open session before replacing it.
     final existing = _chat;
     if (existing != null) {
       _chat = null;
       await existing.session.close();
     }
 
-    final chat = await _gemma.createChat();
+    final chat = await _gemma.createChat(
+      tools: _tools,
+      supportsFunctionCalls: true,
+      toolChoice: ToolChoice.auto,
+    );
     await chat.addQueryChunk(
-      Message.text(
-        text: '$kChatSystemPersona$_kToolProtocol',
-        isUser: false,
-      ),
+      Message.text(text: kChatSystemPersona, isUser: false),
     );
     _chat = chat;
   }
 
   /// Streams the assistant's reply tokens for [userMessage].
   ///
-  /// Runs the manual single-step tool loop:
-  /// - Streams the first generation token-by-token, buffering only enough to
-  ///   detect a leading `TOOL:` line.
-  /// - If the reply is a direct answer, buffered tokens are yielded first and
-  ///   subsequent tokens are streamed live — the UI sees progressive output.
-  /// - If the reply is a tool call, the full first response is accumulated
-  ///   (it should be a single short line), the tool is executed, and the
-  ///   second generation is streamed live.
-  /// - If the second generation also begins with `TOOL:` (runaway model), a
-  ///   fallback apology is yielded instead of leaking the raw prefix.
+  /// Runs a bounded agent loop over the native sealed [ModelResponse] union:
+  /// - [TextResponse] tokens are streamed straight to the UI.
+  /// - [FunctionCallResponse] / [ParallelFunctionCallResponse] are executed
+  ///   against the local DB, the results are fed back via
+  ///   [Message.toolResponse], and the loop re-generates.
+  /// - [ThinkingResponse] is ignored (never surfaced to the UI).
+  ///
+  /// The loop ends when a turn produces only text (no tool call). If the turn
+  /// budget ([_kMaxAgentTurns]) is exhausted without a final text answer, a
+  /// single honest fallback sentence is yielded.
   ///
   /// On stream error the service is left in an unusable state; callers should
   /// call [dispose] (or [start] — which closes the old session) to recover.
@@ -138,107 +140,49 @@ class ChatService {
 
     await chat.addQueryChunk(Message.text(text: userMessage, isUser: true));
 
-    // ---- first pass: stream tokens, buffer until we know if it's a tool call
+    bool yieldedText = false;
 
-    final firstBuffer = StringBuffer();
-    bool? isToolCall; // null = not yet decided
-    final pendingChunks = <String>[];
+    for (var turn = 0; turn < _kMaxAgentTurns; turn++) {
+      // Collect any function calls this turn produced; stream text live.
+      final pendingCalls = <FunctionCallResponse>[];
 
-    await for (final chunk in chat.generateChatResponseAsync()) {
-      firstBuffer.write(chunk);
-      final soFar = firstBuffer.toString();
-
-      if (isToolCall == null) {
-        // Decision point: once we have enough text to check the prefix.
-        if (soFar.trimLeft().length >= _kToolPrefix.length ||
-            soFar.contains('\n')) {
-          isToolCall = soFar.trimLeft().startsWith(_kToolPrefix);
-          if (!isToolCall) {
-            // Direct answer — flush buffered chunks and switch to live mode.
-            pendingChunks.add(chunk);
-            for (final c in pendingChunks) {
-              yield c;
+      await for (final ModelResponse response
+          in chat.generateChatResponseAsync()) {
+        switch (response) {
+          case TextResponse(:final token):
+            if (token.isNotEmpty) {
+              yieldedText = true;
+              yield token;
             }
-            pendingChunks.clear();
-            isToolCall = false; // mark decided
-            continue;
-          }
-          // Tool call path — keep accumulating (don't yield anything yet).
-          isToolCall = true;
-        } else {
-          // Not enough text yet — hold the chunk.
-          pendingChunks.add(chunk);
+          case FunctionCallResponse():
+            pendingCalls.add(response);
+          case ParallelFunctionCallResponse(:final calls):
+            pendingCalls.addAll(calls);
+          case ThinkingResponse():
+            // Internal reasoning — never surface to the UI.
+            break;
         }
-      } else if (!isToolCall) {
-        // Already decided: direct answer, stream live.
-        yield chunk;
       }
-      // isToolCall == true: keep accumulating silently.
-    }
 
-    // If we never saw enough text to decide, treat it as a direct answer.
-    if (isToolCall == null || isToolCall == false) {
-      // Flush any still-pending chunks (e.g. very short response).
-      for (final c in pendingChunks) {
-        yield c;
+      if (pendingCalls.isEmpty) {
+        // Pure text turn (or empty) — the answer is complete.
+        return;
       }
-      return;
-    }
 
-    // ---- tool call path: parse + execute ------------------------------------
-
-    final firstResponse = firstBuffer.toString();
-    final toolCall = _parseToolCall(firstResponse);
-
-    if (toolCall == null) {
-      // Malformed TOOL: line — yield as plain text.
-      yield firstResponse;
-      return;
-    }
-
-    final resultJson = await _runTool(toolCall.name, toolCall.rawArgs);
-    await chat.addQueryChunk(
-      Message.text(
-        text: 'Tool `${toolCall.name}` result (JSON): $resultJson\n'
-            'Here are the results, answer the user in plain sentences.',
-        isUser: true,
-      ),
-    );
-
-    // ---- second pass: stream live, guard against runaway tool loop ----------
-
-    int toolCallsInSecondPass = 0;
-    final secondBuffer = StringBuffer();
-    bool secondIsToolCall = false;
-    bool secondDecided = false;
-
-    await for (final chunk in chat.generateChatResponseAsync()) {
-      secondBuffer.write(chunk);
-
-      if (!secondDecided) {
-        final soFar = secondBuffer.toString();
-        if (soFar.trimLeft().length >= _kToolPrefix.length ||
-            soFar.contains('\n')) {
-          secondIsToolCall = soFar.trimLeft().startsWith(_kToolPrefix);
-          secondDecided = true;
-          if (secondIsToolCall) {
-            toolCallsInSecondPass++;
-            break; // stop — we will emit a fallback below
-          }
-          // Flush the buffer then go live.
-          yield soFar;
-          continue;
-        }
-        // Not enough to decide yet — hold.
-      } else if (!secondIsToolCall) {
-        yield chunk;
+      // Execute every requested tool and feed the results back, then loop to
+      // let the model narrate (or call another tool).
+      for (final call in pendingCalls) {
+        final result = await _runTool(call.name, call.args);
+        await chat.addQueryChunk(
+          Message.toolResponse(toolName: call.name, response: result),
+        );
       }
     }
 
-    if (toolCallsInSecondPass > 0) {
-      // Model tried to make a second tool call — guard: return a safe fallback.
-      yield "I'm sorry, I wasn't able to look that up right now. Please try again.";
-      return;
+    // Turn budget exhausted. If we already streamed some text, leave it as the
+    // answer; otherwise emit an honest fallback rather than going silent.
+    if (!yieldedText) {
+      yield _kAgentFallback;
     }
   }
 
@@ -253,44 +197,36 @@ class ChatService {
     }
   }
 
-  // --- tool loop internals --------------------------------------------------
+  // --- tool execution -------------------------------------------------------
 
-  /// Parses a leading `TOOL: <name> {json}` line, or returns null if [response]
-  /// is a direct answer.
-  _ToolCall? _parseToolCall(String response) {
-    final trimmed = response.trim();
-    if (!trimmed.startsWith(_kToolPrefix)) return null;
-
-    final afterPrefix = trimmed.substring(_kToolPrefix.length).trim();
-    // Split tool name from the JSON args (args begin at the first '{').
-    final braceIdx = afterPrefix.indexOf('{');
-    if (braceIdx < 0) {
-      // Name but no args — treat args as empty object.
-      return _ToolCall(name: afterPrefix.split(RegExp(r'\s')).first, rawArgs: '{}');
-    }
-    final name = afterPrefix.substring(0, braceIdx).trim();
-    final rawArgs = afterPrefix.substring(braceIdx).trim();
-    if (name.isEmpty) return null;
-    return _ToolCall(name: name, rawArgs: rawArgs);
-  }
-
-  /// Executes [name] with [rawArgs], returning a compact JSON result string.
+  /// Executes [name] with native-supplied [args], returning a JSON-serializable
+  /// result map for [Message.toolResponse].
   ///
-  /// Never throws: parse/execution failures are returned as an error JSON
-  /// object so the model can recover and respond gracefully.
-  Future<String> _runTool(String name, String rawArgs) async {
+  /// Never throws: parse/execution failures are returned as an `{'error': ...}`
+  /// map so the model can recover and respond gracefully.
+  ///
+  /// Every returned map embeds `'_tool': name` for disambiguation. The Gemma 4
+  /// SDK async path does NOT push a preceding `Message.toolCall` into history,
+  /// so for parallel calls the model can otherwise mis-attribute which result
+  /// belongs to which tool. Tagging the result with its originating tool name
+  /// lets the model line results up with the calls it requested.
+  Future<Map<String, dynamic>> _runTool(
+    String name,
+    Map<String, dynamic> args,
+  ) async {
     try {
-      final argsMap = _coerceArgsMap(rawArgs);
-      final args = QueryExpensesArgs.fromJson(_normalizeArgs(argsMap));
+      final argsMap = _coerceArgsMap(args);
+      final queryArgs = QueryExpensesArgs.fromJson(_normalizeArgs(argsMap));
 
       switch (name) {
         case 'queryExpenses':
-          final result = await _db.queryExpenses(args);
-          return jsonEncode(result.toJson());
+          final result = await _db.queryExpenses(queryArgs);
+          return {'_tool': name, ...result.toJson()};
         case 'topMerchants':
           final topN = _readTopN(argsMap);
-          final merchants = await _db.topMerchants(args, topN: topN);
-          return jsonEncode({
+          final merchants = await _db.topMerchants(queryArgs, topN: topN);
+          return {
+            '_tool': name,
             'merchants': merchants
                 .map((m) => {
                       'merchant': m.merchant,
@@ -298,55 +234,124 @@ class ChatService {
                       'currency': m.currency,
                     })
                 .toList(),
-          });
-        // TODO: chartSpending tool (needs fl_chart render) — separate task
+          };
+        case 'chartSpending':
+          final granularity = _readGranularity(argsMap);
+          final chart = await _db.byCategoryOverTime(
+            queryArgs,
+            granularity: granularity,
+          );
+          return {
+            '_tool': name,
+            'granularity': chart.granularity.name,
+            'currency': chart.currency,
+            'buckets': chart.rows
+                .map((b) => {
+                      'bucket': b.bucket,
+                      'category': b.category,
+                      'total': b.total,
+                    })
+                .toList(),
+          };
         default:
-          return jsonEncode({'error': 'unknown tool: $name'});
+          return {'_tool': name, 'error': 'unknown tool: $name'};
       }
     } catch (e) {
-      return jsonEncode({'error': e.toString()});
+      return {'_tool': name, 'error': e.toString()};
     }
   }
 
-  /// Tolerates args arriving as a JSON string or an already-decoded map.
+  // --- arg coercion (tolerant of loose model output) ------------------------
+
+  /// Tolerates args arriving as an already-decoded map (native FC) or a nested
+  /// map type, normalizing to `Map<String, dynamic>`.
   Map<String, dynamic> _coerceArgsMap(Object? rawArgs) {
     if (rawArgs is Map<String, dynamic>) return rawArgs;
     if (rawArgs is Map) return rawArgs.cast<String, dynamic>();
-    if (rawArgs is String) {
-      final trimmed = rawArgs.trim();
-      if (trimmed.isEmpty) return <String, dynamic>{};
-      final decoded = jsonDecode(trimmed);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return decoded.cast<String, dynamic>();
-    }
+    if (rawArgs == null) return <String, dynamic>{};
     throw FormatException('tool args are not a JSON object: $rawArgs');
   }
 
   /// Normalizes model-supplied args into the exact shape
   /// [QueryExpensesArgs.fromJson] expects.
   ///
-  /// Currently this only coerces `dateRange` (the model tends to emit
-  /// snake_case like `this_month`) into the camelCase enum name the generated
-  /// decoder expects (`thisMonth`). Unknown values are dropped so an odd
-  /// dateRange never aborts the whole call.
+  /// Coerces `dateRange` (the model tends to emit snake_case like `this_month`)
+  /// into the camelCase enum name the generated decoder expects (`thisMonth`).
+  /// Unknown values are dropped so an odd dateRange never aborts the call. Keys
+  /// not understood by [QueryExpensesArgs] (e.g. `topN`, `granularity`) are
+  /// stripped here so the generated decoder doesn't choke on them.
+  ///
+  /// Also defends against loose scalar types from the model: `QueryExpensesArgs.
+  /// fromJson` casts `limit` as `num?` and `startDate`/`endDate` as `String?`,
+  /// which THROW if the model emits e.g. `limit: "200"` or `startDate: 20240101`.
+  /// We coerce those to the expected runtime types (and drop unparseable values)
+  /// so the decoder never throws on loose output.
   Map<String, dynamic> _normalizeArgs(Map<String, dynamic> args) {
     final out = Map<String, dynamic>.from(args);
+    out.remove('topN');
+    out.remove('granularity');
+
     final dr = out['dateRange'];
     if (dr is String) {
       final coerced = _coerceDateRange(dr);
       if (coerced == null) {
-        out.remove('dateRange'); // Unknown range → omit → query runs unfiltered (all-time).
+        out.remove('dateRange'); // Unknown range → omit → unfiltered (all-time).
       } else {
         out['dateRange'] = coerced;
       }
     }
+
+    // `limit` must decode as a num. Tolerate String / num; drop if unparseable.
+    if (out.containsKey('limit')) {
+      final limit = _coerceLimit(out['limit']);
+      if (limit == null) {
+        out.remove('limit');
+      } else {
+        out['limit'] = limit;
+      }
+    }
+
+    // `startDate` / `endDate` must decode as a String that looks like a date.
+    // Stringify non-strings; drop anything that doesn't look date-shaped.
+    for (final key in const ['startDate', 'endDate']) {
+      if (!out.containsKey(key)) continue;
+      final coerced = _coerceDate(out[key]);
+      if (coerced == null) {
+        out.remove(key);
+      } else {
+        out[key] = coerced;
+      }
+    }
+
     return out;
+  }
+
+  /// Coerces a loose `limit` value to an int (mirrors [_readTopN] tolerance).
+  /// Returns null if it can't be parsed, so the caller drops the key.
+  int? _coerceLimit(Object? v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v.trim());
+    return null;
+  }
+
+  /// Coerces a loose date value to a date-shaped String, or null to drop it.
+  /// Accepts anything that stringifies to a `YYYY-MM-DD`-ish form (digits and
+  /// separators); rejects clearly non-date junk rather than letting it through.
+  String? _coerceDate(Object? v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+    // Must contain at least 4 consecutive digits (a year) and only date-ish
+    // characters. Keeps it simple: the goal is "never throw on loose types".
+    if (!RegExp(r'\d{4}').hasMatch(s)) return null;
+    if (!RegExp(r'^[0-9\-/.: T]+$').hasMatch(s)) return null;
+    return s;
   }
 
   /// Maps a loose dateRange string (snake_case, kebab-case, or already
   /// camelCase) to a valid [DateRange] enum name, or null if unrecognized.
   String? _coerceDateRange(String raw) {
-    // Collapse to lowercase alphanumerics for tolerant matching.
     final key = raw.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
     const lookup = <String, String>{
       'today': 'today',
@@ -369,14 +374,126 @@ class ChatService {
     if (v is String) return int.tryParse(v) ?? 5;
     return 5;
   }
-}
 
-/// A parsed manual tool call: tool [name] plus its raw JSON argument string.
-class _ToolCall {
-  const _ToolCall({required this.name, required this.rawArgs});
+  /// Reads an optional `granularity` from raw args, defaulting to week.
+  Granularity _readGranularity(Map<String, dynamic> args) {
+    final v = args['granularity'];
+    if (v is String) {
+      final key = v.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+      switch (key) {
+        case 'day':
+        case 'daily':
+          return Granularity.day;
+        case 'month':
+        case 'monthly':
+          return Granularity.month;
+        case 'week':
+        case 'weekly':
+          return Granularity.week;
+      }
+    }
+    return Granularity.week;
+  }
 
-  final String name;
-  final String rawArgs;
+  // --- JSON-Schema tool parameter definitions -------------------------------
+
+  static const Map<String, dynamic> _dateRangeProp = {
+    'type': 'string',
+    'description': 'Named relative date range.',
+    'enum': [
+      'today',
+      'yesterday',
+      'thisWeek',
+      'lastWeek',
+      'thisMonth',
+      'lastMonth',
+      'thisYear',
+      'allTime',
+    ],
+  };
+
+  /// Shared base properties matching [QueryExpensesArgs].
+  static Map<String, dynamic> _baseQueryProperties() => {
+        'category': {
+          'type': 'string',
+          'description': 'Expense category, e.g. "Dining", "Groceries".',
+        },
+        'merchant': {
+          'type': 'string',
+          'description': 'Merchant name substring, e.g. "wagamama".',
+        },
+        'itemName': {
+          'type': 'string',
+          'description': 'Single line-item name substring.',
+        },
+        'itemNames': {
+          'type': 'array',
+          'items': {'type': 'string'},
+          'description':
+              'Item-name synonyms ORed together (concept expansion).',
+        },
+        'dateRange': _dateRangeProp,
+        'startDate': {
+          'type': 'string',
+          'description': 'Inclusive start date, YYYY-MM-DD.',
+        },
+        'endDate': {
+          'type': 'string',
+          'description': 'Inclusive end date, YYYY-MM-DD.',
+        },
+        'limit': {
+          'type': 'integer',
+          'description': 'Max rows to return (default 200).',
+        },
+        'includeImages': {
+          'type': 'boolean',
+          'description':
+              'Only true if the user explicitly asks to see the receipt/photo.',
+        },
+      };
+
+  Map<String, dynamic> _queryExpensesSchema() => {
+        'type': 'object',
+        'properties': _baseQueryProperties(),
+        'required': <String>[],
+      };
+
+  Map<String, dynamic> _topMerchantsSchema() => {
+        'type': 'object',
+        'properties': {
+          ..._baseQueryProperties(),
+          'topN': {
+            'type': 'integer',
+            'description': 'How many merchants to return (default 5).',
+          },
+        },
+        'required': <String>[],
+      };
+
+  Map<String, dynamic> _chartSpendingSchema() => {
+        'type': 'object',
+        'properties': {
+          'category': {
+            'type': 'string',
+            'description': 'Optional category filter.',
+          },
+          'dateRange': _dateRangeProp,
+          'startDate': {
+            'type': 'string',
+            'description': 'Inclusive start date, YYYY-MM-DD.',
+          },
+          'endDate': {
+            'type': 'string',
+            'description': 'Inclusive end date, YYYY-MM-DD.',
+          },
+          'granularity': {
+            'type': 'string',
+            'description': 'Bucket size for the trend.',
+            'enum': ['day', 'week', 'month'],
+          },
+        },
+        'required': <String>[],
+      };
 }
 
 /// Riverpod provider for [ChatService], wired from [gemmaServiceProvider] and

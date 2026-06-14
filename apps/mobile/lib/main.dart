@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/shell/app_shell.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // The on-device model is loaded lazily by [GemmaService] (lib/ai/gemma_service.dart),
-  // driven from the onboarding download flow. flutter_gemma ^0.9.0 self-registers
-  // its plugin, so there is no eager init to do here.
+  // flutter_gemma 0.16.x requires an explicit one-time initialize() before any
+  // plugin use (model install, createModel, etc.); omitting it throws StateError
+  // at runtime. The on-device model itself is still loaded lazily by
+  // [GemmaService] (lib/ai/gemma_service.dart) from the onboarding download flow.
+  await FlutterGemma.initialize();
   runApp(const ProviderScope(child: MrCarsonApp()));
 }
 
