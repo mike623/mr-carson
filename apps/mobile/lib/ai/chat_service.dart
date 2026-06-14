@@ -11,11 +11,13 @@ import 'package:flutter_gemma/flutter_gemma.dart'
         ThinkingResponse,
         Tool,
         ToolChoice;
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
 import '../data/providers.dart' show appDatabaseProvider;
 import '../domain/models/ai_models.dart';
+import '../domain/models/ui_models.dart' show ChartData;
 import 'gemma_service.dart';
 import 'prompts.dart';
 
@@ -35,6 +37,55 @@ import 'prompts.dart';
 // `TOOL:` text-protocol parser entirely (native FC needs no text protocol).
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Streamed turn events
+//
+// A turn produces a stream of [ChatEvent]s rather than bare text. Text tokens
+// arrive as [TextChunk] (preserving live streaming); when the model invokes the
+// `chartSpending` tool we ALSO surface the structured [ChartData] to the UI as a
+// [ChartReady] event — without altering the JSON tool-response fed back to the
+// model. This is the side-channel that lets the Ask view-model render a real
+// fl_chart while the butler narrates the trend in words.
+// ---------------------------------------------------------------------------
+
+/// One event in a streamed assistant turn ([ChatService.send]).
+@immutable
+sealed class ChatEvent {
+  const ChatEvent();
+}
+
+/// A chunk of assistant text to append to the in-flight reply.
+@immutable
+class TextChunk extends ChatEvent {
+  const TextChunk(this.text);
+
+  final String text;
+}
+
+/// Structured spending-chart data, emitted when the model runs `chartSpending`.
+///
+/// Carries the same buckets that were handed to the model as a tool-response, so
+/// the UI can render a real chart while the model narrates the trend.
+@immutable
+class ChartReady extends ChatEvent {
+  const ChartReady(this.chart);
+
+  final ChartData chart;
+}
+
+/// Abstraction over the on-device butler chat so the Ask view-model can be
+/// driven by a fake in tests (no real Gemma model required).
+abstract class ChatService {
+  /// Creates + seeds the underlying chat. Call once before [send].
+  Future<void> start();
+
+  /// Streams the assistant's reply for [userMessage] as [ChatEvent]s.
+  Stream<ChatEvent> send(String userMessage);
+
+  /// Releases the underlying inference session. Safe to call multiple times.
+  Future<void> dispose();
+}
+
 /// Maximum number of agent turns (generate → maybe tool-call → generate …)
 /// before we give up and emit a fallback. Prevents a runaway tool loop.
 const int _kMaxAgentTurns = 5;
@@ -53,9 +104,9 @@ const String _kAgentFallback =
 /// 1. [start] — create + seed the chat with the butler persona.
 /// 2. [send] — stream the assistant's reply for one user message.
 /// 3. [dispose] — close the underlying inference session.
-class ChatService {
+class GemmaChatService implements ChatService {
   /// Creates a chat service over [gemma] (inference) and [db] (expense reads).
-  ChatService(this._gemma, this._db);
+  GemmaChatService(this._gemma, this._db);
 
   final GemmaService _gemma;
   final AppDatabase _db;
@@ -97,6 +148,7 @@ class ChatService {
   /// If a chat is already open (e.g. after a stream error left one behind),
   /// it is closed before the new one is created, preventing session leaks.
   /// Throws [StateError] if the Gemma model is not loaded.
+  @override
   Future<void> start() async {
     final existing = _chat;
     if (existing != null) {
@@ -115,13 +167,15 @@ class ChatService {
     _chat = chat;
   }
 
-  /// Streams the assistant's reply tokens for [userMessage].
+  /// Streams the assistant's reply for [userMessage] as [ChatEvent]s.
   ///
   /// Runs a bounded agent loop over the native sealed [ModelResponse] union:
-  /// - [TextResponse] tokens are streamed straight to the UI.
+  /// - [TextResponse] tokens are streamed straight to the UI as [TextChunk]s.
   /// - [FunctionCallResponse] / [ParallelFunctionCallResponse] are executed
   ///   against the local DB, the results are fed back via
-  ///   [Message.toolResponse], and the loop re-generates.
+  ///   [Message.toolResponse], and the loop re-generates. When a `chartSpending`
+  ///   call runs, its structured buckets are additionally surfaced to the UI as
+  ///   a [ChartReady] event (the JSON tool-response to the model is unchanged).
   /// - [ThinkingResponse] is ignored (never surfaced to the UI).
   ///
   /// The loop ends when a turn produces only text (no tool call). If the turn
@@ -132,7 +186,8 @@ class ChatService {
   /// call [dispose] (or [start] — which closes the old session) to recover.
   ///
   /// Throws [StateError] if [start] has not been called.
-  Stream<String> send(String userMessage) async* {
+  @override
+  Stream<ChatEvent> send(String userMessage) async* {
     final chat = _chat;
     if (chat == null) {
       throw StateError('ChatService.send called before start().');
@@ -152,7 +207,7 @@ class ChatService {
           case TextResponse(:final token):
             if (token.isNotEmpty) {
               yieldedText = true;
-              yield token;
+              yield TextChunk(token);
             }
           case FunctionCallResponse():
             pendingCalls.add(response);
@@ -170,25 +225,31 @@ class ChatService {
       }
 
       // Execute every requested tool and feed the results back, then loop to
-      // let the model narrate (or call another tool).
+      // let the model narrate (or call another tool). For `chartSpending`, also
+      // surface the typed [ChartData] to the UI before re-generating.
       for (final call in pendingCalls) {
-        final result = await _runTool(call.name, call.args);
+        final outcome = await _runTool(call.name, call.args);
         await chat.addQueryChunk(
-          Message.toolResponse(toolName: call.name, response: result),
+          Message.toolResponse(toolName: call.name, response: outcome.response),
         );
+        final chart = outcome.chart;
+        if (chart != null) {
+          yield ChartReady(chart);
+        }
       }
     }
 
     // Turn budget exhausted. If we already streamed some text, leave it as the
     // answer; otherwise emit an honest fallback rather than going silent.
     if (!yieldedText) {
-      yield _kAgentFallback;
+      yield const TextChunk(_kAgentFallback);
     }
   }
 
   /// Closes the underlying inference session and clears the chat handle.
   ///
   /// Safe to call multiple times.
+  @override
   Future<void> dispose() async {
     final chat = _chat;
     _chat = null;
@@ -199,18 +260,23 @@ class ChatService {
 
   // --- tool execution -------------------------------------------------------
 
-  /// Executes [name] with native-supplied [args], returning a JSON-serializable
-  /// result map for [Message.toolResponse].
+  /// Executes [name] with native-supplied [args].
+  ///
+  /// Returns a record of:
+  /// - `response`: the JSON-serializable map fed back to the model via
+  ///   [Message.toolResponse] (model-facing — shape is unchanged from before).
+  /// - `chart`: for `chartSpending`, the typed [ChartData] to surface to the UI
+  ///   as a [ChartReady] event; `null` for every other tool.
   ///
   /// Never throws: parse/execution failures are returned as an `{'error': ...}`
-  /// map so the model can recover and respond gracefully.
+  /// map (and `chart: null`) so the model can recover and respond gracefully.
   ///
   /// Every returned map embeds `'_tool': name` for disambiguation. The Gemma 4
   /// SDK async path does NOT push a preceding `Message.toolCall` into history,
   /// so for parallel calls the model can otherwise mis-attribute which result
   /// belongs to which tool. Tagging the result with its originating tool name
   /// lets the model line results up with the calls it requested.
-  Future<Map<String, dynamic>> _runTool(
+  Future<({Map<String, dynamic> response, ChartData? chart})> _runTool(
     String name,
     Map<String, dynamic> args,
   ) async {
@@ -221,27 +287,31 @@ class ChatService {
       switch (name) {
         case 'queryExpenses':
           final result = await _db.queryExpenses(queryArgs);
-          return {'_tool': name, ...result.toJson()};
+          return (response: {'_tool': name, ...result.toJson()}, chart: null);
         case 'topMerchants':
           final topN = _readTopN(argsMap);
           final merchants = await _db.topMerchants(queryArgs, topN: topN);
-          return {
-            '_tool': name,
-            'merchants': merchants
-                .map((m) => {
-                      'merchant': m.merchant,
-                      'total': m.total,
-                      'currency': m.currency,
-                    })
-                .toList(),
-          };
+          return (
+            response: {
+              '_tool': name,
+              'merchants': merchants
+                  .map((m) => {
+                        'merchant': m.merchant,
+                        'total': m.total,
+                        'currency': m.currency,
+                      })
+                  .toList(),
+            },
+            chart: null,
+          );
         case 'chartSpending':
           final granularity = _readGranularity(argsMap);
           final chart = await _db.byCategoryOverTime(
             queryArgs,
             granularity: granularity,
           );
-          return {
+          // Model-facing JSON (unchanged) …
+          final response = {
             '_tool': name,
             'granularity': chart.granularity.name,
             'currency': chart.currency,
@@ -253,11 +323,23 @@ class ChatService {
                     })
                 .toList(),
           };
+          // … plus the typed payload the UI renders as a real chart.
+          return (
+            response: response,
+            chart: ChartData(
+              buckets: chart.rows,
+              granularity: chart.granularity,
+              currency: chart.currency,
+            ),
+          );
         default:
-          return {'_tool': name, 'error': 'unknown tool: $name'};
+          return (
+            response: {'_tool': name, 'error': 'unknown tool: $name'},
+            chart: null,
+          );
       }
     } catch (e) {
-      return {'_tool': name, 'error': e.toString()};
+      return (response: {'_tool': name, 'error': e.toString()}, chart: null);
     }
   }
 
@@ -499,7 +581,7 @@ class ChatService {
 /// Riverpod provider for [ChatService], wired from [gemmaServiceProvider] and
 /// [appDatabaseProvider].
 final chatServiceProvider = Provider<ChatService>((ref) {
-  return ChatService(
+  return GemmaChatService(
     ref.watch(gemmaServiceProvider),
     ref.watch(appDatabaseProvider),
   );

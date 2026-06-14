@@ -1,6 +1,10 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mr_carson/domain/models/ai_models.dart' show Granularity;
+import 'package:mr_carson/domain/models/ui_models.dart' show ChartData;
 import 'package:mr_carson/theme/app_theme.dart';
+import 'package:mr_carson/ui/core/format.dart';
 import 'package:mr_carson/ui/core/widgets/carson_monogram.dart';
 
 import 'ask_view_model.dart';
@@ -97,7 +101,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
                       text: msg.text,
                       isThinking: msg.thinking,
                       isStreaming: msg.streaming,
-                      showChart: msg.hasChart,
+                      chart: msg.chart,
                     ),
                 ],
               ],
@@ -289,13 +293,13 @@ class _CarsonBubble extends StatelessWidget {
     required this.text,
     required this.isThinking,
     required this.isStreaming,
-    required this.showChart,
+    required this.chart,
   });
 
   final String text;
   final bool isThinking;
   final bool isStreaming;
-  final bool showChart;
+  final ChartData? chart;
 
   @override
   Widget build(BuildContext context) {
@@ -332,9 +336,9 @@ class _CarsonBubble extends StatelessWidget {
                           text: text,
                           isStreaming: isStreaming,
                         ),
-                        if (showChart) ...[
+                        if (chart != null) ...[
                           const SizedBox(height: 12),
-                          const _ChartCard(),
+                          _ChartCard(chart: chart!),
                         ],
                       ],
                     ),
@@ -494,57 +498,58 @@ class _StreamingTextState extends State<_StreamingText>
 }
 
 // ---------------------------------------------------------------------------
-// Chart card
+// Chart card — real fl_chart over chartSpending buckets
 // ---------------------------------------------------------------------------
 
-const _kChartRows = [
-  _ChartRow('Dining', '£412', MrCarsonColors.accent, 1.00),
-  _ChartRow('Groceries', '£318', MrCarsonColors.grocery, 0.77),
-  _ChartRow('Household', '£214', MrCarsonColors.house, 0.52),
-  _ChartRow('Transport', '£196', MrCarsonColors.transport, 0.48),
-  _ChartRow('Other', '£144.60', MrCarsonColors.ink3, 0.35),
-];
+/// Renders a [ChartData] turn payload as a stacked bar chart: one bar per time
+/// bucket (X axis), stacked by category, with a brass-styled legend below.
+///
+/// Styled to match the ledger donut's fl_chart conventions (same palette via
+/// [categoryColor], same `formatMoney`, brass hairline borders).
+class _ChartCard extends StatelessWidget {
+  const _ChartCard({required this.chart});
 
-class _ChartRow {
-  const _ChartRow(this.label, this.amount, this.color, this.fraction);
-
-  final String label;
-  final String amount;
-  final Color color;
-  final double fraction;
-}
-
-class _ChartCard extends StatefulWidget {
-  const _ChartCard();
-
-  @override
-  State<_ChartCard> createState() => _ChartCardState();
-}
-
-class _ChartCardState extends State<_ChartCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _ctrl.forward();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  final ChartData chart;
 
   @override
   Widget build(BuildContext context) {
+    final currency = chart.currency;
+
+    // Ordered, de-duplicated time buckets (X axis) and categories (stack/legend).
+    final buckets = <String>[];
+    final categories = <String>[];
+    for (final b in chart.buckets) {
+      if (!buckets.contains(b.bucket)) buckets.add(b.bucket);
+      if (!categories.contains(b.category)) categories.add(b.category);
+    }
+
+    // total[bucket][category] → amount.
+    final totals = <String, Map<String, double>>{
+      for (final bk in buckets) bk: {for (final c in categories) c: 0.0},
+    };
+    var grandTotal = 0.0;
+    for (final b in chart.buckets) {
+      totals[b.bucket]![b.category] =
+          (totals[b.bucket]![b.category] ?? 0) + b.total;
+      grandTotal += b.total;
+    }
+    final perCategoryTotal = <String, double>{
+      for (final c in categories)
+        c: buckets.fold(0.0, (sum, bk) => sum + (totals[bk]![c] ?? 0)),
+    };
+
+    final colorOf = <String, Color>{
+      for (var i = 0; i < categories.length; i++)
+        categories[i]: categoryColor(categories[i], index: i),
+    };
+
+    // Tallest stacked bar — drives the Y max so bars aren't clipped.
+    final maxBar = buckets.fold<double>(0, (m, bk) {
+      final stackTotal =
+          categories.fold<double>(0, (s, c) => s + (totals[bk]![c] ?? 0));
+      return stackTotal > m ? stackTotal : m;
+    });
+
     return Container(
       decoration: BoxDecoration(
         color: MrCarsonColors.bg,
@@ -555,12 +560,12 @@ class _ChartCardState extends State<_ChartCard>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
+          // Header row: granularity label + grand total for the range.
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'THIS MONTH',
+                'BY ${chart.granularity.name.toUpperCase()}',
                 style: MrCarsonType.ui(
                   size: 11,
                   color: MrCarsonColors.ink3,
@@ -568,86 +573,171 @@ class _ChartCardState extends State<_ChartCard>
                 ),
               ),
               Text(
-                '£1,284.60',
-                style: MrCarsonType.display(
-                  size: 24,
-                  weight: FontWeight.w600,
-                ),
+                formatMoney(currency, grandTotal),
+                style: MrCarsonType.display(size: 24, weight: FontWeight.w600),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          // Bar rows
-          AnimatedBuilder(
-            animation: _anim,
-            builder: (_, __) {
-              return Column(
-                children: _kChartRows.map((row) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              row.label,
-                              style: MrCarsonType.ui(
-                                size: 13,
-                                color: MrCarsonColors.ink2,
-                              ),
-                            ),
-                            Text(
-                              row.amount,
-                              style: MrCarsonType.ui(
-                                size: 13,
-                                weight: FontWeight.w600,
-                                color: MrCarsonColors.ink,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            return Stack(
-                              children: [
-                                // Track
-                                Container(
-                                  height: 7,
-                                  width: constraints.maxWidth,
-                                  decoration: BoxDecoration(
-                                    color: MrCarsonColors.surface2,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                                // Fill — animated
-                                Container(
-                                  height: 7,
-                                  width: constraints.maxWidth *
-                                      row.fraction *
-                                      _anim.value,
-                                  decoration: BoxDecoration(
-                                    color: row.color,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ],
+          if (buckets.isEmpty)
+            Text(
+              'No spending in this period, sir.',
+              style: MrCarsonType.ui(size: 13, color: MrCarsonColors.ink3),
+            )
+          else ...[
+            SizedBox(
+              height: 150,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxBar <= 0 ? 1 : maxBar * 1.15,
+                  borderData: FlBorderData(show: false),
+                  gridData: const FlGridData(show: false),
+                  barTouchData: BarTouchData(enabled: false),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
                     ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    leftTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 22,
+                        getTitlesWidget: (value, meta) {
+                          final i = value.toInt();
+                          if (i < 0 || i >= buckets.length) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              _bucketLabel(buckets[i]),
+                              style: MrCarsonType.ui(
+                                size: 10.5,
+                                color: MrCarsonColors.ink3,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  barGroups: [
+                    for (var i = 0; i < buckets.length; i++)
+                      _stackedGroup(
+                        i,
+                        buckets[i],
+                        categories,
+                        totals,
+                        colorOf,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Legend — category, colour, and its total over the range.
+            ...categories.map(
+              (c) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: colorOf[c],
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        c,
+                        style: MrCarsonType.ui(
+                          size: 13,
+                          color: MrCarsonColors.ink2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      formatMoney(currency, perCategoryTotal[c] ?? 0),
+                      style: MrCarsonType.ui(
+                        size: 13,
+                        weight: FontWeight.w600,
+                        color: MrCarsonColors.ink,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+
+  /// Builds one stacked bar group for [bucket] at X index [x].
+  BarChartGroupData _stackedGroup(
+    int x,
+    String bucket,
+    List<String> categories,
+    Map<String, Map<String, double>> totals,
+    Map<String, Color> colorOf,
+  ) {
+    final stackItems = <BarChartRodStackItem>[];
+    var from = 0.0;
+    for (final c in categories) {
+      final v = totals[bucket]![c] ?? 0;
+      if (v <= 0) continue;
+      final to = from + v;
+      stackItems.add(BarChartRodStackItem(from, to, colorOf[c]!));
+      from = to;
+    }
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: from,
+          width: 18,
+          rodStackItems: stackItems,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+        ),
+      ],
+    );
+  }
+
+  /// Tightens a raw bucket key for the X-axis tick: ISO week 'YYYY-WW' → 'WWk',
+  /// month 'YYYY-MM' → 'MMM', day 'YYYY-MM-DD' → 'DD'. Falls back to the raw key.
+  String _bucketLabel(String bucket) {
+    final parts = bucket.split('-');
+    switch (chart.granularity) {
+      case Granularity.week:
+        return parts.length == 2 ? 'w${int.tryParse(parts[1]) ?? parts[1]}' : bucket;
+      case Granularity.month:
+        if (parts.length == 2) {
+          final m = int.tryParse(parts[1]);
+          if (m != null && m >= 1 && m <= 12) return _kShortMonths[m - 1];
+        }
+        return bucket;
+      case Granularity.day:
+        return parts.length == 3 ? parts[2] : bucket;
+    }
+  }
 }
+
+const _kShortMonths = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
 
 // ---------------------------------------------------------------------------
 // Bottom bar (suggestions + input)
