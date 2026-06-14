@@ -15,8 +15,8 @@ set -euo pipefail
 
 # ---- config (edit these) ---------------------------------------------------
 BUCKET="${BUCKET:-mr-carson-models}"
-MODEL_FILE="${MODEL_FILE:-./gemma-3n-E2B-it-int4.litertlm}"
-OBJECT_KEY="${OBJECT_KEY:-gemma-3n.litertlm}"
+MODEL_FILE="${MODEL_FILE:-/Users/mikewong/mr-carson-models/gemma-4-E2B-it.litertlm}"
+OBJECT_KEY="${OBJECT_KEY:-gemma-4-e2b.litertlm}"
 # R2 S3 credentials (from the dashboard API token) + account id:
 : "${R2_ACCOUNT_ID:?set R2_ACCOUNT_ID}"
 : "${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID}"
