@@ -87,9 +87,12 @@ class OnboardingViewModel extends AutoDisposeNotifier<OnboardingState> {
     _mockTimer?.cancel();
     _downloadSub?.cancel();
 
-    // The model URL is a placeholder until a real Gemma 3n .litertlm is hosted,
-    // so there is nothing to actually download. Use the mock ramp directly.
-    if (kDefaultModelUrl.contains('example.com')) {
+    // The model file isn't actually hosted yet (the R2 object is a pending infra
+    // upload, so kDefaultModelUrl 404s), and the legacy example.com placeholder
+    // is also a no-op. In either case there is nothing to download — skip the
+    // doomed request and use the mock ramp directly. Once kModelHostedOnR2 flips
+    // to true, the real download path below runs.
+    if (!kModelHostedOnR2 || kDefaultModelUrl.contains('example.com')) {
       _startMockRamp();
       return;
     }

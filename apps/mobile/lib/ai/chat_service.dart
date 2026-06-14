@@ -204,6 +204,12 @@ class ChatService {
   ///
   /// Never throws: parse/execution failures are returned as an `{'error': ...}`
   /// map so the model can recover and respond gracefully.
+  ///
+  /// Every returned map embeds `'_tool': name` for disambiguation. The Gemma 4
+  /// SDK async path does NOT push a preceding `Message.toolCall` into history,
+  /// so for parallel calls the model can otherwise mis-attribute which result
+  /// belongs to which tool. Tagging the result with its originating tool name
+  /// lets the model line results up with the calls it requested.
   Future<Map<String, dynamic>> _runTool(
     String name,
     Map<String, dynamic> args,
@@ -215,11 +221,12 @@ class ChatService {
       switch (name) {
         case 'queryExpenses':
           final result = await _db.queryExpenses(queryArgs);
-          return result.toJson();
+          return {'_tool': name, ...result.toJson()};
         case 'topMerchants':
           final topN = _readTopN(argsMap);
           final merchants = await _db.topMerchants(queryArgs, topN: topN);
           return {
+            '_tool': name,
             'merchants': merchants
                 .map((m) => {
                       'merchant': m.merchant,
@@ -235,6 +242,7 @@ class ChatService {
             granularity: granularity,
           );
           return {
+            '_tool': name,
             'granularity': chart.granularity.name,
             'currency': chart.currency,
             'buckets': chart.rows
@@ -246,10 +254,10 @@ class ChatService {
                 .toList(),
           };
         default:
-          return {'error': 'unknown tool: $name'};
+          return {'_tool': name, 'error': 'unknown tool: $name'};
       }
     } catch (e) {
-      return {'error': e.toString()};
+      return {'_tool': name, 'error': e.toString()};
     }
   }
 
@@ -272,6 +280,12 @@ class ChatService {
   /// Unknown values are dropped so an odd dateRange never aborts the call. Keys
   /// not understood by [QueryExpensesArgs] (e.g. `topN`, `granularity`) are
   /// stripped here so the generated decoder doesn't choke on them.
+  ///
+  /// Also defends against loose scalar types from the model: `QueryExpensesArgs.
+  /// fromJson` casts `limit` as `num?` and `startDate`/`endDate` as `String?`,
+  /// which THROW if the model emits e.g. `limit: "200"` or `startDate: 20240101`.
+  /// We coerce those to the expected runtime types (and drop unparseable values)
+  /// so the decoder never throws on loose output.
   Map<String, dynamic> _normalizeArgs(Map<String, dynamic> args) {
     final out = Map<String, dynamic>.from(args);
     out.remove('topN');
@@ -286,7 +300,53 @@ class ChatService {
         out['dateRange'] = coerced;
       }
     }
+
+    // `limit` must decode as a num. Tolerate String / num; drop if unparseable.
+    if (out.containsKey('limit')) {
+      final limit = _coerceLimit(out['limit']);
+      if (limit == null) {
+        out.remove('limit');
+      } else {
+        out['limit'] = limit;
+      }
+    }
+
+    // `startDate` / `endDate` must decode as a String that looks like a date.
+    // Stringify non-strings; drop anything that doesn't look date-shaped.
+    for (final key in const ['startDate', 'endDate']) {
+      if (!out.containsKey(key)) continue;
+      final coerced = _coerceDate(out[key]);
+      if (coerced == null) {
+        out.remove(key);
+      } else {
+        out[key] = coerced;
+      }
+    }
+
     return out;
+  }
+
+  /// Coerces a loose `limit` value to an int (mirrors [_readTopN] tolerance).
+  /// Returns null if it can't be parsed, so the caller drops the key.
+  int? _coerceLimit(Object? v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v.trim());
+    return null;
+  }
+
+  /// Coerces a loose date value to a date-shaped String, or null to drop it.
+  /// Accepts anything that stringifies to a `YYYY-MM-DD`-ish form (digits and
+  /// separators); rejects clearly non-date junk rather than letting it through.
+  String? _coerceDate(Object? v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+    // Must contain at least 4 consecutive digits (a year) and only date-ish
+    // characters. Keeps it simple: the goal is "never throw on loose types".
+    if (!RegExp(r'\d{4}').hasMatch(s)) return null;
+    if (!RegExp(r'^[0-9\-/.: T]+$').hasMatch(s)) return null;
+    return s;
   }
 
   /// Maps a loose dateRange string (snake_case, kebab-case, or already

@@ -13,6 +13,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const String kDefaultModelUrl =
     'https://pub-577b868d66aa4fd691ef6564611f0fc0.r2.dev/gemma-4-e2b.litertlm';
 
+/// Whether the Gemma 4 E2B `.litertlm` file is actually hosted at
+/// [kDefaultModelUrl]. It is NOT yet — the R2 object is a separate infra upload
+/// (see apps/mobile/scripts/setup-r2.sh), so the URL currently 404s. While this
+/// is false the onboarding flow skips the doomed real download and goes straight
+/// to the mock ramp. Flip to `true` once the Gemma 4 E2B `.litertlm` is uploaded
+/// to the R2 bucket and the URL serves the model.
+const bool kModelHostedOnR2 = false;
+
 /// Lifecycle state of the on-device Gemma model.
 enum GemmaState {
   /// Model file has not been downloaded yet.
