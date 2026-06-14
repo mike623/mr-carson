@@ -55,6 +55,18 @@ class AppShell extends ConsumerWidget {
           onDiscard: vm.discardConfirm,
           onSave: vm.saveConfirm,
         );
+      // TODO(task 4): replace with real Settings screen.
+      case ShellScreen.settings:
+        return const _PlaceholderScreen('Settings');
+      // TODO(task 4): replace with real Model Management screen.
+      case ShellScreen.modelMgmt:
+        return const _PlaceholderScreen('Model Management');
+      // TODO(task 2): replace with real Manual Entry screen.
+      case ShellScreen.manual:
+        return const _PlaceholderScreen('Manual Entry');
+      // TODO(task 3): replace with real Engage screen.
+      case ShellScreen.engage:
+        return const _PlaceholderScreen('Engage');
     }
   }
 
@@ -85,7 +97,7 @@ class AppShell extends ConsumerWidget {
             Positioned(
               left: 0,
               right: 0,
-              bottom: 118,
+              bottom: 130,
               child: Center(child: _Toast(message: s.toast!)),
             ),
         ],
@@ -94,7 +106,12 @@ class AppShell extends ConsumerWidget {
   }
 }
 
-/// Floating bottom navigation pill: Ask · + · Ledger.
+/// Full-width bottom tab bar: Ask · + · Ledger.
+///
+/// Edge-to-edge bar pinned to the bottom with a 1px top border and an upward
+/// shadow, mirroring the design's BOTTOM NAV block. The center "+" is an accent
+/// circle raised so it overflows above the bar's top edge; the bar does not
+/// clip, so the raised button stays unclipped and tappable.
 class _BottomNav extends StatelessWidget {
   const _BottomNav({
     required this.current,
@@ -112,60 +129,36 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 96,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Container(
-            decoration: BoxDecoration(
-              color: MrCarsonColors.surface,
-              border: Border.all(color: MrCarsonColors.line),
-              borderRadius: BorderRadius.circular(MrCarsonRadii.nav),
-              boxShadow: const [
-                BoxShadow(color: Color(0x66000000), blurRadius: 30, offset: Offset(0, 12)),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 11),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _navItem(
-                  icon: Icons.chat_bubble_outline,
-                  label: 'Ask',
-                  active: current == 0,
-                  onTap: onAsk,
-                ),
-                const SizedBox(width: 34),
-                GestureDetector(
-                  onTap: onAdd,
-                  child: Container(
-                    width: 54,
-                    height: 54,
-                    decoration: const BoxDecoration(
-                      color: MrCarsonColors.accent,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(color: MrCarsonColors.accentSoft, blurRadius: 16, offset: Offset(0, 6)),
-                      ],
-                    ),
-                    child: const Icon(Icons.add, color: MrCarsonColors.accentInk, size: 24),
-                  ),
-                ),
-                const SizedBox(width: 34),
-                _navItem(
-                  icon: Icons.format_list_bulleted,
-                  label: 'Ledger',
-                  active: current == 1,
-                  onTap: onLedger,
-                  badge: hasPending,
-                ),
-              ],
-            ),
+    return Container(
+      decoration: const BoxDecoration(
+        color: MrCarsonColors.surface,
+        border: Border(top: BorderSide(color: MrCarsonColors.line)),
+        boxShadow: [
+          // ~rgba(0,0,0,0.28), cast upward.
+          BoxShadow(color: Color(0x47000000), blurRadius: 24, offset: Offset(0, -8)),
+        ],
+      ),
+      // Design: padding 12px top, 24px horizontal, 30px bottom (safe-area-ish).
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 30),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _navItem(
+            icon: Icons.chat_bubble_outline,
+            label: 'Ask',
+            active: current == 0,
+            onTap: onAsk,
           ),
-        ),
+          _AddButton(onTap: onAdd),
+          _navItem(
+            icon: Icons.format_list_bulleted,
+            label: 'Ledger',
+            active: current == 1,
+            onTap: onLedger,
+            badge: hasPending,
+          ),
+        ],
       ),
     );
   }
@@ -182,7 +175,7 @@ class _BottomNav extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 46,
+        width: 64,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -209,6 +202,39 @@ class _BottomNav extends StatelessWidget {
             const SizedBox(height: 4),
             Text(label, style: MrCarsonType.ui(size: 10.5, weight: FontWeight.w600, color: color)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The raised center "+" — a 56×56 accent circle lifted 26px above the bar's
+/// top edge (design `margin-top:-26px`). [Transform.translate] keeps it laid
+/// out within the row while painting it raised; the bar does not clip, so it
+/// stays fully visible and tappable.
+class _AddButton extends StatelessWidget {
+  const _AddButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.translate(
+      offset: const Offset(0, -26),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: const BoxDecoration(
+            color: MrCarsonColors.accent,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: MrCarsonColors.accentSoft, blurRadius: 20, offset: Offset(0, 8)),
+            ],
+          ),
+          child: const Icon(Icons.add, color: MrCarsonColors.accentInk, size: 26),
         ),
       ),
     );
@@ -319,6 +345,24 @@ class _AddSheet extends StatelessWidget {
             const Icon(Icons.chevron_right, color: MrCarsonColors.ink3, size: 18),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Temporary placeholder for screens not yet built (Settings, Model
+/// Management, Manual Entry, Engage). Replaced by real screens in later tasks.
+class _PlaceholderScreen extends StatelessWidget {
+  const _PlaceholderScreen(this.name);
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: MrCarsonColors.bg,
+      body: Center(
+        child: Text(name, style: MrCarsonType.display(size: 32)),
       ),
     );
   }

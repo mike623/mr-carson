@@ -10,7 +10,16 @@ import '../../ai/receipt_pipeline.dart';
 import '../ledger/ledger_screen.dart' show LedgerPending;
 
 /// Which screen the shell is currently presenting.
-enum ShellScreen { ask, ledger, detail, confirm }
+enum ShellScreen {
+  ask,
+  ledger,
+  detail,
+  confirm,
+  settings,
+  modelMgmt,
+  manual,
+  engage,
+}
 
 /// Immutable state for the in-app shell.
 @immutable
