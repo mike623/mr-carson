@@ -50,11 +50,23 @@ Nothing the user does in the UI reaches the database.
   in `pending_expenses.file_path` → `expenses.source_file`, plus a sha256
   `image_hash` for dedup. Picker temp paths are not persistent, so the copy is
   required. No image bytes in the DB.
-- **Tool calling:** upgrade `flutter_gemma` `^0.9.0` → `^0.16.x` and replace the
-  manual `TOOL:` text-protocol loop with **native function calling**
-  (`Tool` defs + `FunctionCallResponse` + `Message.toolResponse`). Gemma3n (our
-  model) is on the supported-for-function-calling list. Mastra has no Dart SDK
-  and would require a server, so it is rejected for the on-device app.
+- **Tool calling:** upgrade `flutter_gemma` `^0.9.0` → `^0.16.5` and replace the
+  manual `TOOL:` text-protocol loop with **native function calling** (`Tool` defs
+  + sealed-union responses + `Message.toolResponse`), **hand-rolled** (~80 LOC) —
+  no agent framework.
+- **Model:** switch from Gemma 3n (`ModelType.gemmaIt`) to **Gemma 4 E2B**
+  (`ModelType.gemma4`). Gemma 4 has the robust native LiteRT tool routing
+  (`litert_lm_conversation_config_set_tools`); FC for Gemma 4 E2B/E4B was enabled
+  in flutter_gemma 0.16.5. Requires hosting a new Gemma 4 E2B `.litertlm` on R2
+  and updating `kDefaultModelUrl`.
+- **Framework decision (researched 2026-06-14, source-level):** rejected all Dart
+  agent frameworks. **Mastra** — no Dart SDK, needs a server. **agenix** —
+  Firebase-mandatory + cloud-Gemini default + string-parsed tool calls that fight
+  native FC. **genkit_flutter_gemma** — genuinely real native FC (good template),
+  but v0.3.1, unverified solo publisher, and pins `flutter_gemma ^0.15.1`
+  (excludes 0.16.5 → needs `dependency_override`); not worth the bus-factor for a
+  shipping local-first app. We own ~80 LOC instead; may copy its BSD-3 converters
+  as reference.
 
 ## Data store (reference)
 
@@ -69,23 +81,48 @@ Nothing the user does in the UI reaches the database.
 
 ### 0. flutter_gemma upgrade + native function calling
 
-- Bump `flutter_gemma` `^0.9.0` → `^0.16.x`. The modern API replaces the legacy
-  `FlutterGemmaPlugin.instance` singleton (exact current API — model creation,
-  vision session, install/download — to be confirmed against 0.16.x docs during
-  implementation).
+Confirmed API (flutter_gemma 0.16.5, verified 2026-06-14). The 0.9→0.16 jump is
+large; key breaking changes:
+
+- **`FlutterGemma.initialize()`** is now mandatory in `main()` before any use
+  (added 0.11.10) — omitting it throws StateError.
+- **Model load:** use `FlutterGemma.installModel(modelType: ModelType.gemma4)
+  .fromNetwork(url).withProgress(...).install()` then
+  `FlutterGemma.getActiveModel(maxTokens:, preferredBackend:, supportImage: true)`.
+  The legacy `FlutterGemmaPlugin.instance.createModel(...)` still works but the
+  old `modelManager` download methods (`downloadModelFromNetworkWithProgress`,
+  `canResume/resume/cancel`) were removed/deprecated.
+- **Vision:** there is **no `createVisionSession` / `enableVisionModality`** for
+  images. Vision is the **`supportImage: true` flag** on BOTH the model
+  (`getActiveModel`/`createModel`) AND the chat/session (`createChat`/
+  `createSession`). Image messages use `Message.withImages(text:, imageBytes:
+  [bytes], isUser:)` (`Message.withImage` still works but is superseded).
+- **Function calling:** `createChat(tools: [Tool(name:, description:,
+  parameters: {json-schema})], supportsFunctionCalls: true,
+  toolChoice: ToolChoice.auto, modelType: ModelType.gemma4)`. Responses are the
+  sealed union `TextResponse | FunctionCallResponse | ParallelFunctionCallResponse
+  | ThinkingResponse` — pattern-match, no string parsing. Feed results back with
+  `Message.toolResponse(toolName:, response: {map})` then re-generate. Long
+  arg payloads may need `createChat(maxFunctionBufferLength: 2048)`.
+
 - Migrate the three AI files:
-  - `gemma_service.dart` — model load + `createVisionSession` + `createChat` to
-    the modern API; keep the `GemmaState` lifecycle.
-  - `receipt_pipeline.dart` — vision session call sites.
+  - `gemma_service.dart` — `FlutterGemma.initialize()`; install + `getActiveModel`
+    with `ModelType.gemma4` + `supportImage: true`; drop `createVisionSession`
+    (replace with `createSession(supportImage: true)` / `createChat`); keep the
+    `GemmaState` lifecycle. Update `kDefaultModelUrl` to the Gemma 4 E2B file.
+  - `receipt_pipeline.dart` — vision via a `supportImage: true` session +
+    `Message.withImages`.
   - `chat_service.dart` — **rewrite**: delete the manual `TOOL:` parser/loop and
-    the outdated v0.9.0 header comment; define `Tool`s for `queryExpenses`,
-    `topMerchants`, `chartSpending`; handle `FunctionCallResponse` by running the
-    drift query and replying with `Message.toolResponse`. LLM still never writes
+    the outdated v0.9.0 header comment; define native `Tool`s for `queryExpenses`,
+    `topMerchants`, `chartSpending`; run the agent loop (call → match
+    `FunctionCallResponse`/`ParallelFunctionCallResponse` → run the drift query →
+    `Message.toolResponse` → repeat, bounded by a turn cap). LLM still never writes
     SQL — it emits tool name + args; drift compiles the query.
 - **Risk:** the build just shipped to TestFlight is on 0.9.0. This upgrade
   requires a full on-device re-test (vision OCR + chat + function calling on a
   real device, not just the simulator). Treat as its own implementation phase
-  with a device smoke test before the UI wiring lands.
+  with a device smoke test before the UI wiring lands. **Gemma 4 E2B tool-calling
+  reliability must be validated empirically on-device.**
 
 ### 1. Data layer
 
