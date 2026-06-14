@@ -70,4 +70,25 @@ class PendingRepository {
           ..limit(1))
         .getSingleOrNull();
   }
+
+  /// In-flight statuses: a receipt is being processed or is awaiting the user's
+  /// confirmation (not yet inserted, rejected, or failed).
+  static const List<PendingStatus> activeStatuses = [
+    PendingStatus.received,
+    PendingStatus.ocrComplete,
+    PendingStatus.awaitingConfirmation,
+  ];
+
+  /// Streams the active (in-flight) pending receipts, newest first. Emits on
+  /// every write to `pending_expenses`. Powers the capture/confirm surface.
+  Stream<List<PendingRow>> watchActive() {
+    final names = activeStatuses.map((s) => s.name).toList();
+    return (_db.select(_db.pendingExpenses)
+          ..where((t) => t.status.isIn(names))
+          ..orderBy([
+            (t) => OrderingTerm(
+                expression: t.updatedAt, mode: OrderingMode.desc),
+          ]))
+        .watch();
+  }
 }

@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/date_range.dart';
 import '../../domain/models/ai_models.dart';
+import '../../domain/models/ui_models.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
@@ -304,6 +305,107 @@ class AppDatabase extends _$AppDatabase {
     final currency =
         raw.isNotEmpty ? (raw.first.data['currency'] as String) : 'GBP';
     return (rows: rows, granularity: granularity, currency: currency);
+  }
+
+  // --- reads: reactive watch streams (UI data layer, spec §1) --------------
+
+  /// Streams the most recent expenses (one row per expense, newest first),
+  /// each with its line-item count. Powers the ledger list.
+  Stream<List<ExpenseSummary>> watchRecentExpenses({int limit = 50}) {
+    return customSelect(
+      '''
+      SELECT
+        e.id        AS id,
+        e.merchant  AS merchant,
+        e.date      AS date,
+        e.currency  AS currency,
+        e.total     AS total,
+        e.vat       AS vat,
+        (SELECT COUNT(*) FROM expense_items i WHERE i.expense_id = e.id)
+                    AS item_count
+      FROM expenses e
+      ORDER BY e.date DESC, e.created_at DESC, e.merchant ASC
+      LIMIT ?
+      ''',
+      variables: [Variable<int>(limit)],
+      readsFrom: {expenses, expenseItems},
+    ).watch().map((rows) => rows.map((r) {
+          final d = r.data;
+          return ExpenseSummary(
+            id: d['id'] as String,
+            merchant: d['merchant'] as String,
+            date: d['date'] as String,
+            currency: d['currency'] as String,
+            total: _round2((d['total'] as num).toDouble()),
+            vat: _round2((d['vat'] as num).toDouble()),
+            itemCount: (d['item_count'] as num).toInt(),
+          );
+        }).toList());
+  }
+
+  /// Streams the expense-level total + count for the calendar month containing
+  /// [start]..[end] (inclusive 'YYYY-MM-DD' bounds). One row.
+  Stream<({double total, int count, String currency})> watchMonthlyTotals({
+    required String start,
+    required String end,
+  }) {
+    return customSelect(
+      '''
+      SELECT
+        COALESCE(SUM(total), 0) AS total,
+        COUNT(*)                AS count,
+        COALESCE(MAX(currency), ?) AS currency
+      FROM expenses
+      WHERE date >= ? AND date <= ?
+      ''',
+      variables: [
+        const Variable<String>(kDefaultCurrency),
+        Variable<String>(start),
+        Variable<String>(end),
+      ],
+      readsFrom: {expenses},
+    ).watchSingle().map((r) => (
+          total: _round2((r.data['total'] as num).toDouble()),
+          count: (r.data['count'] as num).toInt(),
+          currency: r.data['currency'] as String,
+        ));
+  }
+
+  /// Streams the per-category spend (line-item sum) for the month range
+  /// [start]..[end], descending by total. Powers the donut breakdown.
+  Stream<List<CategorySlice>> watchMonthlyByCategory({
+    required String start,
+    required String end,
+  }) {
+    return customSelect(
+      '''
+      SELECT i.category AS category, SUM(i.amount) AS total
+      FROM expenses e
+      JOIN expense_items i ON i.expense_id = e.id
+      WHERE e.date >= ? AND e.date <= ?
+      GROUP BY i.category
+      ORDER BY total DESC
+      ''',
+      variables: [Variable<String>(start), Variable<String>(end)],
+      readsFrom: {expenses, expenseItems},
+    ).watch().map((rows) => rows
+        .map((r) => CategorySlice(
+              category: r.data['category'] as String,
+              total: _round2((r.data['total'] as num).toDouble()),
+            ))
+        .toList());
+  }
+
+  /// Streams a single expense header by [id], or null if it does not exist.
+  Stream<Expense?> watchExpenseRow(String id) {
+    return (select(expenses)..where((t) => t.id.equals(id)))
+        .watchSingleOrNull();
+  }
+
+  /// Streams the line items belonging to expense [id], in insertion-ish order.
+  Stream<List<ExpenseItem>> watchExpenseItems(String id) {
+    return (select(expenseItems)..where((t) => t.expenseId.equals(id)))
+        .watch();
   }
 
   /// Ported from `topMerchants`.
