@@ -200,6 +200,30 @@ class GemmaService {
     );
   }
 
+  // --- removal --------------------------------------------------------------
+
+  /// Best-effort reclaim of the loaded model so in-app surfaces can return to
+  /// the "not downloaded" state (e.g. Model Management "Remove model").
+  ///
+  /// Closes and clears the in-memory inference handle, clears [lastError], and
+  /// resets [state] to [GemmaState.notDownloaded]. Unlike [dispose] this keeps
+  /// the service (and its [stateListenable]) alive so the rest of the app can
+  /// re-engage the lifecycle afterwards.
+  ///
+  /// NOTE: flutter_gemma 0.16.5 does expose a static on-disk delete
+  /// ([FlutterGemma.uninstallModel]), but it is keyed by the model *filename*,
+  /// which this service never tracks — it installs/loads exclusively through the
+  /// active-model registry ([FlutterGemma.installModel] / [getActiveModel]) and
+  /// has no handle to the on-disk filename. So we only reset the engine state
+  /// here; reclaiming the on-disk file is not wired up through the static API
+  /// path this service uses.
+  Future<void> removeModel() async {
+    await _model?.close();
+    _model = null;
+    lastError = null;
+    _stateNotifier.value = GemmaState.notDownloaded;
+  }
+
   // --- cleanup --------------------------------------------------------------
 
   /// Releases the loaded model and resets state.
