@@ -23,6 +23,7 @@ class ShellState {
   const ShellState({
     this.screen = ShellScreen.ask,
     this.reviewingId,
+    this.openingId,
     this.toast,
   });
 
@@ -30,6 +31,9 @@ class ShellState {
 
   /// The pending id currently being reviewed on the confirm screen, if any.
   final String? reviewingId;
+
+  /// The expense id currently open on the detail screen, if any.
+  final String? openingId;
 
   /// Active butler toast message, or null when none is shown.
   final String? toast;
@@ -40,6 +44,7 @@ class ShellState {
   ShellState copyWith({
     ShellScreen? screen,
     Object? reviewingId = _unset,
+    Object? openingId = _unset,
     Object? toast = _unset,
   }) {
     return ShellState(
@@ -47,6 +52,9 @@ class ShellState {
       reviewingId: identical(reviewingId, _unset)
           ? this.reviewingId
           : reviewingId as String?,
+      openingId: identical(openingId, _unset)
+          ? this.openingId
+          : openingId as String?,
       toast: identical(toast, _unset) ? this.toast : toast as String?,
     );
   }
@@ -76,6 +84,11 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
   // --- navigation ----------------------------------------------------------
 
   void go(ShellScreen s) => state = state.copyWith(screen: s);
+
+  /// Opens the detail screen for a recorded expense.
+  void viewExpense(String id) {
+    state = state.copyWith(openingId: id, screen: ShellScreen.detail);
+  }
 
   void showToast(String msg) {
     state = state.copyWith(toast: msg);

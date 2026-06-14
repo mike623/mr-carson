@@ -1,8 +1,16 @@
 import 'dart:math' as math;
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mr_carson/data/providers.dart';
+import 'package:mr_carson/domain/models/ui_models.dart';
 import 'package:mr_carson/theme/app_theme.dart';
+import 'package:mr_carson/ui/core/format.dart';
+import 'package:mr_carson/ui/core/widgets/empty_state.dart';
+import 'package:mr_carson/ui/core/widgets/error_retry_state.dart';
+import 'package:mr_carson/ui/core/widgets/loading_state.dart';
 
 // ---------------------------------------------------------------------------
 // Data class
@@ -40,9 +48,12 @@ class LedgerPending {
 /// The home / ledger screen — monthly summary donut, pending-receipt cards,
 /// and a recent-expenses list.
 ///
-/// Completely self-contained: no providers, no services. Pass mock data via
-/// [pending] for previewing in-flight receipts. Tap callbacks are optional.
-class LedgerScreen extends StatelessWidget {
+/// Provider-driven (spec §3): the donut + month total come from
+/// [monthlySummaryProvider], the recent list from [recentExpensesProvider].
+/// The [pending] list is still passed in by [AppShell] (it owns the
+/// [pendingReceiptsProvider] → [LedgerPending] mapping, §2). Tap callbacks are
+/// optional so the screen can render standalone in tests.
+class LedgerScreen extends ConsumerWidget {
   const LedgerScreen({
     super.key,
     this.onOpenExpense,
@@ -60,17 +71,24 @@ class LedgerScreen extends StatelessWidget {
   final List<LedgerPending> pending;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(monthlySummaryProvider);
+    final recent = ref.watch(recentExpensesProvider);
+
     return Scaffold(
       backgroundColor: MrCarsonColors.bg,
       body: Column(
         children: [
-          _Header(),
+          _Header(summary: summary),
           Expanded(
             child: _Body(
+              summary: summary,
+              recent: recent,
               pending: pending,
               onOpenExpense: onOpenExpense,
               onReviewPending: onReviewPending,
+              onRetrySummary: () => ref.invalidate(monthlySummaryProvider),
+              onRetryRecent: () => ref.invalidate(recentExpensesProvider),
             ),
           ),
         ],
@@ -84,8 +102,20 @@ class LedgerScreen extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _Header extends StatelessWidget {
+  const _Header({required this.summary});
+
+  final AsyncValue<MonthlySummary> summary;
+
   @override
   Widget build(BuildContext context) {
+    // The month subtitle tracks the loaded summary; falls back gracefully.
+    final monthLabel = summary.maybeWhen(
+      data: (s) => formatLongMonth(s.month),
+      orElse: () => '',
+    );
+    final subtitle =
+        monthLabel.isEmpty ? 'all on device' : '$monthLabel · all on device';
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 60, 20, 14),
       decoration: const BoxDecoration(
@@ -99,11 +129,12 @@ class _Header extends StatelessWidget {
         children: [
           Text(
             'The Ledger',
-            style: MrCarsonType.display(size: 34, weight: FontWeight.w600, height: 1),
+            style:
+                MrCarsonType.display(size: 34, weight: FontWeight.w600, height: 1),
           ),
           const SizedBox(height: 4),
           Text(
-            'June 2026 · all on device',
+            subtitle,
             style: MrCarsonType.ui(size: 12.5, color: MrCarsonColors.ink3),
           ),
         ],
@@ -118,62 +149,47 @@ class _Header extends StatelessWidget {
 
 class _Body extends StatelessWidget {
   const _Body({
+    required this.summary,
+    required this.recent,
     required this.pending,
     required this.onOpenExpense,
     required this.onReviewPending,
+    required this.onRetrySummary,
+    required this.onRetryRecent,
   });
 
+  final AsyncValue<MonthlySummary> summary;
+  final AsyncValue<List<ExpenseSummary>> recent;
   final List<LedgerPending> pending;
   final void Function(String)? onOpenExpense;
   final void Function(String)? onReviewPending;
-
-  static const _expenses = [
-    _ExpenseData(
-      id: 'nero',
-      merchant: 'Caffè Nero',
-      category: 'Dining',
-      date: '12 June 2026',
-      amount: '£6.15',
-      initial: 'C',
-      color: MrCarsonColors.accent,
-    ),
-    _ExpenseData(
-      id: 'wolseley',
-      merchant: 'The Wolseley',
-      category: 'Dining',
-      date: '11 June 2026',
-      amount: '£84.09',
-      initial: 'W',
-      color: MrCarsonColors.accent,
-    ),
-    _ExpenseData(
-      id: 'waitrose',
-      merchant: 'Waitrose',
-      category: 'Groceries',
-      date: '10 June 2026',
-      amount: '£63.40',
-      initial: 'W',
-      color: MrCarsonColors.grocery,
-    ),
-    _ExpenseData(
-      id: 'uber',
-      merchant: 'Uber',
-      category: 'Transport',
-      date: '9 June 2026',
-      amount: '£18.50',
-      initial: 'U',
-      color: MrCarsonColors.transport,
-    ),
-  ];
+  final VoidCallback onRetrySummary;
+  final VoidCallback onRetryRecent;
 
   @override
   Widget build(BuildContext context) {
+    // Whole-screen empty state: nothing recorded and nothing in flight.
+    final recentIsEmpty = recent.maybeWhen(
+      data: (rows) => rows.isEmpty,
+      orElse: () => false,
+    );
+    if (recentIsEmpty && pending.isEmpty) {
+      return const Center(
+        child: EmptyState(
+          icon: Icons.receipt_long_outlined,
+          title: 'The ledger is empty',
+          subtitle:
+              'Add a receipt and I shall keep your accounts in order, sir.',
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 110),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SummaryCard(),
+          _SummaryCard(summary: summary, onRetry: onRetrySummary),
           if (pending.isNotEmpty) ...[
             _PendingSection(pending: pending, onReviewPending: onReviewPending),
           ],
@@ -187,16 +203,62 @@ class _Body extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Column(
-            children: _expenses
-                .map((e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ExpenseTile(data: e, onTap: onOpenExpense),
-                    ))
-                .toList(),
-          ),
+          _RecentList(recent: recent, onOpenExpense: onOpenExpense, onRetry: onRetryRecent),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Recent list
+// ---------------------------------------------------------------------------
+
+class _RecentList extends StatelessWidget {
+  const _RecentList({
+    required this.recent,
+    required this.onOpenExpense,
+    required this.onRetry,
+  });
+
+  final AsyncValue<List<ExpenseSummary>> recent;
+  final void Function(String)? onOpenExpense;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return recent.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: LoadingState(label: 'Reading the ledger…'),
+      ),
+      error: (err, _) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: ErrorRetryState(
+          message: 'I could not read your recent expenses, sir.',
+          onRetry: onRetry,
+        ),
+      ),
+      data: (rows) {
+        if (rows.isEmpty) {
+          // Pending may be in flight while nothing is recorded yet.
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Text(
+              'No expenses recorded yet.',
+              style: MrCarsonType.ui(size: 13, color: MrCarsonColors.ink3),
+            ),
+          );
+        }
+        return Column(
+          children: rows
+              .map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ExpenseTile(data: e, onTap: onOpenExpense),
+                  ))
+              .toList(),
+        );
+      },
     );
   }
 }
@@ -206,6 +268,11 @@ class _Body extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.summary, required this.onRetry});
+
+  final AsyncValue<MonthlySummary> summary;
+  final VoidCallback onRetry;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -215,43 +282,95 @@ class _SummaryCard extends StatelessWidget {
         border: Border.all(color: MrCarsonColors.line, width: 1),
         borderRadius: BorderRadius.circular(MrCarsonRadii.card),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _DonutChart(),
-          const SizedBox(width: 20),
-          const Expanded(child: _LegendColumn()),
-        ],
+      child: summary.when(
+        loading: () => const SizedBox(
+          height: 104,
+          child: LoadingState(),
+        ),
+        error: (err, _) => SizedBox(
+          height: 104,
+          child: ErrorRetryState(
+            message: 'I could not total this month, sir.',
+            onRetry: onRetry,
+          ),
+        ),
+        data: (s) {
+          // Build slices from byCategory (per §1: donut uses byCategory; the
+          // headline figure uses `total`).
+          final slices = <_Slice>[
+            for (var i = 0; i < s.byCategory.length; i++)
+              _Slice(
+                label: s.byCategory[i].category,
+                value: s.byCategory[i].total,
+                color: categoryColor(s.byCategory[i].category, index: i),
+              ),
+          ];
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _DonutChart(
+                slices: slices,
+                headline: formatMoney(s.currency, s.total),
+              ),
+              const SizedBox(width: 20),
+              Expanded(child: _LegendColumn(slices: slices, currency: s.currency)),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-// Donut segment data
-class _Segment {
-  const _Segment(this.value, this.color);
+/// A single donut/legend slice (category, amount, colour).
+class _Slice {
+  const _Slice({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
   final double value;
   final Color color;
 }
 
-const _segments = [
-  _Segment(412.0, MrCarsonColors.accent),
-  _Segment(318.0, MrCarsonColors.grocery),
-  _Segment(214.0, MrCarsonColors.house),
-  _Segment(196.0, MrCarsonColors.transport),
-  _Segment(144.6, MrCarsonColors.ink3),
-];
-
 class _DonutChart extends StatelessWidget {
+  const _DonutChart({required this.slices, required this.headline});
+
+  final List<_Slice> slices;
+  final String headline;
+
   @override
   Widget build(BuildContext context) {
+    final hasData = slices.any((s) => s.value > 0);
     return SizedBox(
       width: 104,
       height: 104,
-      child: CustomPaint(
-        painter: _DonutPainter(),
-        child: Center(
-          child: Column(
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (hasData)
+            PieChart(
+              PieChartData(
+                startDegreeOffset: -90,
+                sectionsSpace: 2,
+                centerSpaceRadius: 37,
+                sections: [
+                  for (final s in slices)
+                    PieChartSectionData(
+                      value: s.value,
+                      color: s.color,
+                      radius: 15,
+                      showTitle: false,
+                    ),
+                ],
+              ),
+            )
+          else
+            // No itemised categories yet — draw an empty brass ring.
+            CustomPaint(size: const Size(104, 104), painter: _EmptyRingPainter()),
+          Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
@@ -263,55 +382,34 @@ class _DonutChart extends StatelessWidget {
                 ),
               ),
               Text(
-                '£1,284.60',
+                headline,
                 style: MrCarsonType.display(size: 20, weight: FontWeight.w600),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _DonutPainter extends CustomPainter {
+/// Draws a thin, faint ring for the "no categories yet" donut state.
+class _EmptyRingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final outerRadius = size.width / 2;
     const inset = 15.0;
-    final innerRadius = outerRadius - inset;
-
-    final total = _segments.fold<double>(0, (s, e) => s + e.value);
-    const gapAngle = 0.025; // radians gap between segments
-    const startAngle = -math.pi / 2; // start at top
-
-    double currentAngle = startAngle;
-
-    for (final seg in _segments) {
-      final sweep = (seg.value / total) * 2 * math.pi - gapAngle;
-      final paint = Paint()
-        ..color = seg.color
+    final ringRadius = size.width / 2 - inset / 2;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: ringRadius),
+      -math.pi / 2,
+      2 * math.pi,
+      false,
+      Paint()
+        ..color = MrCarsonColors.line
         ..style = PaintingStyle.stroke
-        ..strokeWidth = inset
-        ..strokeCap = StrokeCap.butt;
-
-      final ringRadius = innerRadius + inset / 2;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: ringRadius),
-        currentAngle,
-        sweep,
-        false,
-        paint,
-      );
-      currentAngle += sweep + gapAngle;
-    }
-
-    // Inner fill
-    final innerPaint = Paint()
-      ..color = MrCarsonColors.surface
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, innerRadius - 1, innerPaint);
+        ..strokeWidth = inset,
+    );
   }
 
   @override
@@ -319,24 +417,29 @@ class _DonutPainter extends CustomPainter {
 }
 
 class _LegendColumn extends StatelessWidget {
-  const _LegendColumn();
+  const _LegendColumn({required this.slices, required this.currency});
 
-  static const _rows = [
-    _LegendRow('Dining', '£412.00', MrCarsonColors.accent),
-    _LegendRow('Groceries', '£318.00', MrCarsonColors.grocery),
-    _LegendRow('Household', '£214.00', MrCarsonColors.house),
-    _LegendRow('Transport', '£196.00', MrCarsonColors.transport),
-    _LegendRow('Other', '£144.60', MrCarsonColors.ink3),
-  ];
+  final List<_Slice> slices;
+  final String currency;
 
   @override
   Widget build(BuildContext context) {
+    if (slices.isEmpty) {
+      return Text(
+        'No itemised spending this month, sir.',
+        style: MrCarsonType.ui(size: 13, color: MrCarsonColors.ink3),
+      );
+    }
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: _rows
-          .map((r) => Padding(
+      children: slices
+          .map((s) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: r,
+                child: _LegendRow(
+                  label: s.label,
+                  amount: formatMoney(currency, s.value),
+                  color: s.color,
+                ),
               ))
           .toList(),
     );
@@ -344,7 +447,11 @@ class _LegendColumn extends StatelessWidget {
 }
 
 class _LegendRow extends StatelessWidget {
-  const _LegendRow(this.label, this.amount, this.color);
+  const _LegendRow({
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
 
   final String label;
   final String amount;
@@ -367,6 +474,7 @@ class _LegendRow extends StatelessWidget {
           child: Text(
             label,
             style: MrCarsonType.ui(size: 13, color: MrCarsonColors.ink2),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         Text(
@@ -730,36 +838,19 @@ class _ReviewButton extends StatelessWidget {
 // Expense tile
 // ---------------------------------------------------------------------------
 
-class _ExpenseData {
-  const _ExpenseData({
-    required this.id,
-    required this.merchant,
-    required this.category,
-    required this.date,
-    required this.amount,
-    required this.initial,
-    required this.color,
-  });
-
-  final String id;
-  final String merchant;
-  final String category;
-  final String date;
-  final String amount;
-  final String initial;
-  final Color color;
-}
-
 class _ExpenseTile extends StatelessWidget {
   const _ExpenseTile({required this.data, required this.onTap});
 
-  final _ExpenseData data;
+  final ExpenseSummary data;
   final void Function(String)? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final initial =
+        data.merchant.isNotEmpty ? data.merchant[0].toUpperCase() : '?';
     return GestureDetector(
       onTap: () => onTap?.call(data.id),
+      behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
         decoration: BoxDecoration(
@@ -779,11 +870,11 @@ class _ExpenseTile extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: Text(
-                data.initial,
+                initial,
                 style: MrCarsonType.display(
                   size: 22,
                   weight: FontWeight.w600,
-                  color: data.color,
+                  color: MrCarsonColors.accent,
                 ),
               ),
             ),
@@ -800,10 +891,11 @@ class _ExpenseTile extends StatelessWidget {
                       weight: FontWeight.w600,
                       color: MrCarsonColors.ink,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${data.category} · ${data.date}',
+                    '${data.itemCount} ${data.itemCount == 1 ? 'item' : 'items'} · ${formatLongDate(data.date)}',
                     style: MrCarsonType.ui(size: 12.5, color: MrCarsonColors.ink3),
                   ),
                 ],
@@ -812,7 +904,7 @@ class _ExpenseTile extends StatelessWidget {
             const SizedBox(width: 8),
             // Amount
             Text(
-              data.amount,
+              formatMoney(data.currency, data.total),
               style: MrCarsonType.display(size: 21, weight: FontWeight.w600),
             ),
           ],

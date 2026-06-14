@@ -93,11 +93,22 @@ class AppShell extends ConsumerWidget {
       case ShellScreen.ledger:
         return LedgerScreen(
           pending: pending,
-          onOpenExpense: (_) => vm.go(ShellScreen.detail),
+          onOpenExpense: vm.viewExpense,
           onReviewPending: vm.reviewPending,
         );
       case ShellScreen.detail:
-        return DetailScreen(onBack: () => vm.go(ShellScreen.ledger));
+        final id = s.openingId;
+        if (id == null) {
+          // No expense selected — nothing to show; return to the ledger.
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => vm.go(ShellScreen.ledger),
+          );
+          return const SizedBox.shrink();
+        }
+        return DetailScreen(
+          expenseId: id,
+          onBack: () => vm.go(ShellScreen.ledger),
+        );
       case ShellScreen.confirm:
         final id = s.reviewingId;
         if (id == null) {
