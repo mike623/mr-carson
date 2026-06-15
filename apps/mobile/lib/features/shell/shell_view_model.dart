@@ -30,10 +30,16 @@ class ShellState {
     this.reviewingId,
     this.toast,
     this.engageReason = '',
+    this.askComposerFocused = false,
   });
 
   final ShellScreen screen;
   final List<LedgerPending> pending;
+
+  /// Whether the Ask composer's text field currently holds focus. While true the
+  /// bottom nav is hidden (the design's "put aside when asking") so the composer
+  /// owns the bottom edge.
+  final bool askComposerFocused;
 
   /// The pending id currently being reviewed on the confirm screen, if any.
   final String? reviewingId;
@@ -47,7 +53,8 @@ class ShellState {
   final String engageReason;
 
   bool get navVisible =>
-      screen == ShellScreen.ask || screen == ShellScreen.ledger;
+      (screen == ShellScreen.ask || screen == ShellScreen.ledger) &&
+      !askComposerFocused;
 
   ShellState copyWith({
     ShellScreen? screen,
@@ -55,6 +62,7 @@ class ShellState {
     Object? reviewingId = _unset,
     Object? toast = _unset,
     String? engageReason,
+    bool? askComposerFocused,
   }) {
     return ShellState(
       screen: screen ?? this.screen,
@@ -63,6 +71,7 @@ class ShellState {
           identical(reviewingId, _unset) ? this.reviewingId : reviewingId as String?,
       toast: identical(toast, _unset) ? this.toast : toast as String?,
       engageReason: engageReason ?? this.engageReason,
+      askComposerFocused: askComposerFocused ?? this.askComposerFocused,
     );
   }
 
@@ -95,6 +104,13 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
   // --- navigation ----------------------------------------------------------
 
   void go(ShellScreen s) => state = state.copyWith(screen: s);
+
+  /// Set by the Ask composer when its text field gains / loses focus. Drives
+  /// [ShellState.navVisible] so the bottom nav steps aside while asking.
+  void setAskComposerFocused(bool focused) {
+    if (state.askComposerFocused == focused) return;
+    state = state.copyWith(askComposerFocused: focused);
+  }
 
   /// Open the Engage screen because a surface needs the model present.
   ///
