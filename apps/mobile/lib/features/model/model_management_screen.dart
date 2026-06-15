@@ -215,7 +215,7 @@ class ModelManagementScreen extends ConsumerWidget {
   static ({String title, String subtitle}) _copyFor(ModelLifecycleState s) {
     if (s.isDownloading) {
       return (
-        title: 'Coming aboard',
+        title: 'Coming aboard…',
         subtitle: 'Downloading once, so I may work without the cloud.',
       );
     }
@@ -227,12 +227,12 @@ class ModelManagementScreen extends ConsumerWidget {
     }
     if (s.isError) {
       return (
-        title: 'A spot of bother',
+        title: 'Something went amiss.',
         subtitle: 'The download did not complete. We may try once more.',
       );
     }
     return (
-      title: 'Bring my mind aboard',
+      title: "My mind isn't aboard yet.",
       subtitle:
           'A one-time download lets me read receipts and answer questions, '
           'entirely on this device.',

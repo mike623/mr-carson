@@ -88,7 +88,7 @@ class SettingsScreen extends ConsumerWidget {
     }
     if (s.isDownloading) {
       return (
-        label: 'Setting up… ${s.downloadPct.toInt()}%',
+        label: 'Downloading… ${s.downloadPct.toInt()}%',
         color: MrCarsonColors.accent,
       );
     }
@@ -481,16 +481,25 @@ class _Swatch extends StatelessWidget {
       decoration: BoxDecoration(
         color: MrCarsonColors.surface,
         border: Border.all(
-          color: selected ? MrCarsonColors.accent : MrCarsonColors.line,
-          width: selected ? 1.5 : 1,
+          // Selected: 2px solid ink (design line ~579: '2px solid var(--ink)').
+          color: selected ? MrCarsonColors.ink : MrCarsonColors.line,
+          width: selected ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(16),
+        // Selected outer double-ring (design 'ring'): a 2px bg gap then a
+        // 3.5px accent ring outside it. Inner shadow listed first so it sits
+        // beneath the accent ring.
         boxShadow: selected
             ? const [
                 BoxShadow(
-                  color: MrCarsonColors.accentSoft,
+                  color: MrCarsonColors.bg,
                   blurRadius: 0,
-                  spreadRadius: 3,
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: MrCarsonColors.accent,
+                  blurRadius: 0,
+                  spreadRadius: 3.5,
                 ),
               ]
             : null,

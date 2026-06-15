@@ -114,7 +114,7 @@ class _CtaBody extends StatelessWidget {
         const _EngageSeal(),
         const SizedBox(height: 30),
         Text(
-          'Engage Mr. Carson',
+          'Shall I prepare myself, sir?',
           style: MrCarsonType.display(
             size: 33,
             weight: FontWeight.w600,
@@ -235,7 +235,7 @@ class _ProgressBody extends StatelessWidget {
         ModelProgressRing(pct: pct, size: 172),
         const SizedBox(height: 30),
         Text(
-          'Bringing Mr. Carson aboard',
+          'A moment while I prepare.',
           style: MrCarsonType.display(
             size: 33,
             weight: FontWeight.w600,
@@ -293,7 +293,7 @@ class _ReadyBody extends StatelessWidget {
         const ModelProgressRing(pct: 100, done: true, size: 172, checkSize: 50),
         const SizedBox(height: 30),
         Text(
-          'At your service.',
+          'At your post.',
           style: MrCarsonType.display(
             size: 33,
             weight: FontWeight.w600,

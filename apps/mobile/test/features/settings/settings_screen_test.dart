@@ -100,7 +100,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Setting up… 42%'), findsOneWidget);
+    expect(find.text('Downloading… 42%'), findsOneWidget);
   });
 
   testWidgets('model status row reflects error state', (tester) async {
