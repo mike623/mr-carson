@@ -1,7 +1,6 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mr_carson/features/model/model_progress.dart';
 import 'package:mr_carson/theme/app_theme.dart';
 import 'package:mr_carson/ui/core/widgets/carson_monogram.dart';
 
@@ -309,37 +308,18 @@ class _StepDownload extends StatelessWidget {
   /// Real on-device model size (gemma-3n-E2B-it-int4.litertlm, 3655827456 B).
   static const double _totalMb = 3487.0;
 
-  // [pct] is the REAL download percentage from GemmaService's progress stream,
-  // so the byte count below tracks the actual download. flutter_gemma's stream
-  // is percent-only (no byte/speed signal), so speed + ETA remain estimates.
-  static _DownloadStats _stats(double pct) {
-    final mb = (pct / 100 * _totalMb).clamp(0, _totalMb);
-    final speed = 45 + 75 * (0.5 + 0.5 * math.sin(pct * 0.25)); // estimated MB/s
-    final remaining = pct >= 100 ? 0.0 : ((_totalMb - mb) / speed); // seconds
-    return _DownloadStats(
-      mb: mb.toStringAsFixed(0),
-      speed: speed.toStringAsFixed(1),
-      eta: _fmtEta(remaining),
-    );
-  }
-
-  static String _fmtEta(double secs) {
-    if (secs <= 0) return '0s';
-    if (secs < 60) return '${secs.round()}s';
-    final m = (secs / 60).floor();
-    final s = (secs % 60).round();
-    return '${m}m ${s}s';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final stats = _stats(pct);
+    // [pct] is the REAL download percentage from GemmaService's progress stream,
+    // so the byte count tracks the actual download. The stream is percent-only
+    // (no byte/speed signal), so speed + ETA remain estimates.
+    final stats = modelDownloadStats(pct, totalMb: _totalMb);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Progress ring
-        _ProgressRing(pct: pct, done: done),
+        ModelProgressRing(pct: pct, done: done),
         const SizedBox(height: 30),
         // Title
         Text(
@@ -362,7 +342,12 @@ class _StepDownload extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         // Stats card (hidden when done)
-        if (!done) _StatsCard(stats: stats),
+        if (!done)
+          ModelStatsCard(
+            stats: stats,
+            showWifiHint: true,
+            totalMbLabel: '3,487 MB',
+          ),
         const Spacer(),
         // Bottom button
         if (!done)
@@ -479,209 +464,6 @@ class _CameraCard extends StatelessWidget {
   }
 }
 
-/// Animated 172×172 progress ring with percent or checkmark in the center.
-class _ProgressRing extends StatelessWidget {
-  const _ProgressRing({required this.pct, required this.done});
-  final double pct;
-  final bool done;
-
-  @override
-  Widget build(BuildContext context) {
-    final intPct = pct.toInt();
-    return SizedBox(
-      width: 172,
-      height: 172,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CustomPaint(
-            size: const Size(172, 172),
-            painter: _RingPainter(progress: pct / 100),
-          ),
-          if (!done) ...[
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$intPct',
-                  style: MrCarsonType.display(
-                    size: 50,
-                    weight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'per cent',
-                  style: MrCarsonType.ui(
-                    size: 12.5,
-                    color: MrCarsonColors.ink3,
-                  ),
-                ),
-              ],
-            ),
-          ] else ...[
-            CustomPaint(
-              size: const Size(40, 40),
-              painter: _BigCheckPainter(),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Paints the two-layer progress ring (track + arc).
-class _RingPainter extends CustomPainter {
-  const _RingPainter({required this.progress});
-  final double progress; // 0–1
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - 6) / 2;
-    const stroke = 6.0;
-
-    // Track
-    final trackPaint = Paint()
-      ..color = MrCarsonColors.line
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawCircle(center, radius, trackPaint);
-
-    // Progress arc
-    if (progress > 0) {
-      final arcPaint = Paint()
-        ..color = MrCarsonColors.accent
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..strokeCap = StrokeCap.round;
-
-      const startAngle = -math.pi / 2; // top
-      final sweepAngle = 2 * math.pi * progress;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        false,
-        arcPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter old) => old.progress != progress;
-}
-
-/// Paints a large accent checkmark for the "done" state.
-class _BigCheckPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = MrCarsonColors.accent
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final path = Path()
-      ..moveTo(size.width * 0.15, size.height * 0.52)
-      ..lineTo(size.width * 0.40, size.height * 0.76)
-      ..lineTo(size.width * 0.85, size.height * 0.28);
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_BigCheckPainter old) => false;
-}
-
-/// Download stats card.
-class _StatsCard extends StatelessWidget {
-  const _StatsCard({required this.stats});
-  final _DownloadStats stats;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: MrCarsonColors.surface,
-            border: Border.all(color: MrCarsonColors.line, width: 1),
-            borderRadius: BorderRadius.circular(MrCarsonRadii.tile),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${stats.mb} of 3,487 MB',
-                    style: MrCarsonType.ui(size: 14),
-                  ),
-                  Text(
-                    '${stats.speed} MB/s',
-                    style: MrCarsonType.ui(size: 14),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${stats.eta} remaining',
-                    style: MrCarsonType.ui(
-                      size: 13,
-                      color: MrCarsonColors.ink3,
-                    ),
-                  ),
-                  Text(
-                    'One-time only',
-                    style: MrCarsonType.ui(
-                      size: 13,
-                      color: MrCarsonColors.ink3,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _WarnDot(),
-            const SizedBox(width: 8),
-            Text(
-              'Best done on Wi-Fi, sir.',
-              style: MrCarsonType.ui(size: 12.5, color: MrCarsonColors.ink3),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// 5px warn-colored dot.
-class _WarnDot extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 5,
-      height: 5,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: MrCarsonColors.warn,
-      ),
-    );
-  }
-}
-
 /// Full-width solid accent primary button.
 class _PrimaryButton extends StatelessWidget {
   const _PrimaryButton({required this.label, required this.onTap});
@@ -743,17 +525,4 @@ class _OutlineButton extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Simple data holder ────────────────────────────────────────────────────────
-
-class _DownloadStats {
-  const _DownloadStats({
-    required this.mb,
-    required this.speed,
-    required this.eta,
-  });
-  final String mb;
-  final String speed;
-  final String eta;
 }

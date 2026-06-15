@@ -29,6 +29,7 @@ class ShellState {
     this.pending = const [],
     this.reviewingId,
     this.toast,
+    this.engageReason = '',
   });
 
   final ShellScreen screen;
@@ -40,6 +41,11 @@ class ShellState {
   /// Active butler toast message, or null when none is shown.
   final String? toast;
 
+  /// Contextual italic line shown in the Engage screen's reason card, set when a
+  /// surface calls [ShellViewModel.requireModel]. Empty falls back to the
+  /// Engage screen's default copy.
+  final String engageReason;
+
   bool get navVisible =>
       screen == ShellScreen.ask || screen == ShellScreen.ledger;
 
@@ -48,6 +54,7 @@ class ShellState {
     List<LedgerPending>? pending,
     Object? reviewingId = _unset,
     Object? toast = _unset,
+    String? engageReason,
   }) {
     return ShellState(
       screen: screen ?? this.screen,
@@ -55,6 +62,7 @@ class ShellState {
       reviewingId:
           identical(reviewingId, _unset) ? this.reviewingId : reviewingId as String?,
       toast: identical(toast, _unset) ? this.toast : toast as String?,
+      engageReason: engageReason ?? this.engageReason,
     );
   }
 
@@ -87,6 +95,14 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
   // --- navigation ----------------------------------------------------------
 
   void go(ShellScreen s) => state = state.copyWith(screen: s);
+
+  /// Open the Engage screen because a surface needs the model present.
+  ///
+  /// [reason] is a contextual italic line shown in the Engage reason card
+  /// (e.g. why the model is needed right now). Empty uses the screen's default.
+  void requireModel({String reason = ''}) {
+    state = state.copyWith(engageReason: reason, screen: ShellScreen.engage);
+  }
 
   void showToast(String msg) {
     state = state.copyWith(toast: msg);

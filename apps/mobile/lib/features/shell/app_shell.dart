@@ -6,6 +6,9 @@ import '../ask/ask_screen.dart';
 import '../confirm/confirm_screen.dart';
 import '../detail/detail_screen.dart';
 import '../ledger/ledger_screen.dart';
+import '../model/engage_screen.dart';
+import '../model/model_management_screen.dart';
+import '../settings/settings_screen.dart';
 import 'shell_view_model.dart';
 
 /// The in-app navigation shell — everything after onboarding.
@@ -55,18 +58,15 @@ class AppShell extends ConsumerWidget {
           onDiscard: vm.discardConfirm,
           onSave: vm.saveConfirm,
         );
-      // TODO(task 4): replace with real Settings screen.
       case ShellScreen.settings:
-        return const _PlaceholderScreen('Settings');
-      // TODO(task 4): replace with real Model Management screen.
+        return const SettingsScreen();
       case ShellScreen.modelMgmt:
-        return const _PlaceholderScreen('Model Management');
+        return const ModelManagementScreen();
       // TODO(task 2): replace with real Manual Entry screen.
       case ShellScreen.manual:
         return const _PlaceholderScreen('Manual Entry');
-      // TODO(task 3): replace with real Engage screen.
       case ShellScreen.engage:
-        return const _PlaceholderScreen('Engage');
+        return const EngageScreen();
     }
   }
 
