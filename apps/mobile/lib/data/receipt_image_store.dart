@@ -36,8 +36,16 @@ class ReceiptImageStore {
   }
 
   /// Deletes [filePath] if it exists inside the receipts directory.
-  /// Silent if the file is missing.
+  ///
+  /// Silently ignores the request if:
+  ///   - the file does not exist, or
+  ///   - [filePath] is not contained within the receipts directory
+  ///     (prevents a corrupted DB path from deleting an arbitrary file).
   Future<void> deleteReceipt(String filePath) async {
+    final dir = await _receiptsDir();
+    final canonical = p.canonicalize(filePath);
+    final dirCanonical = p.canonicalize(dir.path);
+    if (!canonical.startsWith('$dirCanonical${p.separator}')) return;
     final file = File(filePath);
     if (await file.exists()) {
       await file.delete();

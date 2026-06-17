@@ -18,7 +18,7 @@ import '../shell/shell_view_model.dart';
 final pendingDraftProvider =
     FutureProvider.autoDispose.family<ExpenseDraft?, String>(
         (ref, pendingId) async {
-  final repo = ref.watch(pendingRepositoryProvider);
+  final repo = ref.read(pendingRepositoryProvider);
   final row = await repo.getById(pendingId);
   final json = row?.extractedJson;
   if (json == null) return null;
@@ -81,8 +81,12 @@ class _ConfirmScreenState extends ConsumerState<ConfirmScreen> {
     _merchant = draft.merchant;
     _merchantLowConfidence = false;
     _merchantController = TextEditingController(text: _merchant);
-    _selectedCategory =
-        draft.items.isNotEmpty ? draft.items.first.category : kDefaultCategories.first;
+    // Use the expense-level category if present; fall back to the first item's
+    // category, then the default list's first entry.
+    _selectedCategory = draft.category ??
+        (draft.items.isNotEmpty
+            ? draft.items.first.category
+            : kDefaultCategories.first);
     _total = draft.total;
     _totalController =
         TextEditingController(text: draft.total.toStringAsFixed(2));
@@ -90,12 +94,13 @@ class _ConfirmScreenState extends ConsumerState<ConfirmScreen> {
   }
 
   ExpenseDraft _buildEditedDraft() {
+    // Set the expense-level category from the chip; leave each item's own
+    // category unchanged so per-item categories are preserved.
     return _draft!.copyWith(
       merchant: _merchant,
       total: _total,
-      items: _items
-          .map((item) => item.copyWith(category: _selectedCategory))
-          .toList(),
+      category: _selectedCategory,
+      items: _items,
     );
   }
 
@@ -477,13 +482,7 @@ class _DateTotalRow extends StatelessWidget {
 
   String _formatDate(String iso) {
     try {
-      final parts = iso.split('-');
-      if (parts.length < 3) return iso;
-      final dt = DateTime(
-        int.parse(parts[0]),
-        int.parse(parts[1]),
-        int.parse(parts[2]),
-      );
+      final dt = DateTime.parse(iso);
       const months = [
         '', 'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December',

@@ -154,9 +154,6 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
     }
     if (file == null) return; // user cancelled
 
-    showToast('Very good, sir. Reading it in the background.');
-    go(ShellScreen.ledger);
-
     final store = ref.read(receiptImageStoreProvider);
     late final String stablePath;
     try {
@@ -167,17 +164,25 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
       return;
     }
 
-    final result =
-        await ref.read(receiptPipelineProvider).processReceipt(stablePath);
+    // Navigate to ledger and show toast — processing runs in the background.
+    // The pending card driven by pendingReceiptsProvider will appear; the user
+    // opens ConfirmScreen by tapping its "Review" button.
+    showToast('Very good, sir. Reading it in the background.');
+    go(ShellScreen.ledger);
 
-    if (result.ok) {
-      state = state.copyWith(
-        reviewingId: result.pendingId,
-        screen: ShellScreen.confirm,
-      );
-    } else {
-      showToast('I could not read that receipt, sir.');
-    }
+    // Fire-and-forget: errors are surfaced via toast; the pending row's failed
+    // status is reflected in the ledger automatically via pendingReceiptsProvider.
+    unawaited(() async {
+      try {
+        final result =
+            await ref.read(receiptPipelineProvider).processReceipt(stablePath);
+        if (!result.ok) {
+          showToast('I could not read that receipt, sir.');
+        }
+      } catch (_) {
+        showToast('I could not read that receipt, sir.');
+      }
+    }());
   }
 
   // --- review / confirm ----------------------------------------------------
@@ -202,15 +207,19 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
   }
 
   Future<void> discardConfirm(String pendingId) async {
-    final pending =
-        await ref.read(pendingRepositoryProvider).getById(pendingId);
-    await ref.read(receiptPipelineProvider).reject(pendingId);
-    if (pending?.filePath != null) {
-      await ref
-          .read(receiptImageStoreProvider)
-          .deleteReceipt(pending!.filePath!);
+    try {
+      final pending =
+          await ref.read(pendingRepositoryProvider).getById(pendingId);
+      await ref.read(receiptPipelineProvider).reject(pendingId);
+      if (pending?.filePath != null) {
+        await ref
+            .read(receiptImageStoreProvider)
+            .deleteReceipt(pending!.filePath!);
+      }
+      state = state.copyWith(reviewingId: null, screen: ShellScreen.ledger);
+    } catch (_) {
+      showToast('Could not discard that receipt, sir.');
     }
-    state = state.copyWith(reviewingId: null, screen: ShellScreen.ledger);
   }
 }
 
