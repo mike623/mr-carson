@@ -11,6 +11,21 @@ import '../../data/repositories/expense_repository.dart' show ChartData;
 // [ChatMessage.chart] to null by passing `chart: null`.
 const Object _chartSentinel = Object();
 
+/// One ledger lookup (tool call) Mr. Carson made for a reply — shown in the
+/// transcript only when the user opts in (Settings → his workings).
+@immutable
+class ToolCall {
+  const ToolCall({required this.name, this.args = const {}});
+
+  final String name;
+  final Map<String, dynamic> args;
+
+  /// A compact one-line rendering of the args, e.g. `dateRange: thisMonth`.
+  /// Empty when the call took no arguments.
+  String get prettyArgs =>
+      args.entries.map((e) => '${e.key}: ${e.value}').join(' · ');
+}
+
 /// A single chat message in the Ask conversation.
 @immutable
 class ChatMessage {
@@ -20,6 +35,8 @@ class ChatMessage {
     this.thinking = false,
     this.streaming = false,
     this.chart,
+    this.thinkingText = '',
+    this.toolCalls = const [],
   });
 
   final bool isUser;
@@ -35,6 +52,14 @@ class ChatMessage {
   /// when the model charted spending for this reply. `null` ⇒ no chart card.
   final ChartData? chart;
 
+  /// The model's accumulated internal reasoning for this reply. Rendered only
+  /// when the user opts in; otherwise ignored.
+  final String thinkingText;
+
+  /// The ledger lookups (tool calls) the model made for this reply. Rendered
+  /// only when the user opts in.
+  final List<ToolCall> toolCalls;
+
   /// Creates a copy with the given fields replaced.
   ///
   /// [chart] uses a sentinel so that `copyWith(chart: null)` explicitly clears
@@ -46,6 +71,8 @@ class ChatMessage {
     bool? thinking,
     bool? streaming,
     Object? chart = _chartSentinel,
+    String? thinkingText,
+    List<ToolCall>? toolCalls,
   }) {
     return ChatMessage(
       isUser: isUser ?? this.isUser,
@@ -53,6 +80,8 @@ class ChatMessage {
       thinking: thinking ?? this.thinking,
       streaming: streaming ?? this.streaming,
       chart: identical(chart, _chartSentinel) ? this.chart : chart as ChartData?,
+      thinkingText: thinkingText ?? this.thinkingText,
+      toolCalls: toolCalls ?? this.toolCalls,
     );
   }
 }
@@ -176,6 +205,16 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
               gotText = true;
             case ChartReady(:final chart):
               _updateLastCarson((m) => m.copyWith(chart: chart));
+            case ThinkingDelta(:final token):
+              _updateLastCarson(
+                (m) => m.copyWith(thinkingText: m.thinkingText + token),
+              );
+            case ToolCallStarted(:final name, :final args):
+              _updateLastCarson(
+                (m) => m.copyWith(
+                  toolCalls: [...m.toolCalls, ToolCall(name: name, args: args)],
+                ),
+              );
           }
         },
         onError: (_) {

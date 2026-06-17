@@ -5,6 +5,7 @@ import 'package:mr_carson/theme/app_theme.dart';
 import '../model/model_lifecycle_view_model.dart';
 import '../shell/shell_view_model.dart';
 import 'currency_provider.dart';
+import 'transcript_prefs.dart';
 
 /// The Settings (gear) page.
 ///
@@ -52,6 +53,10 @@ class SettingsScreen extends ConsumerWidget {
                     selected: currency,
                     onSelect: currencyVm.set,
                   ),
+
+                  // ── His workings ───────────────────────────────────────
+                  const _SectionLabel("His workings"),
+                  const _TranscriptCard(),
 
                   // ── Discretion ─────────────────────────────────────────
                   const _SectionLabel('Discretion'),
@@ -427,6 +432,102 @@ class _DiscretionCard extends StatelessWidget {
           Text(
             trailing,
             style: MrCarsonType.ui(size: 12.5, color: MrCarsonColors.ink3),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Two opt-in toggles controlling whether the Ask transcript reveals Mr.
+/// Carson's reasoning and the ledger lookups (tool calls) behind each reply.
+/// Both default off — the chat stays clean.
+class _TranscriptCard extends ConsumerWidget {
+  const _TranscriptCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(transcriptPrefsProvider);
+    final vm = ref.read(transcriptPrefsProvider.notifier);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: MrCarsonColors.surface,
+        border: Border.all(color: MrCarsonColors.line, width: 1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          _ToggleRow(
+            label: 'Show his reasoning',
+            sub: 'Reveal the model\'s private thinking.',
+            value: prefs.showThinking,
+            onChanged: vm.setShowThinking,
+            border: true,
+          ),
+          _ToggleRow(
+            label: 'Show his workings',
+            sub: 'List the ledger lookups behind each reply.',
+            value: prefs.showToolCalls,
+            onChanged: vm.setShowToolCalls,
+            border: false,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.label,
+    required this.sub,
+    required this.value,
+    required this.onChanged,
+    required this.border,
+  });
+
+  final String label;
+  final String sub;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final bool border;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: border
+            ? const Border(bottom: BorderSide(color: MrCarsonColors.line))
+            : null,
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: MrCarsonType.ui(size: 14.5)),
+                const SizedBox(height: 2),
+                Text(
+                  sub,
+                  style: MrCarsonType.ui(size: 12, color: MrCarsonColors.ink3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: MrCarsonColors.accentInk,
+            activeTrackColor: MrCarsonColors.accent,
+            inactiveThumbColor: MrCarsonColors.ink3,
+            inactiveTrackColor: MrCarsonColors.bg,
+            trackOutlineColor:
+                const WidgetStatePropertyAll(MrCarsonColors.line),
           ),
         ],
       ),
