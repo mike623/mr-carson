@@ -1,58 +1,102 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mr_carson/theme/app_theme.dart';
 import 'package:mr_carson/ui/core/widgets/carson_monogram.dart';
 
-/// AI-extraction review screen where the user can confirm or discard a
-/// newly processed receipt.
-///
-/// Provides locally editable state for merchant name confidence, category
-/// selection, and line-item display. Calls [onDiscard] or [onSave] when
-/// the user taps the footer buttons.
-class ConfirmScreen extends StatefulWidget {
+import '../../data/providers.dart';
+import '../../domain/models/ai_models.dart';
+import '../shell/shell_view_model.dart';
+
+// ---------------------------------------------------------------------------
+// Provider: load draft from pending row's extractedJson
+// ---------------------------------------------------------------------------
+
+/// Loads the [ExpenseDraft] stored in the pending row for [pendingId].
+/// Returns null if the row is missing or the JSON cannot be parsed.
+final pendingDraftProvider =
+    FutureProvider.autoDispose.family<ExpenseDraft?, String>(
+        (ref, pendingId) async {
+  final repo = ref.watch(pendingRepositoryProvider);
+  final row = await repo.getById(pendingId);
+  final json = row?.extractedJson;
+  if (json == null) return null;
+  return ExpenseDraft.fromJson(jsonDecode(json) as Map<String, dynamic>);
+});
+
+// ---------------------------------------------------------------------------
+// Public screen
+// ---------------------------------------------------------------------------
+
+class ConfirmScreen extends ConsumerStatefulWidget {
   const ConfirmScreen({
     super.key,
-    required this.onDiscard,
-    required this.onSave,
-    this.note =
-        'I read this while you were away, sir. Two figures want a glance.',
+    required this.pendingId,
+    this.note = 'I read this while you were away, sir. Two figures want a glance.',
   });
 
-  final VoidCallback onDiscard;
-  final VoidCallback onSave;
+  final String pendingId;
   final String note;
 
   @override
-  State<ConfirmScreen> createState() => _ConfirmScreenState();
+  ConsumerState<ConfirmScreen> createState() => _ConfirmScreenState();
 }
 
-class _ConfirmScreenState extends State<ConfirmScreen> {
+class _ConfirmScreenState extends ConsumerState<ConfirmScreen> {
+  // Editable state — populated once the draft loads
+  ExpenseDraft? _draft;
+  bool _loaded = false;
+
   // Merchant field state
-  String _merchant = 'Caffè Nero';
-  bool _merchantLowConfidence = true;
+  late String _merchant;
+  bool _merchantLowConfidence = false;
   bool _merchantEditing = false;
-  late final TextEditingController _merchantController;
+  late TextEditingController _merchantController;
 
   // Category state
-  String _selectedCategory = 'Dining';
+  late String _selectedCategory;
 
-  static const _categories = [
-    'Dining',
-    'Groceries',
-    'Transport',
-    'Household',
-    'Other',
-  ];
+  // Total editing
+  late double _total;
+  bool _totalEditing = false;
+  late TextEditingController _totalController;
 
-  @override
-  void initState() {
-    super.initState();
-    _merchantController = TextEditingController(text: _merchant);
-  }
+  // Line items
+  late List<ExpenseItemDraft> _items;
 
   @override
   void dispose() {
-    _merchantController.dispose();
+    if (_loaded) {
+      _merchantController.dispose();
+      _totalController.dispose();
+    }
     super.dispose();
+  }
+
+  void _initFromDraft(ExpenseDraft draft) {
+    if (_loaded) return;
+    _loaded = true;
+    _draft = draft;
+    _merchant = draft.merchant;
+    _merchantLowConfidence = false;
+    _merchantController = TextEditingController(text: _merchant);
+    _selectedCategory =
+        draft.items.isNotEmpty ? draft.items.first.category : kDefaultCategories.first;
+    _total = draft.total;
+    _totalController =
+        TextEditingController(text: draft.total.toStringAsFixed(2));
+    _items = List.from(draft.items);
+  }
+
+  ExpenseDraft _buildEditedDraft() {
+    return _draft!.copyWith(
+      merchant: _merchant,
+      total: _total,
+      items: _items
+          .map((item) => item.copyWith(category: _selectedCategory))
+          .toList(),
+    );
   }
 
   void _commitMerchantEdit() {
@@ -65,8 +109,48 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     });
   }
 
+  void _commitTotalEdit() {
+    final parsed = double.tryParse(_totalController.text.trim());
+    setState(() {
+      if (parsed != null) _total = parsed;
+      _totalEditing = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final draftAsync = ref.watch(pendingDraftProvider(widget.pendingId));
+    final vm = ref.read(shellViewModelProvider.notifier);
+
+    return draftAsync.when(
+      loading: () => const Scaffold(
+        backgroundColor: MrCarsonColors.bg,
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: MrCarsonColors.bg,
+        body: Center(
+          child: Text('Could not load receipt, sir.',
+              style: MrCarsonType.ui(size: 16, color: MrCarsonColors.ink2)),
+        ),
+      ),
+      data: (draft) {
+        if (draft == null) {
+          return Scaffold(
+            backgroundColor: MrCarsonColors.bg,
+            body: Center(
+              child: Text('Receipt not found, sir.',
+                  style: MrCarsonType.ui(size: 16, color: MrCarsonColors.ink2)),
+            ),
+          );
+        }
+        _initFromDraft(draft);
+        return _buildScaffold(vm);
+      },
+    );
+  }
+
+  Widget _buildScaffold(ShellViewModel vm) {
     return Scaffold(
       backgroundColor: MrCarsonColors.bg,
       body: Stack(
@@ -74,7 +158,8 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
           Column(
             children: [
               _TopBar(
-                onDiscard: widget.onDiscard,
+                merchant: _merchant,
+                onDiscard: () => vm.discardConfirm(widget.pendingId),
               ),
               Expanded(
                 child: SingleChildScrollView(
@@ -82,10 +167,8 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Carson note card
                       _CarsonNoteCard(note: widget.note),
                       const SizedBox(height: 20),
-                      // Fields column
                       _MerchantField(
                         merchant: _merchant,
                         lowConfidence: _merchantLowConfidence,
@@ -104,30 +187,45 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
                         onCommit: _commitMerchantEdit,
                       ),
                       const SizedBox(height: 13),
-                      const _DateTotalRow(),
+                      _DateTotalRow(
+                        date: _draft!.date,
+                        currency: _draft!.currency,
+                        total: _total,
+                        totalEditing: _totalEditing,
+                        totalController: _totalController,
+                        onTapTotal: () {
+                          setState(() {
+                            _totalEditing = true;
+                            _totalController.selection =
+                                TextSelection.fromPosition(TextPosition(
+                                    offset: _totalController.text.length));
+                          });
+                        },
+                        onCommitTotal: _commitTotalEdit,
+                      ),
                       const SizedBox(height: 13),
                       _CategoryCard(
-                        categories: _categories,
+                        categories: kDefaultCategories,
                         selected: _selectedCategory,
                         onSelect: (cat) =>
                             setState(() => _selectedCategory = cat),
                       ),
                       const SizedBox(height: 13),
-                      const _LineItemsCard(),
+                      _LineItemsCard(items: _items),
                     ],
                   ),
                 ),
               ),
             ],
           ),
-          // Pinned footer
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: _Footer(
-              onDiscard: widget.onDiscard,
-              onSave: widget.onSave,
+              onDiscard: () => vm.discardConfirm(widget.pendingId),
+              onSave: () =>
+                  vm.saveConfirm(widget.pendingId, _buildEditedDraft()),
             ),
           ),
         ],
@@ -141,8 +239,9 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
 // ---------------------------------------------------------------------------
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onDiscard});
+  const _TopBar({required this.merchant, required this.onDiscard});
 
+  final String merchant;
   final VoidCallback onDiscard;
 
   @override
@@ -156,7 +255,6 @@ class _TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Close button
           GestureDetector(
             onTap: onDiscard,
             child: Container(
@@ -167,31 +265,20 @@ class _TopBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: MrCarsonColors.line, width: 1),
               ),
-              child: const Icon(
-                Icons.close,
-                color: MrCarsonColors.ink2,
-                size: 14,
-              ),
+              child: const Icon(Icons.close, color: MrCarsonColors.ink2, size: 14),
             ),
           ),
           const SizedBox(width: 10),
-          // Title + subtitle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                Text('Review expense',
+                    style: MrCarsonType.ui(size: 16, weight: FontWeight.w600)),
                 Text(
-                  'Review expense',
-                  style:
-                      MrCarsonType.ui(size: 16, weight: FontWeight.w600),
-                ),
-                Text(
-                  'Caffè Nero · just now',
-                  style: MrCarsonType.ui(
-                    size: 12,
-                    color: MrCarsonColors.ink3,
-                  ),
+                  '$merchant · just now',
+                  style: MrCarsonType.ui(size: 12, color: MrCarsonColors.ink3),
                 ),
               ],
             ),
@@ -208,7 +295,6 @@ class _TopBar extends StatelessWidget {
 
 class _CarsonNoteCard extends StatelessWidget {
   const _CarsonNoteCard({required this.note});
-
   final String note;
 
   @override
@@ -223,10 +309,8 @@ class _CarsonNoteCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // "C" monogram circle
           const CarsonMonogram(size: 30, filled: true),
           const SizedBox(width: 11),
-          // Note text
           Expanded(
             child: Text(
               note,
@@ -282,8 +366,7 @@ class _MerchantField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor =
-        lowConfidence ? MrCarsonColors.warn : MrCarsonColors.line;
+    final borderColor = lowConfidence ? MrCarsonColors.warn : MrCarsonColors.line;
     final borderWidth = lowConfidence ? 1.5 : 1.0;
 
     return Container(
@@ -296,7 +379,6 @@ class _MerchantField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row: label + optional badge
           Row(
             children: [
               _fieldLabel('MERCHANT'),
@@ -307,7 +389,6 @@ class _MerchantField extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // Merchant value or TextField
           if (editing)
             TextField(
               controller: controller,
@@ -319,16 +400,10 @@ class _MerchantField extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                    color: MrCarsonColors.accent,
-                    width: 1.5,
-                  ),
+                  borderSide: BorderSide(color: MrCarsonColors.accent, width: 1.5),
                 ),
                 enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                    color: MrCarsonColors.accent,
-                    width: 1.5,
-                  ),
+                  borderSide: BorderSide(color: MrCarsonColors.accent, width: 1.5),
                 ),
               ),
               onSubmitted: (_) => onCommit(),
@@ -337,10 +412,8 @@ class _MerchantField extends StatelessWidget {
           else
             GestureDetector(
               onTap: onTapValue,
-              child: Text(
-                merchant,
-                style: MrCarsonType.ui(size: 18, weight: FontWeight.w600),
-              ),
+              child: Text(merchant,
+                  style: MrCarsonType.ui(size: 18, weight: FontWeight.w600)),
             ),
         ],
       ),
@@ -371,10 +444,8 @@ class _NeedsLookBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          Text(
-            'Needs a look',
-            style: MrCarsonType.ui(size: 11, color: MrCarsonColors.warn),
-          ),
+          Text('Needs a look',
+              style: MrCarsonType.ui(size: 11, color: MrCarsonColors.warn)),
         ],
       ),
     );
@@ -386,7 +457,42 @@ class _NeedsLookBadge extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _DateTotalRow extends StatelessWidget {
-  const _DateTotalRow();
+  const _DateTotalRow({
+    required this.date,
+    required this.currency,
+    required this.total,
+    required this.totalEditing,
+    required this.totalController,
+    required this.onTapTotal,
+    required this.onCommitTotal,
+  });
+
+  final String date;
+  final String currency;
+  final double total;
+  final bool totalEditing;
+  final TextEditingController totalController;
+  final VoidCallback onTapTotal;
+  final VoidCallback onCommitTotal;
+
+  String _formatDate(String iso) {
+    try {
+      final parts = iso.split('-');
+      if (parts.length < 3) return iso;
+      final dt = DateTime(
+        int.parse(parts[0]),
+        int.parse(parts[1]),
+        int.parse(parts[2]),
+      );
+      const months = [
+        '', 'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December',
+      ];
+      return '${dt.day} ${months[dt.month]} ${dt.year}';
+    } catch (_) {
+      return iso;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -405,11 +511,8 @@ class _DateTotalRow extends StatelessWidget {
               children: [
                 _fieldLabel('DATE'),
                 const SizedBox(height: 8),
-                Text(
-                  '12 June 2026',
-                  style:
-                      MrCarsonType.ui(size: 15.5, weight: FontWeight.w600),
-                ),
+                Text(_formatDate(date),
+                    style: MrCarsonType.ui(size: 15.5, weight: FontWeight.w600)),
               ],
             ),
           ),
@@ -428,15 +531,46 @@ class _DateTotalRow extends StatelessWidget {
               children: [
                 _fieldLabel('TOTAL'),
                 const SizedBox(height: 8),
-                Text(
-                  '£6.15',
-                  style: MrCarsonType.display(
-                    size: 26,
-                    weight: FontWeight.w600,
-                  ).copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                if (totalEditing)
+                  TextField(
+                    controller: totalController,
+                    autofocus: true,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    style: MrCarsonType.display(
+                            size: 26, weight: FontWeight.w600)
+                        .copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                    cursorColor: MrCarsonColors.accent,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide:
+                            BorderSide(color: MrCarsonColors.accent, width: 1.5),
+                      ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide:
+                            BorderSide(color: MrCarsonColors.accent, width: 1.5),
+                      ),
+                    ),
+                    onSubmitted: (_) => onCommitTotal(),
+                    textInputAction: TextInputAction.done,
+                  )
+                else
+                  GestureDetector(
+                    onTap: onTapTotal,
+                    child: Text(
+                      '$currency ${total.toStringAsFixed(2)}',
+                      style: MrCarsonType.display(
+                              size: 26, weight: FontWeight.w600)
+                          .copyWith(
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -539,12 +673,9 @@ class _CategoryChip extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _LineItemsCard extends StatelessWidget {
-  const _LineItemsCard();
+  const _LineItemsCard({required this.items});
 
-  static const _items = [
-    _ConfirmItem('Cappuccino', '£3.20', false),
-    _ConfirmItem('Almond Croissant', '£2.95', true),
-  ];
+  final List<ExpenseItemDraft> items;
 
   @override
   Widget build(BuildContext context) {
@@ -558,83 +689,50 @@ class _LineItemsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
             child: _fieldLabel('LINE ITEMS'),
           ),
-          for (final item in _items) _ConfirmItemRow(item: item),
+          if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+              child: Text('No line items, sir.',
+                  style: MrCarsonType.ui(size: 14, color: MrCarsonColors.ink3)),
+            )
+          else
+            for (final item in items) _ItemRow(item: item),
         ],
       ),
     );
   }
 }
 
-class _ConfirmItem {
-  const _ConfirmItem(this.name, this.price, this.lowConfidence);
-  final String name;
-  final String price;
-  final bool lowConfidence;
-}
-
-class _ConfirmItemRow extends StatelessWidget {
-  const _ConfirmItemRow({required this.item});
-
-  final _ConfirmItem item;
+class _ItemRow extends StatelessWidget {
+  const _ItemRow({required this.item});
+  final ExpenseItemDraft item;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: MrCarsonColors.line, width: 1),
-        ),
+        border: Border(top: BorderSide(color: MrCarsonColors.line, width: 1)),
       ),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              item.name,
-              style: MrCarsonType.ui(size: 15, color: MrCarsonColors.ink),
-            ),
+            child: Text(item.name,
+                style: MrCarsonType.ui(size: 15, color: MrCarsonColors.ink)),
           ),
-          if (item.lowConfidence) ...[
-            const _CheckBadge(),
-            const SizedBox(width: 6),
-          ],
           Text(
-            item.price,
+            item.amount.toStringAsFixed(2),
             style: MrCarsonType.ui(
               size: 15,
               weight: FontWeight.w600,
-              color: item.lowConfidence
-                  ? MrCarsonColors.warn
-                  : MrCarsonColors.ink,
-            ).copyWith(
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+              color: MrCarsonColors.ink,
+            ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CheckBadge extends StatelessWidget {
-  const _CheckBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: MrCarsonColors.warnSoft,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        'check',
-        style: MrCarsonType.ui(size: 10.5, color: MrCarsonColors.warn),
       ),
     );
   }
@@ -657,17 +755,13 @@ class _Footer extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            MrCarsonColors.bg.withAlpha(0),
-            MrCarsonColors.bg,
-          ],
+          colors: [MrCarsonColors.bg.withAlpha(0), MrCarsonColors.bg],
           stops: const [0.0, 0.35],
         ),
       ),
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 30),
       child: Row(
         children: [
-          // Discard button (flex 1)
           Expanded(
             flex: 1,
             child: GestureDetector(
@@ -680,19 +774,15 @@ class _Footer extends StatelessWidget {
                   border: Border.all(color: MrCarsonColors.line, width: 1),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  'Discard',
-                  style: MrCarsonType.ui(
-                    size: 16,
-                    weight: FontWeight.w600,
-                    color: MrCarsonColors.ink2,
-                  ),
-                ),
+                child: Text('Discard',
+                    style: MrCarsonType.ui(
+                        size: 16,
+                        weight: FontWeight.w600,
+                        color: MrCarsonColors.ink2)),
               ),
             ),
           ),
           const SizedBox(width: 12),
-          // Save button (flex 2)
           Expanded(
             flex: 2,
             child: GestureDetector(
@@ -704,14 +794,11 @@ class _Footer extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  'Save expense',
-                  style: MrCarsonType.ui(
-                    size: 16,
-                    weight: FontWeight.w600,
-                    color: MrCarsonColors.accentInk,
-                  ),
-                ),
+                child: Text('Save expense',
+                    style: MrCarsonType.ui(
+                        size: 16,
+                        weight: FontWeight.w600,
+                        color: MrCarsonColors.accentInk)),
               ),
             ),
           ),

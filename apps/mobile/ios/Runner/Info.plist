@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>26</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Mr. Carson reads receipts from the camera to record your expenses, sir.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Mr. Carson reads receipts from your library to record your expenses, sir.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
