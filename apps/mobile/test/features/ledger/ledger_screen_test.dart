@@ -10,6 +10,7 @@ import 'package:mr_carson/data/repositories/pending_repository.dart';
 import 'package:mr_carson/domain/models/ai_models.dart';
 import 'package:mr_carson/features/ledger/ledger_screen.dart';
 import 'package:mr_carson/theme/app_theme.dart';
+import 'package:mr_carson/ui/core/widgets/empty_state.dart';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -100,7 +101,7 @@ void main() {
 
   // ── empty state ────────────────────────────────────────────────────────────
 
-  testWidgets('empty DB shows empty state — no mock rows', (tester) async {
+  testWidgets('empty DB shows exactly one inline EmptyState — no mock rows', (tester) async {
     final db = _makeDb();
     addTearDown(db.close);
 
@@ -113,8 +114,13 @@ void main() {
     expect(find.text('The Wolseley'), findsNothing);
     expect(find.text('Waitrose'), findsNothing);
 
-    // Empty state widget shown
-    expect(find.textContaining('Nothing'), findsAny);
+    // Exactly ONE EmptyState widget — the inline one under "RECENT".
+    // The old full-page _emptyBody path has been removed.
+    expect(find.byType(EmptyState), findsOneWidget);
+    expect(find.textContaining('Nothing'), findsOneWidget);
+
+    // The summary card (donut) is still visible alongside the empty list.
+    expect(find.text('RECENT'), findsOneWidget);
 
     await _drain(tester);
   });
@@ -183,8 +189,8 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    // Total is 30.00 — rendered in the donut center.
-    expect(find.textContaining('30'), findsAny);
+    // Total is 30.00 — rendered in the donut center with currency symbol.
+    expect(find.text('£30.00'), findsOneWidget);
     // Both merchants appear in the recent list.
     expect(find.text('Costa'), findsOneWidget);
     expect(find.text('Sainsbury'), findsOneWidget);

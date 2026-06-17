@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mr_carson/data/providers.dart';
 import 'package:mr_carson/domain/models/expense_detail.dart';
 import 'package:mr_carson/theme/app_theme.dart';
+import 'package:mr_carson/ui/core/utils/currency_format.dart';
 import 'package:mr_carson/ui/core/widgets/empty_state.dart';
 import 'package:mr_carson/ui/core/widgets/error_retry_state.dart';
 import 'package:mr_carson/ui/core/widgets/loading_state.dart';
@@ -178,8 +180,8 @@ class _ReceiptImage extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(17),
-          child: Image.asset(
-            sourceFile!,
+          child: Image.file(
+            File(sourceFile!),
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => const _ReceiptPlaceholder(),
           ),
@@ -272,8 +274,8 @@ class _MerchantBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = _currencySymbol(detail.currency);
-    final totalStr = '$symbol${_formatAmount(detail.total)}';
+    final symbol = currencySymbol(detail.currency);
+    final totalStr = '$symbol${formatAmount(detail.total)}';
     final dateStr = _formatDate(detail.date);
 
     return Padding(
@@ -362,8 +364,8 @@ class _ItemsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = _currencySymbol(detail.currency);
-    final totalStr = '$symbol${_formatAmount(detail.total)}';
+    final symbol = currencySymbol(detail.currency);
+    final totalStr = '$symbol${formatAmount(detail.total)}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,7 +393,7 @@ class _ItemsSection extends StatelessWidget {
               for (final item in detail.items)
                 _ItemRow(
                   name: item.name,
-                  amount: '$symbol${_formatAmount(item.amount)}',
+                  amount: '$symbol${formatAmount(item.amount)}',
                 ),
               _SubtotalRow(
                 label: 'Total',
@@ -531,23 +533,6 @@ class _ButlerNote extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-String _currencySymbol(String currency) {
-  switch (currency.toUpperCase()) {
-    case 'GBP':
-      return '£';
-    case 'USD':
-      return '\$';
-    case 'EUR':
-      return '€';
-    default:
-      return '$currency ';
-  }
-}
-
-String _formatAmount(double amount) {
-  return amount.toStringAsFixed(2);
-}
 
 /// Format YYYY-MM-DD → "11 June 2026"
 String _formatDate(String iso) {

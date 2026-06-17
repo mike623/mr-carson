@@ -8,6 +8,7 @@ import 'package:mr_carson/domain/models/monthly_summary.dart';
 import 'package:mr_carson/domain/models/expense_summary.dart';
 import 'package:mr_carson/domain/models/ai_models.dart';
 import 'package:mr_carson/theme/app_theme.dart';
+import 'package:mr_carson/ui/core/utils/currency_format.dart';
 import 'package:mr_carson/ui/core/widgets/empty_state.dart';
 import 'package:mr_carson/ui/core/widgets/error_retry_state.dart';
 import 'package:mr_carson/ui/core/widgets/loading_state.dart';
@@ -183,12 +184,6 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasContent = expenses.isNotEmpty || pending.isNotEmpty;
-
-    if (!hasContent && summary != null && summary!.total == 0) {
-      return _emptyBody();
-    }
-
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 110),
       child: Column(
@@ -228,14 +223,6 @@ class _Body extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-
-  Widget _emptyBody() {
-    return const EmptyState(
-      title: 'Nothing to show just yet, sir.',
-      body: 'Add your first expense and I shall keep the ledger.',
-      icon: Icons.receipt_long_outlined,
     );
   }
 }
@@ -283,8 +270,8 @@ class _DonutChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = summary?.total ?? 0.0;
     final currency = summary?.currency ?? 'GBP';
-    final symbol = _currencySymbol(currency);
-    final totalStr = '$symbol${_formatAmount(total)}';
+    final symbol = currencySymbol(currency);
+    final totalStr = '$symbol${formatAmount(total)}';
 
     return SizedBox(
       width: 104,
@@ -417,7 +404,7 @@ class _LegendColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final buckets = summary?.buckets ?? [];
     final currency = summary?.currency ?? 'GBP';
-    final symbol = _currencySymbol(currency);
+    final symbol = currencySymbol(currency);
 
     if (buckets.isEmpty) {
       return Text(
@@ -436,7 +423,7 @@ class _LegendColumn extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: _LegendRow(
                 e.value.category,
-                '$symbol${_formatAmount(e.value.total)}',
+                '$symbol${formatAmount(e.value.total)}',
                 _palette[e.key % _palette.length],
               ),
             ),
@@ -843,8 +830,8 @@ class _ExpenseTile extends StatelessWidget {
         ? expense.merchant[0].toUpperCase()
         : '?';
     final color = _categoryColor(expense.category);
-    final currency = _currencySymbol(expense.currency);
-    final amountStr = '$currency${_formatAmount(expense.total)}';
+    final currency = currencySymbol(expense.currency);
+    final amountStr = '$currency${formatAmount(expense.total)}';
     final dateStr = _formatDate(expense.date);
 
     return GestureDetector(
@@ -927,26 +914,6 @@ Color _categoryColor(String category) {
     default:
       return MrCarsonColors.accent;
   }
-}
-
-String _currencySymbol(String currency) {
-  switch (currency.toUpperCase()) {
-    case 'GBP':
-      return '£';
-    case 'USD':
-      return '\$';
-    case 'EUR':
-      return '€';
-    default:
-      return '$currency ';
-  }
-}
-
-String _formatAmount(double amount) {
-  if (amount == amount.truncateToDouble()) {
-    return amount.toStringAsFixed(2);
-  }
-  return amount.toStringAsFixed(2);
 }
 
 /// Format YYYY-MM-DD → "15 June 2026"
