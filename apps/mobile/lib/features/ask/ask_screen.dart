@@ -7,6 +7,7 @@ import 'package:mr_carson/ui/core/widgets/carson_monogram.dart';
 
 import '../../data/repositories/expense_repository.dart' show ChartData;
 import '../model/model_lifecycle_view_model.dart';
+import '../settings/transcript_prefs.dart';
 import '../shell/shell_view_model.dart';
 import 'ask_view_model.dart';
 
@@ -96,6 +97,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
   Widget build(BuildContext context) {
     final s = ref.watch(askViewModelProvider);
     final model = ref.watch(modelLifecycleProvider);
+    final prefs = ref.watch(transcriptPrefsProvider);
     final navVisible = ref.watch(
       shellViewModelProvider.select((s) => s.navVisible),
     );
@@ -138,6 +140,10 @@ class _AskScreenState extends ConsumerState<AskScreen> {
                       isThinking: msg.thinking,
                       isStreaming: msg.streaming,
                       chart: msg.chart,
+                      thinkingText: msg.thinkingText,
+                      toolCalls: msg.toolCalls,
+                      showThinking: prefs.showThinking,
+                      showToolCalls: prefs.showToolCalls,
                     ),
                 ],
               ],
@@ -451,15 +457,26 @@ class _CarsonBubble extends StatelessWidget {
     required this.isThinking,
     required this.isStreaming,
     required this.chart,
+    required this.thinkingText,
+    required this.toolCalls,
+    required this.showThinking,
+    required this.showToolCalls,
   });
 
   final String text;
   final bool isThinking;
   final bool isStreaming;
   final ChartData? chart;
+  final String thinkingText;
+  final List<ToolCall> toolCalls;
+  final bool showThinking;
+  final bool showToolCalls;
 
   @override
   Widget build(BuildContext context) {
+    final showTools = showToolCalls && toolCalls.isNotEmpty;
+    final showReasoning = showThinking && thinkingText.trim().isNotEmpty;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -489,6 +506,15 @@ class _CarsonBubble extends StatelessWidget {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Opt-in "workings": ledger lookups, then reasoning,
+                        // shown above the narrated answer.
+                        if (showTools) _ToolCallsPanel(calls: toolCalls),
+                        if (showTools && showReasoning)
+                          const SizedBox(height: 8),
+                        if (showReasoning)
+                          _ReasoningPanel(text: thinkingText.trim()),
+                        if (showTools || showReasoning)
+                          const SizedBox(height: 12),
                         _StreamingText(
                           text: text,
                           isStreaming: isStreaming,
@@ -503,6 +529,185 @@ class _CarsonBubble extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Opt-in "workings" panels (tool calls + reasoning)
+// ---------------------------------------------------------------------------
+
+/// A small brass-tinted heading for an opt-in workings panel.
+class _WorkingsLabel extends StatelessWidget {
+  const _WorkingsLabel({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: MrCarsonColors.accent),
+        const SizedBox(width: 6),
+        Text(
+          label.toUpperCase(),
+          style: MrCarsonType.ui(
+            size: 10.5,
+            weight: FontWeight.w600,
+            color: MrCarsonColors.accent,
+            letterSpacing: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Renders the ledger lookups (tool calls) the model made for this reply as a
+/// tidy list: tool name + a one-line arg summary.
+class _ToolCallsPanel extends StatelessWidget {
+  const _ToolCallsPanel({required this.calls});
+
+  final List<ToolCall> calls;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: MrCarsonColors.bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: MrCarsonColors.line, width: 1),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _WorkingsLabel(
+            icon: Icons.travel_explore,
+            label: 'Consulted the ledger',
+          ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < calls.length; i++) ...[
+            if (i > 0) const SizedBox(height: 7),
+            _ToolCallRow(call: calls[i]),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolCallRow extends StatelessWidget {
+  const _ToolCallRow({required this.call});
+
+  final ToolCall call;
+
+  @override
+  Widget build(BuildContext context) {
+    final args = call.prettyArgs;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 2),
+          width: 5,
+          height: 5,
+          decoration: const BoxDecoration(
+            color: MrCarsonColors.accent,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: call.name,
+                  style: MrCarsonType.ui(
+                    size: 12.5,
+                    weight: FontWeight.w600,
+                    color: MrCarsonColors.ink2,
+                  ),
+                ),
+                if (args.isNotEmpty)
+                  TextSpan(
+                    text: '  $args',
+                    style: MrCarsonType.ui(
+                      size: 12,
+                      color: MrCarsonColors.ink3,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A collapsible block holding the model's internal reasoning. Collapsed by
+/// default (italic preview); tap the header to expand the full text.
+class _ReasoningPanel extends StatefulWidget {
+  const _ReasoningPanel({required this.text});
+
+  final String text;
+
+  @override
+  State<_ReasoningPanel> createState() => _ReasoningPanelState();
+}
+
+class _ReasoningPanelState extends State<_ReasoningPanel> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _expanded = !_expanded),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: MrCarsonColors.bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: MrCarsonColors.line, width: 1),
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const _WorkingsLabel(
+                  icon: Icons.psychology_alt_outlined,
+                  label: 'His reasoning',
+                ),
+                const Spacer(),
+                Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  size: 16,
+                  color: MrCarsonColors.ink3,
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              widget.text,
+              maxLines: _expanded ? null : 2,
+              overflow: _expanded ? TextOverflow.clip : TextOverflow.ellipsis,
+              style: MrCarsonType.ui(
+                size: 12.5,
+                color: MrCarsonColors.ink3,
+                height: 1.5,
+              ).copyWith(fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

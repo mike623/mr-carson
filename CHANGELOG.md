@@ -2,6 +2,16 @@
 
 All notable changes to Mr. Carson are documented here.
 
+## [0.0.3.0] - 2026-06-17
+
+### Added
+
+- Opt-in transcript detail in Ask (Settings → "His workings"): toggle "Show his reasoning" to reveal the model's private thinking as a collapsible block, and "Show his workings" to list the ledger lookups (tool calls) behind each reply. Both default off — the chat shows only the narrated answer.
+
+### Fixed
+
+- Raw tool-call JSON (`{"role":"assistant","tool_calls":[…]}`) no longer leaks into Carson's chat answers. A streaming filter strips the leading envelope some models emit as text and surfaces the calls it carried for the opt-in "workings" view instead.
+
 ## [0.0.2.0] - 2026-05-15
 
 ### Added

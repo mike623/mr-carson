@@ -8,6 +8,7 @@ import 'package:mr_carson/domain/models/ai_models.dart';
 import 'package:mr_carson/features/ask/ask_screen.dart';
 import 'package:mr_carson/features/ask/ask_view_model.dart';
 import 'package:mr_carson/features/model/model_lifecycle_view_model.dart';
+import 'package:mr_carson/features/settings/transcript_prefs.dart';
 import 'package:mr_carson/features/shell/shell_view_model.dart';
 import 'package:mr_carson/theme/app_theme.dart';
 
@@ -64,6 +65,15 @@ class _FakeShellVm extends ShellViewModel {
   }
 }
 
+/// Seeded transcript prefs override.
+class _FakeTranscriptVm extends TranscriptPrefsNotifier {
+  _FakeTranscriptVm(this._seed);
+  final TranscriptPrefs _seed;
+
+  @override
+  TranscriptPrefs build() => _seed;
+}
+
 void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
@@ -73,6 +83,7 @@ void main() {
     ModelLifecycleState model, {
     _FakeShellVm? shell,
     AskState? ask,
+    TranscriptPrefs? prefs,
   }) {
     return ProviderScope(
       overrides: [
@@ -80,6 +91,8 @@ void main() {
         shellViewModelProvider.overrideWith(() => shell ?? _FakeShellVm()),
         if (ask != null)
           askViewModelProvider.overrideWith(() => _FakeAskVm(ask)),
+        if (prefs != null)
+          transcriptPrefsProvider.overrideWith(() => _FakeTranscriptVm(prefs)),
       ],
       child: MaterialApp(
         theme: buildMrCarsonTheme(),
@@ -234,6 +247,83 @@ void main() {
     // ...with one bar group per category bucket.
     final barChart = tester.widget<BarChart>(find.byType(BarChart));
     expect(barChart.data.barGroups.length, 3);
+  });
+
+  // Tool-call rows render via RichText/TextSpan, which `find.text` ignores.
+  Finder richTextContaining(String s) => find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains(s),
+      );
+
+  group('opt-in workings (thinking + tool calls)', () {
+    const reply = AskState(
+      messages: [
+        ChatMessage(isUser: true, text: 'How much this month?'),
+        ChatMessage(
+          isUser: false,
+          text: 'You have spent zero pounds this month.',
+          thinkingText: 'Let me consult the ledger for this month.',
+          toolCalls: [
+            ToolCall(name: 'queryExpenses', args: {'dateRange': 'thisMonth'}),
+          ],
+        ),
+      ],
+    );
+
+    testWidgets('hidden by default — clean answer only', (tester) async {
+      sizeView(tester);
+      await tester.pumpWidget(
+        buildSubject(
+          const ModelLifecycleState(phase: GemmaState.ready),
+          ask: reply,
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('You have spent zero pounds this month.'),
+          findsOneWidget);
+      expect(find.text('CONSULTED THE LEDGER'), findsNothing);
+      expect(find.text('HIS REASONING'), findsNothing);
+      expect(richTextContaining('queryExpenses'), findsNothing);
+    });
+
+    testWidgets('shown when both opt-ins are on', (tester) async {
+      sizeView(tester);
+      await tester.pumpWidget(
+        buildSubject(
+          const ModelLifecycleState(phase: GemmaState.ready),
+          ask: reply,
+          prefs: const TranscriptPrefs(
+            showThinking: true,
+            showToolCalls: true,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('CONSULTED THE LEDGER'), findsOneWidget);
+      expect(find.text('HIS REASONING'), findsOneWidget);
+      expect(richTextContaining('queryExpenses'), findsOneWidget);
+      expect(richTextContaining('dateRange: thisMonth'), findsOneWidget);
+      // The narrated answer is still present.
+      expect(find.text('You have spent zero pounds this month.'),
+          findsOneWidget);
+    });
+
+    testWidgets('only reasoning shows when only that opt-in is on',
+        (tester) async {
+      sizeView(tester);
+      await tester.pumpWidget(
+        buildSubject(
+          const ModelLifecycleState(phase: GemmaState.ready),
+          ask: reply,
+          prefs: const TranscriptPrefs(showThinking: true),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('HIS REASONING'), findsOneWidget);
+      expect(find.text('CONSULTED THE LEDGER'), findsNothing);
+    });
   });
 
   testWidgets('a message without ChartData renders no chart', (tester) async {

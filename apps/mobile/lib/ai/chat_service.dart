@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_gemma/flutter_gemma.dart'
     show
@@ -53,6 +54,26 @@ class ChartReady extends ChatEvent {
   const ChartReady(this.chart);
 
   final ChartData chart;
+}
+
+/// A chunk of the model's internal reasoning ("thinking"). Surfaced so the UI
+/// can show it when the user opts in; otherwise the caller simply ignores it.
+class ThinkingDelta extends ChatEvent {
+  const ThinkingDelta(this.token);
+
+  final String token;
+}
+
+/// One ledger lookup (tool call) the model made for this reply: the tool [name]
+/// and the [args] it supplied. Surfaced so the UI can show Carson's "workings"
+/// when the user opts in. Emitted both for natively-parsed function calls AND
+/// for calls the model leaks into its text as a JSON envelope (see
+/// [ToolCallEnvelopeFilter]).
+class ToolCallStarted extends ChatEvent {
+  const ToolCallStarted(this.name, this.args);
+
+  final String name;
+  final Map<String, dynamic> args;
 }
 
 /// Result of executing one tool: the [response] map fed back to the model, plus
@@ -191,22 +212,38 @@ class ChatService {
       // Collect any function calls this turn produced; stream text live.
       final pendingCalls = <FunctionCallResponse>[];
 
+      // Some models (Gemma 4 E2B included) intermittently emit their tool call
+      // as a `{"role":"assistant","tool_calls":[…]}` JSON envelope in the TEXT
+      // stream instead of as a parsed FunctionCallResponse. The filter strips
+      // that leading envelope from the displayed answer and surfaces the calls
+      // it carried as [ToolCallStarted] events. Reset per turn.
+      final textFilter = ToolCallEnvelopeFilter();
+
       await for (final ModelResponse response
           in chat.generateChatResponseAsync()) {
         switch (response) {
           case TextResponse(:final token):
             if (token.isNotEmpty) {
-              yieldedText = true;
-              yield TextDelta(token);
+              for (final event in textFilter.add(token)) {
+                if (event is TextDelta) yieldedText = true;
+                yield event;
+              }
             }
           case FunctionCallResponse():
             pendingCalls.add(response);
           case ParallelFunctionCallResponse(:final calls):
             pendingCalls.addAll(calls);
-          case ThinkingResponse():
-            // Internal reasoning — never surface to the UI.
-            break;
+          case ThinkingResponse(:final content):
+            // Internal reasoning — surfaced for opt-in display only.
+            if (content.isNotEmpty) yield ThinkingDelta(content);
         }
+      }
+
+      // Flush anything the filter held back waiting on a (never-completed)
+      // envelope — emit it as plain text rather than swallowing it.
+      for (final event in textFilter.flush()) {
+        if (event is TextDelta) yieldedText = true;
+        yield event;
       }
 
       if (pendingCalls.isEmpty) {
@@ -218,6 +255,7 @@ class ChatService {
       // let the model narrate (or call another tool). When a tool produced a
       // chart, surface its [ChartData] to the caller so the UI can render it.
       for (final call in pendingCalls) {
+        yield ToolCallStarted(call.name, call.args);
         final outcome = await _runTool(call.name, call.args);
         await chat.addQueryChunk(
           Message.toolResponse(toolName: call.name, response: outcome.response),
@@ -550,6 +588,169 @@ class ChatService {
         },
         'required': <String>[],
       };
+}
+
+// ---------------------------------------------------------------------------
+// Leaked tool-call envelope filter
+// ---------------------------------------------------------------------------
+
+/// Strips a leading `{"role":"assistant","tool_calls":[…]}` JSON envelope that
+/// some models emit into the TEXT stream (instead of as a parsed function call),
+/// and surfaces the tool calls it carried as [ToolCallStarted] events.
+///
+/// Feed each streamed text chunk through [add]; it returns the [ChatEvent]s to
+/// forward (cleaned [TextDelta]s and any extracted [ToolCallStarted]s). Call
+/// [flush] once the turn's text stream ends to release anything still buffered.
+///
+/// Only a *leading* envelope is stripped (these models prepend it before the
+/// narrated answer). Once the start of the stream is resolved as "not an
+/// envelope", every later chunk passes straight through so the answer keeps
+/// streaming token-by-token.
+class ToolCallEnvelopeFilter {
+  /// Guards against an unbounded buffer if a malformed `{…` never balances.
+  static const int _maxBuffer = 8192;
+
+  bool _resolved = false;
+  final StringBuffer _buf = StringBuffer();
+
+  /// Processes a streamed text [chunk], returning events to forward now.
+  List<ChatEvent> add(String chunk) {
+    if (_resolved) return [TextDelta(chunk)];
+    _buf.write(chunk);
+    return _tryResolve(finalChunk: false);
+  }
+
+  /// Releases anything still buffered at end of stream as plain text.
+  List<ChatEvent> flush() {
+    if (_resolved) return const [];
+    return _tryResolve(finalChunk: true);
+  }
+
+  List<ChatEvent> _tryResolve({required bool finalChunk}) {
+    final raw = _buf.toString();
+    final lead = raw.trimLeft();
+
+    // Empty / whitespace-only so far — keep waiting (or drop if final).
+    if (lead.isEmpty) {
+      if (finalChunk) _resolved = true;
+      return const [];
+    }
+
+    // Doesn't start with an object → not an envelope. Pass everything through.
+    if (!lead.startsWith('{')) {
+      _resolved = true;
+      return [TextDelta(raw)];
+    }
+
+    final start = raw.indexOf('{');
+    final end = _matchObjectEnd(raw, start);
+    if (end < 0) {
+      // Incomplete object so far. Keep buffering unless the stream ended or we
+      // blew the cap — then give up and emit verbatim.
+      if (finalChunk || raw.length > _maxBuffer) {
+        _resolved = true;
+        return [TextDelta(raw)];
+      }
+      return const [];
+    }
+
+    _resolved = true;
+    final objectText = raw.substring(start, end);
+    final remainder = raw.substring(end);
+
+    final calls = _extractToolCalls(objectText);
+    if (calls == null) {
+      // Parsed-but-not-an-envelope, or unparseable → leave the text untouched.
+      return [TextDelta(raw)];
+    }
+
+    return [
+      ...calls,
+      if (remainder.trim().isNotEmpty) TextDelta(remainder),
+    ];
+  }
+
+  /// Returns the index just past the object starting at [start], or -1 if the
+  /// braces don't balance within [s] yet. String contents (and escapes) are
+  /// skipped so braces inside quoted values don't throw off the count.
+  static int _matchObjectEnd(String s, int start) {
+    var depth = 0;
+    var inString = false;
+    var escaped = false;
+    for (var i = start; i < s.length; i++) {
+      final ch = s[i];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch == r'\') {
+          escaped = true;
+        } else if (ch == '"') {
+          inString = false;
+        }
+        continue;
+      }
+      if (ch == '"') {
+        inString = true;
+      } else if (ch == '{') {
+        depth++;
+      } else if (ch == '}') {
+        depth--;
+        if (depth == 0) return i + 1;
+      }
+    }
+    return -1;
+  }
+
+  /// Parses [objectText] and, if it is a tool-call envelope, returns the calls
+  /// as [ToolCallStarted] events. Returns null if it isn't an envelope (so the
+  /// caller leaves the text as-is).
+  static List<ToolCallStarted>? _extractToolCalls(String objectText) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(objectText);
+    } catch (_) {
+      return null;
+    }
+    if (decoded is! Map || !decoded.containsKey('tool_calls')) return null;
+
+    final out = <ToolCallStarted>[];
+    void walk(Object? node) {
+      if (node is List) {
+        for (final e in node) {
+          walk(e);
+        }
+        return;
+      }
+      if (node is Map) {
+        final fn = node['function'];
+        if (fn is Map && fn['name'] is String) {
+          out.add(
+            ToolCallStarted(
+              fn['name'] as String,
+              _asArgs(fn['arguments']),
+            ),
+          );
+        }
+      }
+    }
+
+    walk(decoded['tool_calls']);
+    return out;
+  }
+
+  /// Coerces a call's `arguments` (a map, or a JSON-encoded string) to a map.
+  static Map<String, dynamic> _asArgs(Object? raw) {
+    if (raw is Map) return raw.cast<String, dynamic>();
+    if (raw is String && raw.trim().isNotEmpty) {
+      try {
+        final d = jsonDecode(raw);
+        if (d is Map) return d.cast<String, dynamic>();
+      } catch (_) {
+        // fall through
+      }
+    }
+    return const <String, dynamic>{};
+  }
 }
 
 /// Riverpod provider for [ChatService], wired from [gemmaServiceProvider] and
