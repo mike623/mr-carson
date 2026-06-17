@@ -31,6 +31,50 @@ class _FakeReceiptImageStore extends ReceiptImageStore {
 }
 
 // ---------------------------------------------------------------------------
+// Recording receipt image store — tracks deleteReceipt calls for F-B test
+// ---------------------------------------------------------------------------
+
+class _RecordingReceiptImageStore extends ReceiptImageStore {
+  final List<String> deletedPaths = [];
+
+  @override
+  Future<ReceiptImageCopy> copyReceipt(String sourcePath) async {
+    return ReceiptImageCopy(path: sourcePath, imageHash: 'fake-hash');
+  }
+
+  @override
+  Future<void> deleteReceipt(String filePath) async {
+    deletedPaths.add(filePath);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Recording pipeline — tracks reject calls for F-B test
+// ---------------------------------------------------------------------------
+
+class _RecordingPipeline extends ReceiptPipelineService {
+  _RecordingPipeline({required AppDatabase db, required PendingRepository repo})
+      : super(GemmaService(), db, repo);
+
+  final List<String> rejectedIds = [];
+
+  @override
+  Future<void> reject(String pendingId) async {
+    rejectedIds.add(pendingId);
+  }
+
+  @override
+  Future<ReceiptResult> processReceipt(String imagePath) async {
+    return ReceiptResult.failure('pid', 'not used');
+  }
+
+  @override
+  Future<String> commitConfirmed(String pendingId, ExpenseDraft draft) async {
+    return 'fake-expense-id';
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Fake pipeline — records calls, returns a fixed result immediately
 // ---------------------------------------------------------------------------
 
@@ -291,6 +335,44 @@ void main() {
     // Screen unchanged (still ask — the initial default)
     expect(state.screen, equals(ShellScreen.ask));
     expect(pipeline.processCallCount, equals(0));
+  });
+
+  test('F-B — discardConfirm calls deleteReceipt with stored path and rejects the row',
+      () async {
+    const storedPath = '/stable/receipt_fb.jpg';
+    final recordingStore = _RecordingReceiptImageStore();
+    final recordingPipeline = _RecordingPipeline(db: db, repo: pendingRepo);
+
+    // Seed a pending row that has a filePath stored in the DB — this is what
+    // discardConfirm must look up to know which file to delete.
+    final pendingId = await pendingRepo.create(filePath: storedPath);
+    await pendingRepo.setStatus(
+      pendingId,
+      PendingStatus.awaitingConfirmation,
+      extractedJson: '{}',
+    );
+
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        pendingRepositoryProvider.overrideWithValue(pendingRepo),
+        receiptPipelineProvider.overrideWithValue(recordingPipeline),
+        receiptImageStoreProvider.overrideWithValue(recordingStore),
+        imagePickerFnProvider.overrideWithValue((_) async => null),
+      ],
+    );
+    final sub = container.listen<ShellState>(shellViewModelProvider, (_, __) {});
+    addTearDown(sub.close);
+    addTearDown(container.dispose);
+
+    final vm = container.read(shellViewModelProvider.notifier);
+    await vm.discardConfirm(pendingId);
+
+    // reject must have been called with the correct pending id
+    expect(recordingPipeline.rejectedIds, contains(pendingId));
+
+    // deleteReceipt must have been called with the file path from the DB row
+    expect(recordingStore.deletedPaths, contains(storedPath));
   });
 
   test('F4 — discardConfirm wraps errors and shows toast', () async {

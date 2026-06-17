@@ -46,9 +46,6 @@ abstract class ExpenseDraft with _$ExpenseDraft {
     required String currency, // 3-letter, uppercase
     required double total,
     double? vat,
-    /// Expense-level category override chosen by the user on the Confirm screen.
-    /// When null, each item retains its own individually extracted category.
-    String? category,
     required List<ExpenseItemDraft> items,
   }) = _ExpenseDraft;
 

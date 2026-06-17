@@ -81,12 +81,11 @@ class _ConfirmScreenState extends ConsumerState<ConfirmScreen> {
     _merchant = draft.merchant;
     _merchantLowConfidence = false;
     _merchantController = TextEditingController(text: _merchant);
-    // Use the expense-level category if present; fall back to the first item's
-    // category, then the default list's first entry.
-    _selectedCategory = draft.category ??
-        (draft.items.isNotEmpty
-            ? draft.items.first.category
-            : kDefaultCategories.first);
+    // Initialise category from the first item's category; fall back to the
+    // default list's first entry if there are no items.
+    _selectedCategory = draft.items.isNotEmpty
+        ? draft.items.first.category
+        : kDefaultCategories.first;
     _total = draft.total;
     _totalController =
         TextEditingController(text: draft.total.toStringAsFixed(2));
@@ -94,13 +93,15 @@ class _ConfirmScreenState extends ConsumerState<ConfirmScreen> {
   }
 
   ExpenseDraft _buildEditedDraft() {
-    // Set the expense-level category from the chip; leave each item's own
-    // category unchanged so per-item categories are preserved.
+    // Apply the chip category to ALL line items so the selected category is
+    // persisted via expense_items.category (there is no expense-level column).
+    final itemsWithCategory = _items
+        .map((i) => i.copyWith(category: _selectedCategory))
+        .toList();
     return _draft!.copyWith(
       merchant: _merchant,
       total: _total,
-      category: _selectedCategory,
-      items: _items,
+      items: itemsWithCategory,
     );
   }
 

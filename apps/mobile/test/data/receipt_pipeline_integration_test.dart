@@ -84,8 +84,10 @@ void main() {
     expect(updatedPending!.status, equals(PendingStatus.inserted.name));
   });
 
-  test('commitConfirmed preserves per-item categories', () async {
-    // Arrange
+  test('commitConfirmed — confirm-screen category chip writes to all items', () async {
+    // The Confirm screen applies the selected chip category to every line item
+    // before calling commitConfirmed (there is no expense-level category column).
+    // This test simulates that: all items arrive with the same chosen category.
     final pendingId =
         await pendingRepo.create(filePath: '/fake/path2.jpg');
     await pendingRepo.setStatus(
@@ -107,21 +109,25 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    // Submit draft with an expense-level category override but distinct item
-    // categories — the item categories must be preserved in the DB.
-    final draftWithExpenseCategory =
-        stubDraft.copyWith(category: 'Dining');
+    // Simulate what _buildEditedDraft does: apply chip category to all items.
+    const selectedCategory = 'Dining';
+    final draftWithChipCategory = stubDraft.copyWith(
+      items: stubDraft.items
+          .map((i) => i.copyWith(category: selectedCategory))
+          .toList(),
+    );
     await container
         .read(receiptPipelineProvider)
-        .commitConfirmed(pendingId, draftWithExpenseCategory);
+        .commitConfirmed(pendingId, draftWithChipCategory);
 
-    // Verify items kept their individual categories
+    // All items must carry the chip category in the DB.
     final detail = await db.watchExpenseById(
       (await db.watchRecentExpenses().first).first.id,
     ).first;
     expect(detail, isNotNull);
-    final itemCategories = detail!.items.map((i) => i.category).toList()..sort();
-    expect(itemCategories, containsAll(['Dining', 'Groceries']));
+    final itemCategories = detail!.items.map((i) => i.category).toList();
+    expect(itemCategories, everyElement(equals(selectedCategory)));
+    expect(itemCategories.length, equals(2));
   });
 
   test('reject leaves expenses empty and pending row rejected', () async {
