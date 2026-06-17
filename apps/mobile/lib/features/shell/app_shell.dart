@@ -64,11 +64,14 @@ class AppShell extends ConsumerWidget {
       case ShellScreen.ledger:
         return LedgerScreen(
           pending: pendingList,
-          onOpenExpense: (_) => vm.go(ShellScreen.detail),
+          onOpenExpense: vm.openExpense,
           onReviewPending: vm.reviewPending,
         );
       case ShellScreen.detail:
-        return DetailScreen(onBack: () => vm.go(ShellScreen.ledger));
+        return DetailScreen(
+          id: s.selectedExpenseId ?? '',
+          onBack: () => vm.go(ShellScreen.ledger),
+        );
       case ShellScreen.confirm:
         return ConfirmScreen(
           pendingId: s.reviewingId ?? '',

@@ -51,6 +51,7 @@ class ShellState {
   const ShellState({
     this.screen = ShellScreen.ask,
     this.reviewingId,
+    this.selectedExpenseId,
     this.toast,
     this.engageReason = '',
     this.askComposerFocused = false,
@@ -63,6 +64,9 @@ class ShellState {
 
   /// The pending id currently being reviewed on the confirm screen, if any.
   final String? reviewingId;
+
+  /// The expense id currently open on the detail screen, if any.
+  final String? selectedExpenseId;
 
   /// Active butler toast message, or null when none is shown.
   final String? toast;
@@ -77,6 +81,7 @@ class ShellState {
   ShellState copyWith({
     ShellScreen? screen,
     Object? reviewingId = _unset,
+    Object? selectedExpenseId = _unset,
     Object? toast = _unset,
     String? engageReason,
     bool? askComposerFocused,
@@ -85,6 +90,9 @@ class ShellState {
       screen: screen ?? this.screen,
       reviewingId:
           identical(reviewingId, _unset) ? this.reviewingId : reviewingId as String?,
+      selectedExpenseId: identical(selectedExpenseId, _unset)
+          ? this.selectedExpenseId
+          : selectedExpenseId as String?,
       toast: identical(toast, _unset) ? this.toast : toast as String?,
       engageReason: engageReason ?? this.engageReason,
       askComposerFocused: askComposerFocused ?? this.askComposerFocused,
@@ -115,6 +123,11 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
   // --- navigation ----------------------------------------------------------
 
   void go(ShellScreen s) => state = state.copyWith(screen: s);
+
+  /// Navigate to the detail screen for a specific expense id.
+  void openExpense(String id) {
+    state = state.copyWith(selectedExpenseId: id, screen: ShellScreen.detail);
+  }
 
   void setAskComposerFocused(bool focused) {
     if (state.askComposerFocused == focused) return;
