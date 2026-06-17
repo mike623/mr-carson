@@ -1,8 +1,11 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mr_carson/theme/app_theme.dart';
+import 'package:mr_carson/ui/core/utils/currency_format.dart';
 import 'package:mr_carson/ui/core/widgets/carson_monogram.dart';
 
+import '../../data/repositories/expense_repository.dart' show ChartData;
 import '../model/model_lifecycle_view_model.dart';
 import '../shell/shell_view_model.dart';
 import 'ask_view_model.dart';
@@ -134,7 +137,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
                       text: msg.text,
                       isThinking: msg.thinking,
                       isStreaming: msg.streaming,
-                      showChart: msg.hasChart,
+                      chart: msg.chart,
                     ),
                 ],
               ],
@@ -447,13 +450,13 @@ class _CarsonBubble extends StatelessWidget {
     required this.text,
     required this.isThinking,
     required this.isStreaming,
-    required this.showChart,
+    required this.chart,
   });
 
   final String text;
   final bool isThinking;
   final bool isStreaming;
-  final bool showChart;
+  final ChartData? chart;
 
   @override
   Widget build(BuildContext context) {
@@ -490,9 +493,9 @@ class _CarsonBubble extends StatelessWidget {
                           text: text,
                           isStreaming: isStreaming,
                         ),
-                        if (showChart) ...[
+                        if (chart != null) ...[
                           const SizedBox(height: 12),
-                          const _ChartCard(),
+                          _ChartCard(chart: chart!),
                         ],
                       ],
                     ),
@@ -655,54 +658,59 @@ class _StreamingTextState extends State<_StreamingText>
 // Chart card
 // ---------------------------------------------------------------------------
 
-const _kChartRows = [
-  _ChartRow('Dining', '£412', MrCarsonColors.accent, 1.00),
-  _ChartRow('Groceries', '£318', MrCarsonColors.grocery, 0.77),
-  _ChartRow('Household', '£214', MrCarsonColors.house, 0.52),
-  _ChartRow('Transport', '£196', MrCarsonColors.transport, 0.48),
-  _ChartRow('Other', '£144.60', MrCarsonColors.ink3, 0.35),
-];
-
-class _ChartRow {
-  const _ChartRow(this.label, this.amount, this.color, this.fraction);
+/// One category's aggregated total, ready to plot as a single bar.
+class _CategoryTotal {
+  const _CategoryTotal(this.label, this.total, this.color);
 
   final String label;
-  final String amount;
+  final double total;
   final Color color;
-  final double fraction;
 }
 
-class _ChartCard extends StatefulWidget {
-  const _ChartCard();
+/// Fixed Brass & Ink palette for category bars — cycles past 5 categories.
+/// Mirrors the ledger donut/legend palette so colour-keys stay consistent.
+const _kCategoryPalette = [
+  MrCarsonColors.accent,
+  MrCarsonColors.grocery,
+  MrCarsonColors.house,
+  MrCarsonColors.transport,
+  MrCarsonColors.ink3,
+];
 
-  @override
-  State<_ChartCard> createState() => _ChartCardState();
-}
+/// Renders the `chartSpending` result as a real `fl_chart` bar chart, one bar
+/// per category (time-buckets are summed per category), in Brass & Ink colours.
+class _ChartCard extends StatelessWidget {
+  const _ChartCard({required this.chart});
 
-class _ChartCardState extends State<_ChartCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _anim;
+  final ChartData chart;
 
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _ctrl.forward();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
+  /// Sums each category's totals across all time-buckets and orders them by
+  /// total descending, assigning a stable palette colour per category.
+  List<_CategoryTotal> _categoryTotals() {
+    final sums = <String, double>{};
+    for (final b in chart.rows) {
+      sums[b.category] = (sums[b.category] ?? 0) + b.total;
+    }
+    final entries = sums.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return [
+      for (var i = 0; i < entries.length; i++)
+        _CategoryTotal(
+          entries[i].key,
+          entries[i].value,
+          _kCategoryPalette[i % _kCategoryPalette.length],
+        ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
+    final cats = _categoryTotals();
+    final symbol = currencySymbol(chart.currency);
+    final grandTotal = cats.fold<double>(0, (s, c) => s + c.total);
+    final maxTotal =
+        cats.fold<double>(0, (m, c) => c.total > m ? c.total : m);
+
     return Container(
       decoration: BoxDecoration(
         color: MrCarsonColors.bg,
@@ -716,91 +724,105 @@ class _ChartCardState extends State<_ChartCard>
           // Header row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'THIS MONTH',
-                style: MrCarsonType.ui(
-                  size: 11,
-                  color: MrCarsonColors.ink3,
-                  letterSpacing: 1,
+              Flexible(
+                child: Text(
+                  'BY CATEGORY',
+                  style: MrCarsonType.ui(
+                    size: 11,
+                    color: MrCarsonColors.ink3,
+                    letterSpacing: 1,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                '£1,284.60',
-                style: MrCarsonType.display(
-                  size: 24,
-                  weight: FontWeight.w600,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  '$symbol${grandTotal.toStringAsFixed(2)}',
+                  style: MrCarsonType.display(
+                    size: 24,
+                    weight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          // Bar rows
-          AnimatedBuilder(
-            animation: _anim,
-            builder: (_, __) {
-              return Column(
-                children: _kChartRows.map((row) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              row.label,
-                              style: MrCarsonType.ui(
-                                size: 13,
-                                color: MrCarsonColors.ink2,
-                              ),
-                            ),
-                            Text(
-                              row.amount,
-                              style: MrCarsonType.ui(
-                                size: 13,
-                                weight: FontWeight.w600,
-                                color: MrCarsonColors.ink,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            return Stack(
-                              children: [
-                                // Track
-                                Container(
-                                  height: 7,
-                                  width: constraints.maxWidth,
-                                  decoration: BoxDecoration(
-                                    color: MrCarsonColors.surface2,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                                // Fill — animated
-                                Container(
-                                  height: 7,
-                                  width: constraints.maxWidth *
-                                      row.fraction *
-                                      _anim.value,
-                                  decoration: BoxDecoration(
-                                    color: row.color,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ],
+          const SizedBox(height: 16),
+          if (cats.isEmpty)
+            Text(
+              'No spending to chart, sir.',
+              style: MrCarsonType.ui(size: 13, color: MrCarsonColors.ink3),
+            )
+          else
+            SizedBox(
+              height: 150,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxTotal <= 0 ? 1 : maxTotal * 1.2,
+                  barTouchData: BarTouchData(enabled: false),
+                  gridData: const FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    leftTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
                     ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) {
+                          final i = value.toInt();
+                          if (i < 0 || i >= cats.length) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              cats[i].label,
+                              style: MrCarsonType.ui(
+                                size: 11,
+                                color: MrCarsonColors.ink3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  barGroups: [
+                    for (var i = 0; i < cats.length; i++)
+                      BarChartGroupData(
+                        x: i,
+                        barRods: [
+                          BarChartRodData(
+                            toY: cats[i].total,
+                            color: cats[i].color,
+                            width: 18,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

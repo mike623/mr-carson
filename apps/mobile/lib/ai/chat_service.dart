@@ -15,9 +15,54 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
 import '../data/providers.dart' show appDatabaseProvider;
+import '../data/repositories/expense_repository.dart' show ChartData;
 import '../domain/models/ai_models.dart';
 import 'gemma_service.dart';
 import 'prompts.dart';
+
+// ---------------------------------------------------------------------------
+// Streamed events
+//
+// `send` no longer yields bare text tokens — it yields a small sealed
+// [ChatEvent] union so a single stream can carry BOTH the narrated text AND
+// any structured chart produced by the `chartSpending` tool. The UI streams
+// [TextDelta] tokens straight into the bubble and, when a [ChartReady] arrives,
+// attaches the real chart card under that message.
+//
+// This is the seam that closes the core gap: previously the chartSpending
+// buckets were consumed internally by the agent loop and never surfaced to the
+// caller, so the UI had no way to render a real chart.
+// ---------------------------------------------------------------------------
+
+/// One event emitted by [ChatService.send].
+sealed class ChatEvent {
+  const ChatEvent();
+}
+
+/// A streamed chunk of the assistant's narrated reply.
+class TextDelta extends ChatEvent {
+  const TextDelta(this.token);
+
+  final String token;
+}
+
+/// A chart the model produced by calling `chartSpending`. Carries the same
+/// [ChartData] shape that [ExpenseRepository.categorySpending] returns, so the
+/// tool result and the UI payload line up exactly.
+class ChartReady extends ChatEvent {
+  const ChartReady(this.chart);
+
+  final ChartData chart;
+}
+
+/// Result of executing one tool: the [response] map fed back to the model, plus
+/// (only for `chartSpending`) the [chart] payload surfaced to the UI.
+class _ToolOutcome {
+  const _ToolOutcome(this.response, {this.chart});
+
+  final Map<String, dynamic> response;
+  final ChartData? chart;
+}
 
 // ---------------------------------------------------------------------------
 // Tool-calling path: NATIVE function calling (flutter_gemma 0.16.5).
@@ -132,7 +177,7 @@ class ChatService {
   /// call [dispose] (or [start] — which closes the old session) to recover.
   ///
   /// Throws [StateError] if [start] has not been called.
-  Stream<String> send(String userMessage) async* {
+  Stream<ChatEvent> send(String userMessage) async* {
     final chat = _chat;
     if (chat == null) {
       throw StateError('ChatService.send called before start().');
@@ -152,7 +197,7 @@ class ChatService {
           case TextResponse(:final token):
             if (token.isNotEmpty) {
               yieldedText = true;
-              yield token;
+              yield TextDelta(token);
             }
           case FunctionCallResponse():
             pendingCalls.add(response);
@@ -170,19 +215,23 @@ class ChatService {
       }
 
       // Execute every requested tool and feed the results back, then loop to
-      // let the model narrate (or call another tool).
+      // let the model narrate (or call another tool). When a tool produced a
+      // chart, surface its [ChartData] to the caller so the UI can render it.
       for (final call in pendingCalls) {
-        final result = await _runTool(call.name, call.args);
+        final outcome = await _runTool(call.name, call.args);
         await chat.addQueryChunk(
-          Message.toolResponse(toolName: call.name, response: result),
+          Message.toolResponse(toolName: call.name, response: outcome.response),
         );
+        if (outcome.chart != null) {
+          yield ChartReady(outcome.chart!);
+        }
       }
     }
 
     // Turn budget exhausted. If we already streamed some text, leave it as the
     // answer; otherwise emit an honest fallback rather than going silent.
     if (!yieldedText) {
-      yield _kAgentFallback;
+      yield const TextDelta(_kAgentFallback);
     }
   }
 
@@ -199,8 +248,10 @@ class ChatService {
 
   // --- tool execution -------------------------------------------------------
 
-  /// Executes [name] with native-supplied [args], returning a JSON-serializable
-  /// result map for [Message.toolResponse].
+  /// Executes [name] with native-supplied [args], returning a [_ToolOutcome]
+  /// whose `response` is the JSON-serializable map fed back to the model via
+  /// [Message.toolResponse], plus (for `chartSpending`) the [ChartData] the UI
+  /// renders.
   ///
   /// Never throws: parse/execution failures are returned as an `{'error': ...}`
   /// map so the model can recover and respond gracefully.
@@ -210,7 +261,7 @@ class ChatService {
   /// so for parallel calls the model can otherwise mis-attribute which result
   /// belongs to which tool. Tagging the result with its originating tool name
   /// lets the model line results up with the calls it requested.
-  Future<Map<String, dynamic>> _runTool(
+  Future<_ToolOutcome> _runTool(
     String name,
     Map<String, dynamic> args,
   ) async {
@@ -221,11 +272,11 @@ class ChatService {
       switch (name) {
         case 'queryExpenses':
           final result = await _db.queryExpenses(queryArgs);
-          return {'_tool': name, ...result.toJson()};
+          return _ToolOutcome({'_tool': name, ...result.toJson()});
         case 'topMerchants':
           final topN = _readTopN(argsMap);
           final merchants = await _db.topMerchants(queryArgs, topN: topN);
-          return {
+          return _ToolOutcome({
             '_tool': name,
             'merchants': merchants
                 .map((m) => {
@@ -234,30 +285,35 @@ class ChatService {
                       'currency': m.currency,
                     })
                 .toList(),
-          };
+          });
         case 'chartSpending':
           final granularity = _readGranularity(argsMap);
           final chart = await _db.byCategoryOverTime(
             queryArgs,
             granularity: granularity,
           );
-          return {
-            '_tool': name,
-            'granularity': chart.granularity.name,
-            'currency': chart.currency,
-            'buckets': chart.rows
-                .map((b) => {
-                      'bucket': b.bucket,
-                      'category': b.category,
-                      'total': b.total,
-                    })
-                .toList(),
-          };
+          return _ToolOutcome(
+            {
+              '_tool': name,
+              'granularity': chart.granularity.name,
+              'currency': chart.currency,
+              'buckets': chart.rows
+                  .map((b) => {
+                        'bucket': b.bucket,
+                        'category': b.category,
+                        'total': b.total,
+                      })
+                  .toList(),
+            },
+            // Same record shape ExpenseRepository.categorySpending returns —
+            // the tool result and the UI chart payload line up exactly.
+            chart: chart,
+          );
         default:
-          return {'_tool': name, 'error': 'unknown tool: $name'};
+          return _ToolOutcome({'_tool': name, 'error': 'unknown tool: $name'});
       }
     } catch (e) {
-      return {'_tool': name, 'error': e.toString()};
+      return _ToolOutcome({'_tool': name, 'error': e.toString()});
     }
   }
 
