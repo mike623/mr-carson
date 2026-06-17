@@ -7,6 +7,10 @@ import '../../ai/chat_service.dart';
 import '../../ai/gemma_service.dart';
 import '../../data/repositories/expense_repository.dart' show ChartData;
 
+// Sentinel used by [ChatMessage.copyWith] so callers can explicitly clear
+// [ChatMessage.chart] to null by passing `chart: null`.
+const Object _chartSentinel = Object();
+
 /// A single chat message in the Ask conversation.
 @immutable
 class ChatMessage {
@@ -31,19 +35,24 @@ class ChatMessage {
   /// when the model charted spending for this reply. `null` ⇒ no chart card.
   final ChartData? chart;
 
+  /// Creates a copy with the given fields replaced.
+  ///
+  /// [chart] uses a sentinel so that `copyWith(chart: null)` explicitly clears
+  /// the chart rather than being a no-op. Omitting [chart] preserves the
+  /// current value.
   ChatMessage copyWith({
     bool? isUser,
     String? text,
     bool? thinking,
     bool? streaming,
-    ChartData? chart,
+    Object? chart = _chartSentinel,
   }) {
     return ChatMessage(
       isUser: isUser ?? this.isUser,
       text: text ?? this.text,
       thinking: thinking ?? this.thinking,
       streaming: streaming ?? this.streaming,
-      chart: chart ?? this.chart,
+      chart: identical(chart, _chartSentinel) ? this.chart : chart as ChartData?,
     );
   }
 }
@@ -157,17 +166,35 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
       }
 
       var first = true;
+      var gotText = false; // tracks whether any TextDelta arrived this reply
       _sendSub = chat.send(query).listen(
         (event) {
           switch (event) {
             case TextDelta(:final token):
               _appendToken(token, first: first);
               first = false;
+              gotText = true;
             case ChartReady(:final chart):
               _updateLastCarson((m) => m.copyWith(chart: chart));
           }
         },
-        onError: (_) => _unavailable(),
+        onError: (_) {
+          if (gotText) {
+            // Tokens already arrived — finalize gracefully rather than
+            // clobbering the partial answer with the unavailable copy.
+            _updateLastCarson(
+              (m) => m.copyWith(
+                thinking: false,
+                streaming: false,
+                text: '${m.text} — forgive me, I lost my thread, sir.',
+              ),
+            );
+            state = state.copyWith(streaming: false);
+          } else {
+            // Nothing streamed yet — honest unavailable message is appropriate.
+            _unavailable();
+          }
+        },
         onDone: () {
           final messages = List<ChatMessage>.from(state.messages);
           final i = messages.length - 1;
