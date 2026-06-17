@@ -33,6 +33,9 @@ final recentExpensesProvider = StreamProvider<List<ExpenseSummary>>((ref) {
 });
 
 /// Stream of the monthly spending summary for the current calendar month.
+// ponytail: current month captured at build; add autoDispose+midnight invalidation
+// (e.g. a Timer.periodic that calls ref.invalidateSelf() at the next midnight)
+// if month-rollover-without-restart matters.
 final monthlySummaryProvider = StreamProvider<MonthlySummary>((ref) {
   final now = DateTime.now();
   return ref

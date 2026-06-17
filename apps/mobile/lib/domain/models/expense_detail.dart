@@ -21,6 +21,7 @@ abstract class ExpenseDetail with _$ExpenseDetail {
   const factory ExpenseDetail({
     required String id,
     required String merchant,
+    required String category, // primary category (highest-amount item, or 'Other')
     required String date,
     required double total,
     required String currency,

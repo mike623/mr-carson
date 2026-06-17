@@ -346,14 +346,15 @@ class AppDatabase extends _$AppDatabase {
     final monthStr =
         '${month.year}-${month.month.toString().padLeft(2, '0')}';
     final startDate = '$monthStr-01';
-    final nextMonthDate = month.month == 12
+    // Half-open range: e.date >= startDate AND e.date < nextMonthFirst
+    // avoids DST-driven off-by-one from subtracting Duration(days:1).
+    final nextMonth = month.month == 12
         ? DateTime(month.year + 1, 1, 1)
         : DateTime(month.year, month.month + 1, 1);
-    final endDate = nextMonthDate.subtract(const Duration(days: 1));
-    final endStr = [
-      endDate.year,
-      endDate.month.toString().padLeft(2, '0'),
-      endDate.day.toString().padLeft(2, '0'),
+    final nextMonthStr = [
+      nextMonth.year,
+      nextMonth.month.toString().padLeft(2, '0'),
+      nextMonth.day.toString().padLeft(2, '0'),
     ].join('-');
 
     return customSelect(
@@ -364,11 +365,11 @@ class AppDatabase extends _$AppDatabase {
         MAX(e.currency)            AS currency
       FROM expenses e
       JOIN expense_items i ON i.expense_id = e.id
-      WHERE e.date >= ? AND e.date <= ?
+      WHERE e.date >= ? AND e.date < ?
       GROUP BY i.category
       ORDER BY category_total DESC
       ''',
-      variables: [Variable<String>(startDate), Variable<String>(endStr)],
+      variables: [Variable<String>(startDate), Variable<String>(nextMonthStr)],
       readsFrom: {expenses, expenseItems},
     ).watch().map((rows) {
       if (rows.isEmpty) {
@@ -401,6 +402,9 @@ class AppDatabase extends _$AppDatabase {
       SELECT
         e.id          AS e_id,
         e.merchant    AS merchant,
+        COALESCE((SELECT i2.category FROM expense_items i2
+                  WHERE i2.expense_id = e.id
+                  ORDER BY i2.amount DESC LIMIT 1), 'Other') AS category,
         e.date        AS date,
         e.total       AS total,
         e.currency    AS currency,
@@ -431,6 +435,7 @@ class AppDatabase extends _$AppDatabase {
       return ExpenseDetail(
         id: first['e_id'] as String,
         merchant: first['merchant'] as String,
+        category: first['category'] as String,
         date: first['date'] as String,
         total: (first['total'] as num).toDouble(),
         currency: first['currency'] as String,
