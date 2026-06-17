@@ -1,9 +1,12 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mr_carson/ai/gemma_service.dart';
+import 'package:mr_carson/domain/models/ai_models.dart';
 import 'package:mr_carson/features/ask/ask_screen.dart';
+import 'package:mr_carson/features/ask/ask_view_model.dart';
 import 'package:mr_carson/features/model/model_lifecycle_view_model.dart';
 import 'package:mr_carson/features/shell/shell_view_model.dart';
 import 'package:mr_carson/theme/app_theme.dart';
@@ -18,6 +21,16 @@ class _FakeModelVm extends ModelLifecycleViewModel {
     ref.onDispose(() {});
     return _seed;
   }
+}
+
+/// Seeded [AskViewModel] that exposes a fixed message list so the screen can be
+/// rendered without any inference wiring.
+class _FakeAskVm extends AskViewModel {
+  _FakeAskVm(this._seed);
+  final AskState _seed;
+
+  @override
+  AskState build() => _seed;
 }
 
 /// Seeded [ShellViewModel] that records navigation / focus calls without the
@@ -56,12 +69,17 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  Widget buildSubject(ModelLifecycleState model, {_FakeShellVm? shell}) {
+  Widget buildSubject(
+    ModelLifecycleState model, {
+    _FakeShellVm? shell,
+    AskState? ask,
+  }) {
     return ProviderScope(
       overrides: [
         modelLifecycleProvider.overrideWith(() => _FakeModelVm(model)),
-        shellViewModelProvider
-            .overrideWith(() => shell ?? _FakeShellVm()),
+        shellViewModelProvider.overrideWith(() => shell ?? _FakeShellVm()),
+        if (ask != null)
+          askViewModelProvider.overrideWith(() => _FakeAskVm(ask)),
       ],
       child: MaterialApp(
         theme: buildMrCarsonTheme(),
@@ -178,5 +196,61 @@ void main() {
     expect(find.text('Try again'), findsOneWidget);
     expect(find.text('Needs attention'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
+  });
+
+  testWidgets('a message carrying ChartData renders an fl_chart with N bars',
+      (tester) async {
+    sizeView(tester);
+    const chart = (
+      rows: [
+        CategoryBucket(bucket: '2026-06', category: 'Dining', total: 412),
+        CategoryBucket(bucket: '2026-06', category: 'Groceries', total: 318),
+        CategoryBucket(bucket: '2026-06', category: 'Household', total: 214),
+      ],
+      granularity: Granularity.month,
+      currency: 'GBP',
+    );
+    await tester.pumpWidget(
+      buildSubject(
+        const ModelLifecycleState(phase: GemmaState.ready),
+        ask: const AskState(
+          messages: [
+            ChatMessage(isUser: true, text: 'How did spending go?'),
+            ChatMessage(
+              isUser: false,
+              text: 'Here is the breakdown, sir.',
+              chart: chart,
+            ),
+          ],
+        ),
+      ),
+    );
+    // Let the chart animation settle.
+    await tester.pump(const Duration(seconds: 1));
+
+    // A real fl_chart is present...
+    expect(find.byType(BarChart), findsOneWidget);
+
+    // ...with one bar group per category bucket.
+    final barChart = tester.widget<BarChart>(find.byType(BarChart));
+    expect(barChart.data.barGroups.length, 3);
+  });
+
+  testWidgets('a message without ChartData renders no chart', (tester) async {
+    sizeView(tester);
+    await tester.pumpWidget(
+      buildSubject(
+        const ModelLifecycleState(phase: GemmaState.ready),
+        ask: const AskState(
+          messages: [
+            ChatMessage(isUser: true, text: 'Good evening'),
+            ChatMessage(isUser: false, text: 'Good evening, sir.'),
+          ],
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.byType(BarChart), findsNothing);
   });
 }

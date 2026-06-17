@@ -10,6 +10,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/date_range.dart';
 import '../../domain/models/ai_models.dart';
+import '../../domain/models/expense_detail.dart';
+import '../../domain/models/expense_summary.dart';
+import '../../domain/models/monthly_summary.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
@@ -304,6 +307,142 @@ class AppDatabase extends _$AppDatabase {
     final currency =
         raw.isNotEmpty ? (raw.first.data['currency'] as String) : 'GBP';
     return (rows: rows, granularity: granularity, currency: currency);
+  }
+
+  // --- reactive watches -------------------------------------------------------
+
+  Stream<List<ExpenseSummary>> watchRecentExpenses({int limit = 50}) {
+    return customSelect(
+      '''
+      SELECT
+        e.id       AS id,
+        e.merchant AS merchant,
+        COALESCE((SELECT i.category FROM expense_items i
+                  WHERE i.expense_id = e.id
+                  ORDER BY i.amount DESC LIMIT 1), 'Other') AS category,
+        e.total    AS total,
+        e.currency AS currency,
+        e.date     AS date
+      FROM expenses e
+      ORDER BY e.date DESC, e.created_at DESC
+      LIMIT ?
+      ''',
+      variables: [Variable<int>(limit)],
+      readsFrom: {expenses, expenseItems},
+    ).watch().map((rows) => rows.map((r) {
+          final d = r.data;
+          return ExpenseSummary(
+            id: d['id'] as String,
+            merchant: d['merchant'] as String,
+            category: d['category'] as String,
+            total: (d['total'] as num).toDouble(),
+            currency: d['currency'] as String,
+            date: d['date'] as String,
+          );
+        }).toList());
+  }
+
+  Stream<MonthlySummary> watchMonthlySummary(DateTime month) {
+    final monthStr =
+        '${month.year}-${month.month.toString().padLeft(2, '0')}';
+    final startDate = '$monthStr-01';
+    // Half-open range: e.date >= startDate AND e.date < nextMonthFirst
+    // avoids DST-driven off-by-one from subtracting Duration(days:1).
+    final nextMonth = month.month == 12
+        ? DateTime(month.year + 1, 1, 1)
+        : DateTime(month.year, month.month + 1, 1);
+    final nextMonthStr = [
+      nextMonth.year,
+      nextMonth.month.toString().padLeft(2, '0'),
+      nextMonth.day.toString().padLeft(2, '0'),
+    ].join('-');
+
+    return customSelect(
+      '''
+      SELECT
+        i.category                 AS category,
+        SUM(i.amount)              AS category_total,
+        MAX(e.currency)            AS currency
+      FROM expenses e
+      JOIN expense_items i ON i.expense_id = e.id
+      WHERE e.date >= ? AND e.date < ?
+      GROUP BY i.category
+      ORDER BY category_total DESC
+      ''',
+      variables: [Variable<String>(startDate), Variable<String>(nextMonthStr)],
+      readsFrom: {expenses, expenseItems},
+    ).watch().map((rows) {
+      if (rows.isEmpty) {
+        return MonthlySummary(
+            month: monthStr, total: 0, currency: 'GBP', buckets: []);
+      }
+      double total = 0;
+      final buckets = <CategoryBucket>[];
+      for (final r in rows) {
+        final t = (r.data['category_total'] as num).toDouble();
+        total += t;
+        buckets.add(CategoryBucket(
+          bucket: monthStr,
+          category: r.data['category'] as String,
+          total: _round2(t),
+        ));
+      }
+      return MonthlySummary(
+        month: monthStr,
+        total: _round2(total),
+        currency: rows.first.data['currency'] as String,
+        buckets: buckets,
+      );
+    });
+  }
+
+  Stream<ExpenseDetail?> watchExpenseById(String id) {
+    return customSelect(
+      '''
+      SELECT
+        e.id          AS e_id,
+        e.merchant    AS merchant,
+        COALESCE((SELECT i2.category FROM expense_items i2
+                  WHERE i2.expense_id = e.id
+                  ORDER BY i2.amount DESC LIMIT 1), 'Other') AS category,
+        e.date        AS date,
+        e.total       AS total,
+        e.currency    AS currency,
+        e.source_file AS source_file,
+        i.id          AS i_id,
+        i.name        AS i_name,
+        i.category    AS i_category,
+        i.amount      AS i_amount
+      FROM expenses e
+      LEFT JOIN expense_items i ON i.expense_id = e.id
+      WHERE e.id = ?
+      ORDER BY i.amount DESC
+      ''',
+      variables: [Variable<String>(id)],
+      readsFrom: {expenses, expenseItems},
+    ).watch().map((rows) {
+      if (rows.isEmpty) return null;
+      final first = rows.first.data;
+      final items = rows
+          .where((r) => r.data['i_id'] != null)
+          .map((r) => ExpenseItemSummary(
+                id: r.data['i_id'] as String,
+                name: r.data['i_name'] as String,
+                category: r.data['i_category'] as String,
+                amount: (r.data['i_amount'] as num).toDouble(),
+              ))
+          .toList();
+      return ExpenseDetail(
+        id: first['e_id'] as String,
+        merchant: first['merchant'] as String,
+        category: first['category'] as String,
+        date: first['date'] as String,
+        total: (first['total'] as num).toDouble(),
+        currency: first['currency'] as String,
+        sourceFile: first['source_file'] as String?,
+        items: items,
+      );
+    });
   }
 
   /// Ported from `topMerchants`.

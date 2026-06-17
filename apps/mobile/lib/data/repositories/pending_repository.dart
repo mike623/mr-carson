@@ -70,4 +70,17 @@ class PendingRepository {
           ..limit(1))
         .getSingleOrNull();
   }
+
+  /// Streams pending receipts that are in an active (non-terminal) state:
+  /// [PendingStatus.received], [PendingStatus.ocrComplete],
+  /// [PendingStatus.awaitingConfirmation].
+  Stream<List<PendingRow>> watchActive() {
+    return (_db.select(_db.pendingExpenses)
+          ..where((t) => t.status.isIn([
+                PendingStatus.received.name,
+                PendingStatus.ocrComplete.name,
+                PendingStatus.awaitingConfirmation.name,
+              ])))
+        .watch();
+  }
 }

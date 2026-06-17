@@ -1,36 +1,57 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:mr_carson/data/providers.dart';
+import 'package:mr_carson/domain/models/expense_detail.dart';
 import 'package:mr_carson/theme/app_theme.dart';
+import 'package:mr_carson/ui/core/utils/currency_format.dart';
+import 'package:mr_carson/ui/core/widgets/empty_state.dart';
+import 'package:mr_carson/ui/core/widgets/error_retry_state.dart';
+import 'package:mr_carson/ui/core/widgets/loading_state.dart';
 
-/// Expense detail screen showing a full receipt breakdown for a single expense.
+/// Expense detail screen — loads a single expense from [expenseDetailProvider]
+/// and renders merchant, date, line items, totals, and the source image if present.
 ///
-/// Uses mock data for "The Wolseley". [onBack] is called when the user taps the
-/// back button in the top bar.
-class DetailScreen extends StatelessWidget {
-  const DetailScreen({super.key, required this.onBack});
+/// [id] is the expense id to load. [onBack] is called when the user taps back.
+class DetailScreen extends ConsumerWidget {
+  const DetailScreen({
+    super.key,
+    required this.id,
+    required this.onBack,
+  });
 
+  final String id;
   final VoidCallback onBack;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailAsync = ref.watch(expenseDetailProvider(id));
+
     return Scaffold(
       backgroundColor: MrCarsonColors.bg,
       body: Column(
         children: [
           _TopBar(onBack: onBack),
-          const Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(18, 22, 18, 120),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ReceiptPlaceholder(),
-                  _MerchantBlock(),
-                  _ItemsSection(),
-                  _ButlerNote(),
-                ],
+          Expanded(
+            child: detailAsync.when(
+              loading: () => const LoadingState(message: 'Fetching the receipt, sir.'),
+              error: (e, _) => ErrorRetryState(
+                message: 'I could not load that expense, sir.',
+                onRetry: () => ref.invalidate(expenseDetailProvider(id)),
               ),
+              data: (detail) {
+                if (detail == null) {
+                  return const EmptyState(
+                    title: 'Nothing found, sir.',
+                    body: 'That expense does not appear to be in the ledger.',
+                    icon: Icons.receipt_long_outlined,
+                  );
+                }
+                return _DetailBody(detail: detail);
+              },
             ),
           ),
         ],
@@ -78,7 +99,6 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // Title
           Expanded(
             child: Text(
               'Expense',
@@ -86,7 +106,7 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // Edit pill
+          // Edit pill (placeholder — editing not in scope for Task 4)
           Container(
             height: 40,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -112,8 +132,65 @@ class _TopBar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Receipt placeholder
+// Detail body (scrollable content)
 // ---------------------------------------------------------------------------
+
+class _DetailBody extends StatelessWidget {
+  const _DetailBody({required this.detail});
+
+  final ExpenseDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 22, 18, 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ReceiptImage(sourceFile: detail.sourceFile),
+          _MerchantBlock(detail: detail),
+          _ItemsSection(detail: detail),
+          const _ButlerNote(),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Receipt image / placeholder
+// ---------------------------------------------------------------------------
+
+class _ReceiptImage extends StatelessWidget {
+  const _ReceiptImage({required this.sourceFile});
+
+  final String? sourceFile;
+
+  @override
+  Widget build(BuildContext context) {
+    // If a source file path exists, show the image; otherwise show the
+    // striped placeholder that matches the original design.
+    if (sourceFile != null) {
+      return Container(
+        height: 158,
+        decoration: BoxDecoration(
+          color: MrCarsonColors.surface2,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: MrCarsonColors.line, width: 1),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(17),
+          child: Image.file(
+            File(sourceFile!),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const _ReceiptPlaceholder(),
+          ),
+        ),
+      );
+    }
+    return const _ReceiptPlaceholder();
+  }
+}
 
 class _ReceiptPlaceholder extends StatelessWidget {
   const _ReceiptPlaceholder();
@@ -131,11 +208,9 @@ class _ReceiptPlaceholder extends StatelessWidget {
         borderRadius: BorderRadius.circular(17),
         child: Stack(
           children: [
-            // Diagonal stripes via CustomPaint
             Positioned.fill(
               child: CustomPaint(painter: _StripePainter()),
             ),
-            // Centered "RECEIPT PHOTO" chip
             Center(
               child: Container(
                 padding:
@@ -162,14 +237,14 @@ class _ReceiptPlaceholder extends StatelessWidget {
   }
 }
 
-/// Paints alternating diagonal stripes using surface / surface2 colours.
 class _StripePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paintA = Paint()..color = MrCarsonColors.surface;
     final paintB = Paint()..color = MrCarsonColors.surface2;
     const stripeWidth = 18.0;
-    final diagonal = math.sqrt(size.width * size.width + size.height * size.height);
+    final diagonal =
+        math.sqrt(size.width * size.width + size.height * size.height);
     final count = (diagonal / stripeWidth).ceil() + 2;
 
     canvas.save();
@@ -193,31 +268,35 @@ class _StripePainter extends CustomPainter {
 // ---------------------------------------------------------------------------
 
 class _MerchantBlock extends StatelessWidget {
-  const _MerchantBlock();
+  const _MerchantBlock({required this.detail});
+
+  final ExpenseDetail detail;
 
   @override
   Widget build(BuildContext context) {
+    final symbol = currencySymbol(detail.currency);
+    final totalStr = '$symbol${formatAmount(detail.total)}';
+    final dateStr = _formatDate(detail.date);
+
     return Padding(
       padding: const EdgeInsets.only(top: 22),
       child: Center(
         child: Column(
           children: [
-            // Merchant name
             Text(
-              'The Wolseley',
-              style: MrCarsonType.display(size: 30, weight: FontWeight.w600, height: 1.05),
+              detail.merchant,
+              style: MrCarsonType.display(
+                  size: 30, weight: FontWeight.w600, height: 1.05),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
-            // Date
             Text(
-              '11 June 2026',
+              dateStr,
               style: MrCarsonType.ui(size: 13, color: MrCarsonColors.ink3),
             ),
             const SizedBox(height: 14),
-            // Amount
             Text(
-              '£84.09',
+              totalStr,
               style: MrCarsonType.display(
                 size: 52,
                 weight: FontWeight.w600,
@@ -226,8 +305,7 @@ class _MerchantBlock extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            // Category pill
-            const _CategoryPill(),
+            _CategoryPill(category: detail.category),
           ],
         ),
       ),
@@ -236,7 +314,9 @@ class _MerchantBlock extends StatelessWidget {
 }
 
 class _CategoryPill extends StatelessWidget {
-  const _CategoryPill();
+  const _CategoryPill({required this.category});
+
+  final String category;
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +330,6 @@ class _CategoryPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Small accent square
           Container(
             width: 8,
             height: 8,
@@ -261,7 +340,7 @@ class _CategoryPill extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            'Dining',
+            category,
             style: MrCarsonType.ui(
               size: 13.5,
               weight: FontWeight.w600,
@@ -279,22 +358,18 @@ class _CategoryPill extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ItemsSection extends StatelessWidget {
-  const _ItemsSection();
+  const _ItemsSection({required this.detail});
 
-  static const _items = [
-    _LineItem('Eggs Royale', 1, '£15.75'),
-    _LineItem('Full English', 1, '£17.50'),
-    _LineItem("Buck's Fizz", 2, '£24.00'),
-    _LineItem('Espresso', 2, '£9.00'),
-    _LineItem('Pastry basket', 1, '£8.50'),
-  ];
+  final ExpenseDetail detail;
 
   @override
   Widget build(BuildContext context) {
+    final symbol = currencySymbol(detail.currency);
+    final totalStr = '$symbol${formatAmount(detail.total)}';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section label
         Padding(
           padding: const EdgeInsets.only(top: 30, bottom: 10),
           child: Text(
@@ -303,12 +378,9 @@ class _ItemsSection extends StatelessWidget {
               size: 11,
               color: MrCarsonColors.ink3,
               letterSpacing: 1.2,
-            ).copyWith(
-              fontFeatures: null,
-            ),
+            ).copyWith(fontFeatures: null),
           ),
         ),
-        // Items card
         Container(
           decoration: BoxDecoration(
             color: MrCarsonColors.surface,
@@ -318,10 +390,16 @@ class _ItemsSection extends StatelessWidget {
           clipBehavior: Clip.hardEdge,
           child: Column(
             children: [
-              for (final item in _items) _ItemRow(item: item),
-              const _SubtotalRow(label: 'Subtotal', amount: '£74.75', isTotal: false),
-              const _SubtotalRow(label: 'Service', amount: '£9.34', isTotal: false),
-              const _SubtotalRow(label: 'Total', amount: '£84.09', isTotal: true),
+              for (final item in detail.items)
+                _ItemRow(
+                  name: item.name,
+                  amount: '$symbol${formatAmount(item.amount)}',
+                ),
+              _SubtotalRow(
+                label: 'Total',
+                amount: totalStr,
+                isTotal: true,
+              ),
             ],
           ),
         ),
@@ -330,17 +408,11 @@ class _ItemsSection extends StatelessWidget {
   }
 }
 
-class _LineItem {
-  const _LineItem(this.name, this.qty, this.price);
-  final String name;
-  final int qty;
-  final String price;
-}
-
 class _ItemRow extends StatelessWidget {
-  const _ItemRow({required this.item});
+  const _ItemRow({required this.name, required this.amount});
 
-  final _LineItem item;
+  final String name;
+  final String amount;
 
   @override
   Widget build(BuildContext context) {
@@ -354,22 +426,13 @@ class _ItemRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Row(
-              children: [
-                Text(
-                  item.name,
-                  style: MrCarsonType.ui(size: 15, color: MrCarsonColors.ink),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '×${item.qty}',
-                  style: MrCarsonType.ui(size: 13, color: MrCarsonColors.ink3),
-                ),
-              ],
+            child: Text(
+              name,
+              style: MrCarsonType.ui(size: 15, color: MrCarsonColors.ink),
             ),
           ),
           Text(
-            item.price,
+            amount,
             style: MrCarsonType.ui(size: 15, weight: FontWeight.w600).copyWith(
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -441,9 +504,8 @@ class _ButlerNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Large italic opening quote
           Text(
-            '“',
+            '"',
             style: MrCarsonType.display(
               size: 18,
               italic: true,
@@ -451,7 +513,6 @@ class _ButlerNote extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 9),
-          // Butler's note
           Expanded(
             child: Text(
               'A civilised way to begin a day, if I may say so, sir.',
@@ -466,5 +527,27 @@ class _ButlerNote extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Format YYYY-MM-DD → "11 June 2026"
+String _formatDate(String iso) {
+  try {
+    final parts = iso.split('-');
+    if (parts.length != 3) return iso;
+    final day = int.parse(parts[2]);
+    final month = int.parse(parts[1]);
+    final year = parts[0];
+    const months = [
+      '', 'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return '$day ${months[month]} $year';
+  } catch (_) {
+    return iso;
   }
 }

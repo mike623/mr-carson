@@ -1,7 +1,18 @@
+import 'dart:convert';
+
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mr_carson/ai/gemma_service.dart';
+import 'package:mr_carson/ai/receipt_pipeline.dart';
+import 'package:mr_carson/data/db/app_database.dart';
+import 'package:mr_carson/data/providers.dart';
+import 'package:mr_carson/data/repositories/pending_repository.dart';
+import 'package:mr_carson/domain/models/ai_models.dart';
 import 'package:mr_carson/features/confirm/confirm_screen.dart';
+import 'package:mr_carson/features/shell/shell_view_model.dart';
 import 'package:mr_carson/theme/app_theme.dart';
 
 void main() {
@@ -9,68 +20,181 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  Widget buildSubject({
-    VoidCallback? onDiscard,
-    VoidCallback? onSave,
-  }) {
-    return MaterialApp(
-      theme: buildMrCarsonTheme(),
-      home: ConfirmScreen(
-        onDiscard: onDiscard ?? () {},
-        onSave: onSave ?? () {},
+  late AppDatabase db;
+  late PendingRepository pendingRepo;
+  late String pendingId;
+
+  const stubDraft = ExpenseDraft(
+    merchant: 'Caffè Nero',
+    date: '2026-06-12',
+    currency: 'GBP',
+    total: 6.15,
+    items: [
+      ExpenseItemDraft(name: 'Cappuccino', amount: 3.20, category: 'Dining'),
+      ExpenseItemDraft(
+          name: 'Almond Croissant', amount: 2.95, category: 'Dining'),
+    ],
+  );
+
+  setUp(() async {
+    db = AppDatabase(NativeDatabase.memory());
+    pendingRepo = PendingRepository(db);
+    pendingId = await pendingRepo.create(filePath: '/fake/receipt.jpg');
+    await pendingRepo.setStatus(
+      pendingId,
+      PendingStatus.awaitingConfirmation,
+      extractedJson: jsonEncode(stubDraft.toJson()),
+    );
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  Widget buildSubject(String id, {List<Override> extraOverrides = const []}) {
+    return ProviderScope(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        pendingRepositoryProvider.overrideWithValue(pendingRepo),
+        ...extraOverrides,
+      ],
+      child: MaterialApp(
+        theme: buildMrCarsonTheme(),
+        home: ConfirmScreen(pendingId: id),
       ),
     );
   }
 
-  testWidgets('renders low-confidence badge and merchant name', (tester) async {
-    await tester.pumpWidget(buildSubject());
-    await tester.pump();
+  testWidgets('renders real draft — merchant and total from DB', (tester) async {
+    await tester.pumpWidget(buildSubject(pendingId));
+    await tester.pumpAndSettle();
 
-    expect(find.text('Needs a look'), findsOneWidget);
     expect(find.text('Caffè Nero'), findsAtLeastNWidgets(1));
+    expect(find.text('GBP 6.15'), findsOneWidget);
   });
 
-  testWidgets('editing merchant removes the low-confidence badge',
-      (tester) async {
-    await tester.pumpWidget(buildSubject());
-    await tester.pump();
+  testWidgets('renders line items from real draft', (tester) async {
+    await tester.pumpWidget(buildSubject(pendingId));
+    await tester.pumpAndSettle();
 
-    // Tap the merchant value text to enter edit mode.
-    // The merchant text is rendered as a GestureDetector-wrapped Text widget.
-    // There may be multiple 'Caffè Nero' occurrences (header subtitle + field).
-    // The tappable one is the GestureDetector in _MerchantField (not editing branch).
-    final merchantValueFinder = find.descendant(
+    expect(find.text('Cappuccino'), findsOneWidget);
+    expect(find.text('Almond Croissant'), findsOneWidget);
+  });
+
+  testWidgets('editing merchant updates the displayed name', (tester) async {
+    await tester.pumpWidget(buildSubject(pendingId));
+    await tester.pumpAndSettle();
+
+    // Tap the merchant GestureDetector to enter edit mode.
+    final merchantFinder = find.descendant(
       of: find.byType(GestureDetector),
       matching: find.text('Caffè Nero'),
     );
-    await tester.tap(merchantValueFinder.first);
+    await tester.tap(merchantFinder.first);
     await tester.pump();
 
-    // A TextField should now be visible.
-    expect(find.byType(TextField), findsOneWidget);
-
-    // Clear and type a new merchant name.
-    await tester.enterText(find.byType(TextField), 'Pret A Manger');
-    await tester.pump();
-
-    // Submit via TextInputAction.done.
+    expect(find.byType(TextField), findsAtLeastNWidgets(1));
+    await tester.enterText(find.byType(TextField).first, 'Pret A Manger');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 
-    // Low-confidence badge should be gone.
-    expect(find.text('Needs a look'), findsNothing);
-    // New merchant name is shown.
     expect(find.text('Pret A Manger'), findsAtLeastNWidgets(1));
   });
 
-  testWidgets('tapping Save expense fires the onSave callback', (tester) async {
-    var saveCalled = false;
-    await tester.pumpWidget(buildSubject(onSave: () => saveCalled = true));
-    await tester.pump();
+  testWidgets('tapping Save expense calls commitConfirmed via pipeline',
+      (tester) async {
+    String? committedMerchant;
+    double? committedTotal;
+
+    final fakePipeline = _FakePipeline(
+      db: db,
+      repo: pendingRepo,
+      onCommit: (id, draft) {
+        committedMerchant = draft.merchant;
+        committedTotal = draft.total;
+      },
+      onReject: (_) {},
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          pendingRepositoryProvider.overrideWithValue(pendingRepo),
+          receiptPipelineProvider.overrideWithValue(fakePipeline),
+          shellViewModelProvider.overrideWith(() => _NoNavShellViewModel()),
+        ],
+        child: MaterialApp(
+          theme: buildMrCarsonTheme(),
+          home: ConfirmScreen(pendingId: pendingId),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Save expense'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(saveCalled, isTrue);
+    expect(committedMerchant, equals('Caffè Nero'));
+    expect(committedTotal, equals(6.15));
   });
+}
+
+// ---------------------------------------------------------------------------
+// Test doubles
+// ---------------------------------------------------------------------------
+
+/// A fake [ReceiptPipelineService] subclass that captures commit/reject calls
+/// without touching the real Gemma service or database.
+///
+/// We subclass (not implement) because [ReceiptPipelineService] is concrete.
+/// The parent constructor requires [GemmaService], [AppDatabase], and
+/// [PendingRepository] — we pass null-casted stubs because the overridden
+/// methods never call super and the private fields are never read.
+class _FakePipeline extends ReceiptPipelineService {
+  _FakePipeline({
+    required AppDatabase db,
+    required PendingRepository repo,
+    required this.onCommit,
+    required this.onReject,
+  }) : super(
+          // GemmaService has a no-arg constructor; it is never called because
+          // all public methods are overridden in this subclass.
+          GemmaService(),
+          db,
+          repo,
+        );
+
+  final void Function(String pendingId, ExpenseDraft draft) onCommit;
+  final void Function(String pendingId) onReject;
+
+  @override
+  Future<String> commitConfirmed(String pendingId, ExpenseDraft draft) async {
+    onCommit(pendingId, draft);
+    return 'fake-expense-id';
+  }
+
+  @override
+  Future<void> reject(String pendingId) async {
+    onReject(pendingId);
+  }
+
+  @override
+  Future<ReceiptResult> processReceipt(String imagePath) async {
+    return ReceiptResult.failure('fake-id', 'not used in test');
+  }
+}
+
+/// A [ShellViewModel] subclass that suppresses navigation so widget tests
+/// do not crash when saveConfirm/discardConfirm try to transition screens.
+class _NoNavShellViewModel extends ShellViewModel {
+  @override
+  Future<void> saveConfirm(String pendingId, ExpenseDraft draft) async {
+    await ref.read(receiptPipelineProvider).commitConfirmed(pendingId, draft);
+  }
+
+  @override
+  Future<void> discardConfirm(String pendingId) async {
+    await ref.read(receiptPipelineProvider).reject(pendingId);
+  }
 }

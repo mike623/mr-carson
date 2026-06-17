@@ -5,6 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ai/chat_service.dart';
 import '../../ai/gemma_service.dart';
+import '../../data/repositories/expense_repository.dart' show ChartData;
+
+// Sentinel used by [ChatMessage.copyWith] so callers can explicitly clear
+// [ChatMessage.chart] to null by passing `chart: null`.
+const Object _chartSentinel = Object();
 
 /// A single chat message in the Ask conversation.
 @immutable
@@ -14,7 +19,7 @@ class ChatMessage {
     this.text = '',
     this.thinking = false,
     this.streaming = false,
-    this.hasChart = false,
+    this.chart,
   });
 
   final bool isUser;
@@ -26,22 +31,28 @@ class ChatMessage {
   /// Tokens are still streaming in (drives the blinking caret).
   final bool streaming;
 
-  /// Attach the spending chart card under this message.
-  final bool hasChart;
+  /// Structured spending chart produced by the `chartSpending` tool, attached
+  /// when the model charted spending for this reply. `null` ⇒ no chart card.
+  final ChartData? chart;
 
+  /// Creates a copy with the given fields replaced.
+  ///
+  /// [chart] uses a sentinel so that `copyWith(chart: null)` explicitly clears
+  /// the chart rather than being a no-op. Omitting [chart] preserves the
+  /// current value.
   ChatMessage copyWith({
     bool? isUser,
     String? text,
     bool? thinking,
     bool? streaming,
-    bool? hasChart,
+    Object? chart = _chartSentinel,
   }) {
     return ChatMessage(
       isUser: isUser ?? this.isUser,
       text: text ?? this.text,
       thinking: thinking ?? this.thinking,
       streaming: streaming ?? this.streaming,
-      hasChart: hasChart ?? this.hasChart,
+      chart: identical(chart, _chartSentinel) ? this.chart : chart as ChartData?,
     );
   }
 }
@@ -72,33 +83,28 @@ class AskState {
 
 /// Drives the streaming butler conversation.
 ///
-/// Real path: [ChatService.start] once, then [ChatService.send] yields a token
-/// stream that is appended to the in-flight Carson message.
+/// Real path: [ChatService.start] once, then [ChatService.send] yields a stream
+/// of [ChatEvent]s — [TextDelta] tokens are appended to the in-flight Carson
+/// message; a [ChartReady] attaches the real spending [ChartData] to it.
 ///
-/// Fallback: when the Gemma model is not [GemmaState.ready] (offline demo) or
-/// `send` throws, the original canned butler reply is streamed word-by-word
-/// with the same timing, and the spending chart is attached for spending-type
-/// questions — so the prototype behaviour is preserved exactly.
+/// When the Gemma model is not [GemmaState.ready] (or `send` throws) there is no
+/// honest answer to give, so Carson surfaces a short "AI unavailable" message in
+/// his own voice rather than fabricating one.
 class AskViewModel extends AutoDisposeNotifier<AskState> {
   Timer? _thinkTimer;
-  Timer? _streamTimer;
-  StreamSubscription<String>? _sendSub;
+  StreamSubscription<ChatEvent>? _sendSub;
   bool _chatStarted = false;
 
-  // Canned replies — butler-voiced (verbatim from the prototype).
-  static const _replies = [
-    "Quite so, sir. You have spent £1,284.60 this month — "
-        "dining leads the field, as ever. Shall I break it down further?",
-    "Indeed. Your largest single outgoing this period was £148.00 at "
-        "Petersham Nurseries on the 7th — a household matter, I believe.",
-  ];
-  int _replyIndex = 0;
+  /// Honest message shown when the model isn't ready to answer — butler-voiced,
+  /// no fabricated figures.
+  static const _unavailableReply =
+      "Forgive me, sir — I'm not yet ready to answer. Do set me up and "
+      "I shall attend to your ledger at once.";
 
   @override
   AskState build() {
     ref.onDispose(() {
       _thinkTimer?.cancel();
-      _streamTimer?.cancel();
       _sendSub?.cancel();
     });
     return const AskState();
@@ -120,7 +126,6 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
 
   void stop() {
     _thinkTimer?.cancel();
-    _streamTimer?.cancel();
     _sendSub?.cancel();
     final messages = List<ChatMessage>.from(state.messages);
     if (messages.isNotEmpty && !messages.last.isUser) {
@@ -146,7 +151,7 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
     if (gemma.state == GemmaState.ready) {
       _realReply(query);
     } else {
-      _mockReply(query);
+      _unavailable();
     }
   }
 
@@ -161,22 +166,35 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
       }
 
       var first = true;
+      var gotText = false; // tracks whether any TextDelta arrived this reply
       _sendSub = chat.send(query).listen(
-        (token) {
-          final messages = List<ChatMessage>.from(state.messages);
-          final i = messages.length - 1;
-          if (i < 0 || messages[i].isUser) return;
-          if (first) {
-            messages[i] = messages[i]
-                .copyWith(thinking: false, streaming: true, text: token);
-            first = false;
-          } else {
-            messages[i] =
-                messages[i].copyWith(text: messages[i].text + token);
+        (event) {
+          switch (event) {
+            case TextDelta(:final token):
+              _appendToken(token, first: first);
+              first = false;
+              gotText = true;
+            case ChartReady(:final chart):
+              _updateLastCarson((m) => m.copyWith(chart: chart));
           }
-          state = state.copyWith(messages: messages);
         },
-        onError: (_) => _mockReply(query),
+        onError: (_) {
+          if (gotText) {
+            // Tokens already arrived — finalize gracefully rather than
+            // clobbering the partial answer with the unavailable copy.
+            _updateLastCarson(
+              (m) => m.copyWith(
+                thinking: false,
+                streaming: false,
+                text: '${m.text} — forgive me, I lost my thread, sir.',
+              ),
+            );
+            state = state.copyWith(streaming: false);
+          } else {
+            // Nothing streamed yet — honest unavailable message is appropriate.
+            _unavailable();
+          }
+        },
         onDone: () {
           final messages = List<ChatMessage>.from(state.messages);
           final i = messages.length - 1;
@@ -184,7 +202,6 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
             messages[i] = messages[i].copyWith(
               thinking: false,
               streaming: false,
-              hasChart: _shouldShowChart(query),
             );
           }
           state = state.copyWith(messages: messages, streaming: false);
@@ -192,39 +209,42 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
         cancelOnError: true,
       );
     } catch (_) {
-      _mockReply(query);
+      _unavailable();
     }
   }
 
-  // --- fallback (mock) path -------------------------------------------------
+  /// Appends a streamed [token] to the in-flight Carson bubble, flipping it out
+  /// of the thinking placeholder on the first token.
+  void _appendToken(String token, {required bool first}) {
+    final messages = List<ChatMessage>.from(state.messages);
+    final i = messages.length - 1;
+    if (i < 0 || messages[i].isUser) return;
+    if (first) {
+      messages[i] =
+          messages[i].copyWith(thinking: false, streaming: true, text: token);
+    } else {
+      messages[i] = messages[i].copyWith(text: messages[i].text + token);
+    }
+    state = state.copyWith(messages: messages);
+  }
 
-  void _mockReply(String query) {
+  // --- model-unavailable path ----------------------------------------------
+
+  /// Surfaces the honest "AI unavailable" message after a brief think, with no
+  /// chart and no fabricated answer.
+  void _unavailable() {
     _thinkTimer?.cancel();
-    _streamTimer?.cancel();
+    _sendSub?.cancel();
 
-    _thinkTimer = Timer(const Duration(milliseconds: 700), () {
-      final reply = _replies[_replyIndex % _replies.length];
-      _replyIndex++;
-      final words = reply.split(' ');
-      int wordIndex = 0;
-      final showChart = _shouldShowChart(query);
-
-      // Switch the bubble from thinking → streaming.
-      _updateLastCarson((m) => m.copyWith(thinking: false, streaming: true));
-
-      _streamTimer = Timer.periodic(const Duration(milliseconds: 30), (t) {
-        if (wordIndex < words.length) {
-          final addition = (wordIndex == 0 ? '' : ' ') + words[wordIndex];
-          _updateLastCarson((m) => m.copyWith(text: m.text + addition));
-          wordIndex++;
-        } else {
-          t.cancel();
-          _updateLastCarson(
-            (m) => m.copyWith(streaming: false, hasChart: showChart),
-          );
-          state = state.copyWith(streaming: false);
-        }
-      });
+    _thinkTimer = Timer(const Duration(milliseconds: 400), () {
+      _updateLastCarson(
+        (m) => m.copyWith(
+          thinking: false,
+          streaming: false,
+          text: _unavailableReply,
+        ),
+      );
+      state = state.copyWith(streaming: false);
     });
   }
 
@@ -235,14 +255,6 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
     if (i < 0 || messages[i].isUser) return;
     messages[i] = update(messages[i]);
     state = state.copyWith(messages: messages);
-  }
-
-  bool _shouldShowChart(String query) {
-    final q = query.toLowerCase();
-    return q.contains('spent') ||
-        q.contains('month') ||
-        q.contains('go') ||
-        q.contains('compare');
   }
 }
 

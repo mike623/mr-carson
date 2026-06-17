@@ -1,13 +1,33 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
-import '../../ai/gemma_service.dart';
 import '../../ai/receipt_pipeline.dart';
-import '../ledger/ledger_screen.dart' show LedgerPending;
+import '../../data/providers.dart';
+import '../../data/receipt_image_store.dart';
+import '../../domain/models/ai_models.dart';
+
+// ---------------------------------------------------------------------------
+// Picker seam — injectable so tests can supply a fake without platform calls
+// ---------------------------------------------------------------------------
+
+/// Signature for an image-picker call.
+typedef ImagePickerFn = Future<XFile?> Function(ImageSource source);
+
+/// Provider for the [ImagePickerFn] used by [ShellViewModel].
+///
+/// Override this in tests to supply a fake file path without invoking the
+/// real platform picker.
+final imagePickerFnProvider = Provider<ImagePickerFn>((_) {
+  final picker = ImagePicker();
+  return (source) => picker.pickImage(source: source);
+});
+
+// ---------------------------------------------------------------------------
+// Screen enum
+// ---------------------------------------------------------------------------
 
 /// Which screen the shell is currently presenting.
 enum ShellScreen {
@@ -21,35 +41,37 @@ enum ShellScreen {
   engage,
 }
 
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
 /// Immutable state for the in-app shell.
 @immutable
 class ShellState {
   const ShellState({
     this.screen = ShellScreen.ask,
-    this.pending = const [],
     this.reviewingId,
+    this.selectedExpenseId,
     this.toast,
     this.engageReason = '',
     this.askComposerFocused = false,
   });
 
   final ShellScreen screen;
-  final List<LedgerPending> pending;
 
-  /// Whether the Ask composer's text field currently holds focus. While true the
-  /// bottom nav is hidden (the design's "put aside when asking") so the composer
-  /// owns the bottom edge.
+  /// Whether the Ask composer's text field currently holds focus.
   final bool askComposerFocused;
 
   /// The pending id currently being reviewed on the confirm screen, if any.
   final String? reviewingId;
 
+  /// The expense id currently open on the detail screen, if any.
+  final String? selectedExpenseId;
+
   /// Active butler toast message, or null when none is shown.
   final String? toast;
 
-  /// Contextual italic line shown in the Engage screen's reason card, set when a
-  /// surface calls [ShellViewModel.requireModel]. Empty falls back to the
-  /// Engage screen's default copy.
+  /// Contextual italic line shown in the Engage screen's reason card.
   final String engageReason;
 
   bool get navVisible =>
@@ -58,17 +80,19 @@ class ShellState {
 
   ShellState copyWith({
     ShellScreen? screen,
-    List<LedgerPending>? pending,
     Object? reviewingId = _unset,
+    Object? selectedExpenseId = _unset,
     Object? toast = _unset,
     String? engageReason,
     bool? askComposerFocused,
   }) {
     return ShellState(
       screen: screen ?? this.screen,
-      pending: pending ?? this.pending,
       reviewingId:
           identical(reviewingId, _unset) ? this.reviewingId : reviewingId as String?,
+      selectedExpenseId: identical(selectedExpenseId, _unset)
+          ? this.selectedExpenseId
+          : selectedExpenseId as String?,
       toast: identical(toast, _unset) ? this.toast : toast as String?,
       engageReason: engageReason ?? this.engageReason,
       askComposerFocused: askComposerFocused ?? this.askComposerFocused,
@@ -78,26 +102,21 @@ class ShellState {
   static const _unset = Object();
 }
 
-/// Drives the in-app shell: navigation, the pending receipt list, and the
+// ---------------------------------------------------------------------------
+// ViewModel
+// ---------------------------------------------------------------------------
+
+/// Drives the in-app shell: navigation, receipt capture/upload, and the
 /// butler toast.
 ///
-/// Real path: a chosen receipt is run through
-/// [ReceiptPipelineService.processReceipt]; on success the pending card is
-/// marked ready.
-///
-/// Fallback: when the Gemma model isn't [GemmaState.ready] or no real image
-/// path is supplied (the demo's "Upload from library" action), the original
-/// mock progress ramp is used so the prototype flow is preserved exactly.
+/// Pending state is driven off [pendingReceiptsProvider] (a DB stream) —
+/// there is no in-memory pending list.
 class ShellViewModel extends AutoDisposeNotifier<ShellState> {
-  Timer? _procTimer;
   Timer? _toastTimer;
 
   @override
   ShellState build() {
-    ref.onDispose(() {
-      _procTimer?.cancel();
-      _toastTimer?.cancel();
-    });
+    ref.onDispose(() => _toastTimer?.cancel());
     return const ShellState();
   }
 
@@ -105,17 +124,16 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
 
   void go(ShellScreen s) => state = state.copyWith(screen: s);
 
-  /// Set by the Ask composer when its text field gains / loses focus. Drives
-  /// [ShellState.navVisible] so the bottom nav steps aside while asking.
+  /// Navigate to the detail screen for a specific expense id.
+  void openExpense(String id) {
+    state = state.copyWith(selectedExpenseId: id, screen: ShellScreen.detail);
+  }
+
   void setAskComposerFocused(bool focused) {
     if (state.askComposerFocused == focused) return;
     state = state.copyWith(askComposerFocused: focused);
   }
 
-  /// Open the Engage screen because a surface needs the model present.
-  ///
-  /// [reason] is a contextual italic line shown in the Engage reason card
-  /// (e.g. why the model is needed right now). Empty uses the screen's default.
   void requireModel({String reason = ''}) {
     state = state.copyWith(engageReason: reason, screen: ShellScreen.engage);
   }
@@ -130,108 +148,54 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
 
   // --- add sheet outcomes --------------------------------------------------
 
-  /// "Take a photograph" — open the confirm screen for a fresh capture.
-  void capturePhoto() {
-    state = state.copyWith(reviewingId: null, screen: ShellScreen.confirm);
-  }
+  /// "Take a photograph" — pick via camera, copy, process.
+  Future<void> capturePhoto() => _pickAndProcess(ImageSource.camera);
 
-  /// "Upload from library" — start background processing.
-  ///
-  /// [imagePath] is supplied when a real file is chosen; when null (the demo's
-  /// library action), the mock ramp runs.
-  void startUpload({String? imagePath}) {
-    final id = 'p${DateTime.now().millisecondsSinceEpoch}';
-    final pending = [
-      LedgerPending(
-        id: id,
-        ready: false,
-        stage: 'Reading the receipt…',
-        pct: 0,
-      ),
-      ...state.pending,
-    ];
-    state = state.copyWith(pending: pending, screen: ShellScreen.ledger);
-    showToast('Very good, sir. Reading it in the background.');
+  /// "Upload from library" — pick via gallery, copy, process.
+  Future<void> startUpload() => _pickAndProcess(ImageSource.gallery);
 
-    final gemma = ref.read(gemmaServiceProvider);
-    if (imagePath != null &&
-        File(imagePath).existsSync() &&
-        gemma.state == GemmaState.ready) {
-      _realProcess(id, imagePath);
-    } else {
-      _mockProcess(id);
-    }
-  }
+  // --- internal pick + process flow ----------------------------------------
 
-  // --- real path -----------------------------------------------------------
-
-  Future<void> _realProcess(String id, String imagePath) async {
+  Future<void> _pickAndProcess(ImageSource source) async {
+    final pick = ref.read(imagePickerFnProvider);
+    XFile? file;
     try {
-      final result =
-          await ref.read(receiptPipelineProvider).processReceipt(imagePath);
-      final draft = result.draft;
-      if (result.ok && draft != null) {
-        _markReady(
-          id,
-          merchant: draft.merchant,
-          total: '${draft.currency} ${draft.total.toStringAsFixed(2)}',
-        );
-      } else {
-        // On failure fall back to the mock ramp so the card still completes.
-        _mockProcess(id);
-      }
+      file = await pick(source);
     } catch (_) {
-      _mockProcess(id);
+      showToast('Could not access the image, sir.');
+      return;
     }
-  }
+    if (file == null) return; // user cancelled
 
-  // --- fallback (mock) path ------------------------------------------------
+    final store = ref.read(receiptImageStoreProvider);
+    late final String stablePath;
+    try {
+      final copy = await store.copyReceipt(file.path);
+      stablePath = copy.path;
+    } catch (_) {
+      showToast('Could not save the image, sir.');
+      return;
+    }
 
-  void _mockProcess(String id) {
-    final rng = Random();
-    _procTimer?.cancel();
-    _procTimer = Timer.periodic(const Duration(milliseconds: 260), (t) {
-      final pending = List<LedgerPending>.from(state.pending);
-      final i = pending.indexWhere((p) => p.id == id);
-      if (i < 0) {
-        t.cancel();
-        return;
+    // Navigate to ledger and show toast — processing runs in the background.
+    // The pending card driven by pendingReceiptsProvider will appear; the user
+    // opens ConfirmScreen by tapping its "Review" button.
+    showToast('Very good, sir. Reading it in the background.');
+    go(ShellScreen.ledger);
+
+    // Fire-and-forget: errors are surfaced via toast; the pending row's failed
+    // status is reflected in the ledger automatically via pendingReceiptsProvider.
+    unawaited(() async {
+      try {
+        final result =
+            await ref.read(receiptPipelineProvider).processReceipt(stablePath);
+        if (!result.ok) {
+          showToast('I could not read that receipt, sir.');
+        }
+      } catch (_) {
+        showToast('I could not read that receipt, sir.');
       }
-      final p = pending[i];
-      final pct = p.pct + 3 + rng.nextInt(5);
-      if (pct >= 100) {
-        t.cancel();
-        pending[i] = LedgerPending(
-          id: id,
-          ready: true,
-          stage: 'Ready for your review',
-          pct: 100,
-          merchant: 'Caffè Nero',
-          total: '£6.15',
-        );
-      } else {
-        final stage = pct < 45
-            ? 'Reading the receipt…'
-            : (pct < 80 ? 'Extracting the figures…' : 'Tidying up…');
-        pending[i] = LedgerPending(id: id, ready: false, stage: stage, pct: pct);
-      }
-      state = state.copyWith(pending: pending);
-    });
-  }
-
-  void _markReady(String id, {required String merchant, required String total}) {
-    final pending = List<LedgerPending>.from(state.pending);
-    final i = pending.indexWhere((p) => p.id == id);
-    if (i < 0) return;
-    pending[i] = LedgerPending(
-      id: id,
-      ready: true,
-      stage: 'Ready for your review',
-      pct: 100,
-      merchant: merchant,
-      total: total,
-    );
-    state = state.copyWith(pending: pending);
+    }());
   }
 
   // --- review / confirm ----------------------------------------------------
@@ -240,22 +204,35 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
     state = state.copyWith(reviewingId: id, screen: ShellScreen.confirm);
   }
 
-  void saveConfirm() {
-    var pending = state.pending;
-    final reviewingId = state.reviewingId;
-    if (reviewingId != null) {
-      pending = pending.where((p) => p.id != reviewingId).toList();
+  Future<void> saveConfirm(String pendingId, ExpenseDraft editedDraft) async {
+    try {
+      await ref
+          .read(receiptPipelineProvider)
+          .commitConfirmed(pendingId, editedDraft);
+      state = state.copyWith(
+        reviewingId: null,
+        screen: ShellScreen.ledger,
+      );
+      showToast('Very good, sir.');
+    } catch (_) {
+      showToast('Could not save the expense, sir.');
     }
-    state = state.copyWith(
-      pending: pending,
-      reviewingId: null,
-      screen: ShellScreen.ledger,
-    );
-    showToast('Very good, sir.');
   }
 
-  void discardConfirm() {
-    state = state.copyWith(reviewingId: null, screen: ShellScreen.ledger);
+  Future<void> discardConfirm(String pendingId) async {
+    try {
+      final pending =
+          await ref.read(pendingRepositoryProvider).getById(pendingId);
+      await ref.read(receiptPipelineProvider).reject(pendingId);
+      if (pending?.filePath != null) {
+        await ref
+            .read(receiptImageStoreProvider)
+            .deleteReceipt(pending!.filePath!);
+      }
+      state = state.copyWith(reviewingId: null, screen: ShellScreen.ledger);
+    } catch (_) {
+      showToast('Could not discard that receipt, sir.');
+    }
   }
 }
 

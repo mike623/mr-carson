@@ -10,8 +10,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // flutter_gemma 0.16.x requires an explicit one-time initialize() before any
   // plugin use (model install, createModel, etc.); omitting it throws StateError
-  // at runtime. The on-device model itself is still loaded lazily by
-  // [GemmaService] (lib/ai/gemma_service.dart) from the onboarding download flow.
+  // at runtime. The on-device model itself is loaded lazily by [GemmaService]
+  // (lib/ai/gemma_service.dart) via the in-app model lifecycle (Ask locked-state
+  // CTA / Model Management screen) — not during onboarding.
   await FlutterGemma.initialize();
   runApp(const ProviderScope(child: MrCarsonApp()));
 }

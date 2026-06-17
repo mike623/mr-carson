@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/providers.dart';
+import '../../domain/models/ai_models.dart';
 import '../../theme/app_theme.dart';
 import '../ask/ask_screen.dart';
 import '../confirm/confirm_screen.dart';
@@ -41,31 +43,41 @@ class AppShell extends ConsumerWidget {
     if (choice == 'manual') {
       vm.go(ShellScreen.manual);
     } else if (choice == 'photo') {
-      isReady ? vm.capturePhoto() : vm.requireModel(reason: requireReason);
+      if (isReady) {
+        vm.capturePhoto();
+      } else {
+        vm.requireModel(reason: requireReason);
+      }
     } else if (choice == 'upload') {
-      isReady ? vm.startUpload() : vm.requireModel(reason: requireReason);
+      if (isReady) {
+        vm.startUpload();
+      } else {
+        vm.requireModel(reason: requireReason);
+      }
     }
   }
 
-  Widget _body(ShellState s, ShellViewModel vm) {
+  Widget _body(ShellState s, ShellViewModel vm, List<LedgerPending> pendingList) {
     switch (s.screen) {
       case ShellScreen.ask:
         return const AskScreen();
       case ShellScreen.ledger:
         return LedgerScreen(
-          pending: s.pending,
-          onOpenExpense: (_) => vm.go(ShellScreen.detail),
+          pending: pendingList,
+          onOpenExpense: vm.openExpense,
           onReviewPending: vm.reviewPending,
         );
       case ShellScreen.detail:
-        return DetailScreen(onBack: () => vm.go(ShellScreen.ledger));
+        return DetailScreen(
+          id: s.selectedExpenseId ?? '',
+          onBack: () => vm.go(ShellScreen.ledger),
+        );
       case ShellScreen.confirm:
         return ConfirmScreen(
+          pendingId: s.reviewingId ?? '',
           note: s.reviewingId != null
               ? 'All done while you were away, sir. Two figures want a glance.'
               : 'I read this just now, sir. Two figures want a glance.',
-          onDiscard: vm.discardConfirm,
-          onSave: vm.saveConfirm,
         );
       case ShellScreen.settings:
         return const SettingsScreen();
@@ -84,11 +96,31 @@ class AppShell extends ConsumerWidget {
     final vm = ref.read(shellViewModelProvider.notifier);
     final isReady = ref.watch(modelLifecycleProvider).isReady;
 
+    // Map pending DB rows to LedgerPending view model objects.
+    final pendingRows = ref.watch(pendingReceiptsProvider);
+    final pendingList = pendingRows.maybeWhen(
+      data: (rows) => rows
+          .map((r) => LedgerPending(
+                id: r.id,
+                ready: r.status == PendingStatus.awaitingConfirmation.name,
+                stage: r.status == PendingStatus.awaitingConfirmation.name
+                    ? 'Ready for your review'
+                    : 'Reading the receipt…',
+                pct: r.status == PendingStatus.awaitingConfirmation.name
+                    ? 100
+                    : 50,
+                merchant: null,
+                total: null,
+              ))
+          .toList(),
+      orElse: () => <LedgerPending>[],
+    );
+
     return Scaffold(
       backgroundColor: MrCarsonColors.bg,
       body: Stack(
         children: [
-          Positioned.fill(child: _body(s, vm)),
+          Positioned.fill(child: _body(s, vm, pendingList)),
           if (s.navVisible)
             Positioned(
               left: 0,
@@ -96,7 +128,7 @@ class AppShell extends ConsumerWidget {
               bottom: 0,
               child: _BottomNav(
                 current: s.screen == ShellScreen.ask ? 0 : 1,
-                hasPending: s.pending.isNotEmpty,
+                hasPending: pendingList.isNotEmpty,
                 onAsk: () => vm.go(ShellScreen.ask),
                 onLedger: () => vm.go(ShellScreen.ledger),
                 onAdd: () => _openAddSheet(context, vm, isReady),
@@ -348,8 +380,6 @@ class _AddSheet extends ConsumerWidget {
     required bool gated,
     required bool isReady,
   }) {
-    // Gated options show a "Setup" lock chip while the model is absent;
-    // otherwise (and for the always-on manual option) a chevron.
     final showLock = gated && !isReady;
 
     return GestureDetector(

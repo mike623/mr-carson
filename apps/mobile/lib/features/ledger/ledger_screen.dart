@@ -1,8 +1,17 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mr_carson/data/providers.dart';
+import 'package:mr_carson/domain/models/monthly_summary.dart';
+import 'package:mr_carson/domain/models/expense_summary.dart';
+import 'package:mr_carson/domain/models/ai_models.dart';
 import 'package:mr_carson/theme/app_theme.dart';
+import 'package:mr_carson/ui/core/utils/currency_format.dart';
+import 'package:mr_carson/ui/core/widgets/empty_state.dart';
+import 'package:mr_carson/ui/core/widgets/error_retry_state.dart';
+import 'package:mr_carson/ui/core/widgets/loading_state.dart';
 
 // ---------------------------------------------------------------------------
 // Data class
@@ -40,9 +49,9 @@ class LedgerPending {
 /// The home / ledger screen — monthly summary donut, pending-receipt cards,
 /// and a recent-expenses list.
 ///
-/// Completely self-contained: no providers, no services. Pass mock data via
-/// [pending] for previewing in-flight receipts. Tap callbacks are optional.
-class LedgerScreen extends StatelessWidget {
+/// Pending cards are fed in via [pending] from the shell (Task 3 wiring).
+/// Monthly summary and recent expenses are loaded from Riverpod providers.
+class LedgerScreen extends ConsumerWidget {
   const LedgerScreen({
     super.key,
     this.onOpenExpense,
@@ -56,25 +65,57 @@ class LedgerScreen extends StatelessWidget {
   /// Called when the user taps "Review" on a ready pending card. Receives the pending id.
   final void Function(String pendingId)? onReviewPending;
 
-  /// In-flight receipts to display. Defaults to empty so the screen renders standalone.
+  /// In-flight receipts to display (fed from shell via pendingReceiptsProvider).
   final List<LedgerPending> pending;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(monthlySummaryProvider);
+    final expensesAsync = ref.watch(recentExpensesProvider);
+
     return Scaffold(
       backgroundColor: MrCarsonColors.bg,
       body: Column(
         children: [
           _Header(),
           Expanded(
-            child: _Body(
-              pending: pending,
-              onOpenExpense: onOpenExpense,
-              onReviewPending: onReviewPending,
-            ),
+            child: _buildBody(ref, summaryAsync, expensesAsync),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBody(
+    WidgetRef ref,
+    AsyncValue<MonthlySummary> summaryAsync,
+    AsyncValue<List<ExpenseSummary>> expensesAsync,
+  ) {
+    // Show loading if either primary provider is still loading.
+    if (expensesAsync.isLoading) {
+      return const LoadingState(message: 'One moment, sir.');
+    }
+
+    // Error state — let user retry.
+    if (expensesAsync.hasError) {
+      return ErrorRetryState(
+        message: 'I could not fetch the ledger, sir.',
+        onRetry: () {
+          ref.invalidate(recentExpensesProvider);
+          ref.invalidate(monthlySummaryProvider);
+        },
+      );
+    }
+
+    final expenses = expensesAsync.value ?? [];
+    final summary = summaryAsync.value;
+
+    return _Body(
+      summary: summary,
+      expenses: expenses,
+      pending: pending,
+      onOpenExpense: onOpenExpense,
+      onReviewPending: onReviewPending,
     );
   }
 }
@@ -86,6 +127,8 @@ class LedgerScreen extends StatelessWidget {
 class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final monthName = _monthName(now.month);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 60, 20, 14),
       decoration: const BoxDecoration(
@@ -103,12 +146,20 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'June 2026 · all on device',
+            '$monthName ${now.year} · all on device',
             style: MrCarsonType.ui(size: 12.5, color: MrCarsonColors.ink3),
           ),
         ],
       ),
     );
+  }
+
+  static String _monthName(int month) {
+    const names = [
+      '', 'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return names[month];
   }
 }
 
@@ -118,53 +169,18 @@ class _Header extends StatelessWidget {
 
 class _Body extends StatelessWidget {
   const _Body({
+    required this.summary,
+    required this.expenses,
     required this.pending,
     required this.onOpenExpense,
     required this.onReviewPending,
   });
 
+  final MonthlySummary? summary;
+  final List<ExpenseSummary> expenses;
   final List<LedgerPending> pending;
   final void Function(String)? onOpenExpense;
   final void Function(String)? onReviewPending;
-
-  static const _expenses = [
-    _ExpenseData(
-      id: 'nero',
-      merchant: 'Caffè Nero',
-      category: 'Dining',
-      date: '12 June 2026',
-      amount: '£6.15',
-      initial: 'C',
-      color: MrCarsonColors.accent,
-    ),
-    _ExpenseData(
-      id: 'wolseley',
-      merchant: 'The Wolseley',
-      category: 'Dining',
-      date: '11 June 2026',
-      amount: '£84.09',
-      initial: 'W',
-      color: MrCarsonColors.accent,
-    ),
-    _ExpenseData(
-      id: 'waitrose',
-      merchant: 'Waitrose',
-      category: 'Groceries',
-      date: '10 June 2026',
-      amount: '£63.40',
-      initial: 'W',
-      color: MrCarsonColors.grocery,
-    ),
-    _ExpenseData(
-      id: 'uber',
-      merchant: 'Uber',
-      category: 'Transport',
-      date: '9 June 2026',
-      amount: '£18.50',
-      initial: 'U',
-      color: MrCarsonColors.transport,
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +189,7 @@ class _Body extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SummaryCard(),
+          _SummaryCard(summary: summary),
           if (pending.isNotEmpty) ...[
             _PendingSection(pending: pending, onReviewPending: onReviewPending),
           ],
@@ -187,14 +203,24 @@ class _Body extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Column(
-            children: _expenses
-                .map((e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ExpenseTile(data: e, onTap: onOpenExpense),
-                    ))
-                .toList(),
-          ),
+          if (expenses.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: EmptyState(
+                title: 'Nothing to show just yet, sir.',
+                body: 'Add your first expense to get started.',
+                icon: Icons.receipt_long_outlined,
+              ),
+            )
+          else
+            Column(
+              children: expenses
+                  .map((e) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _ExpenseTile(expense: e, onTap: onOpenExpense),
+                      ))
+                  .toList(),
+            ),
         ],
       ),
     );
@@ -206,6 +232,10 @@ class _Body extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.summary});
+
+  final MonthlySummary? summary;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -218,38 +248,36 @@ class _SummaryCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _DonutChart(),
+          _DonutChart(summary: summary),
           const SizedBox(width: 20),
-          const Expanded(child: _LegendColumn()),
+          Expanded(child: _LegendColumn(summary: summary)),
         ],
       ),
     );
   }
 }
 
-// Donut segment data
-class _Segment {
-  const _Segment(this.value, this.color);
-  final double value;
-  final Color color;
-}
-
-const _segments = [
-  _Segment(412.0, MrCarsonColors.accent),
-  _Segment(318.0, MrCarsonColors.grocery),
-  _Segment(214.0, MrCarsonColors.house),
-  _Segment(196.0, MrCarsonColors.transport),
-  _Segment(144.6, MrCarsonColors.ink3),
-];
+// ---------------------------------------------------------------------------
+// Donut chart
+// ---------------------------------------------------------------------------
 
 class _DonutChart extends StatelessWidget {
+  const _DonutChart({required this.summary});
+
+  final MonthlySummary? summary;
+
   @override
   Widget build(BuildContext context) {
+    final total = summary?.total ?? 0.0;
+    final currency = summary?.currency ?? 'GBP';
+    final symbol = currencySymbol(currency);
+    final totalStr = '$symbol${formatAmount(total)}';
+
     return SizedBox(
       width: 104,
       height: 104,
       child: CustomPaint(
-        painter: _DonutPainter(),
+        painter: _DonutPainter(buckets: summary?.buckets ?? []),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -263,7 +291,7 @@ class _DonutChart extends StatelessWidget {
                 ),
               ),
               Text(
-                '£1,284.60',
+                totalStr,
                 style: MrCarsonType.display(size: 20, weight: FontWeight.w600),
               ),
             ],
@@ -275,6 +303,19 @@ class _DonutChart extends StatelessWidget {
 }
 
 class _DonutPainter extends CustomPainter {
+  const _DonutPainter({required this.buckets});
+
+  final List<CategoryBucket> buckets;
+
+  // Fixed palette for categories — cycles if more than 5.
+  static const _palette = [
+    MrCarsonColors.accent,
+    MrCarsonColors.grocery,
+    MrCarsonColors.house,
+    MrCarsonColors.transport,
+    MrCarsonColors.ink3,
+  ];
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
@@ -282,16 +323,36 @@ class _DonutPainter extends CustomPainter {
     const inset = 15.0;
     final innerRadius = outerRadius - inset;
 
-    final total = _segments.fold<double>(0, (s, e) => s + e.value);
-    const gapAngle = 0.025; // radians gap between segments
-    const startAngle = -math.pi / 2; // start at top
+    if (buckets.isEmpty) {
+      // Draw a single empty-state ring.
+      canvas.drawCircle(
+        center,
+        innerRadius + inset / 2,
+        Paint()
+          ..color = MrCarsonColors.surface2
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = inset,
+      );
+      canvas.drawCircle(
+        center,
+        innerRadius - 1,
+        Paint()
+          ..color = MrCarsonColors.surface
+          ..style = PaintingStyle.fill,
+      );
+      return;
+    }
 
+    final total = buckets.fold<double>(0, (s, b) => s + b.total);
+    const gapAngle = 0.025;
+    const startAngle = -math.pi / 2;
     double currentAngle = startAngle;
 
-    for (final seg in _segments) {
-      final sweep = (seg.value / total) * 2 * math.pi - gapAngle;
+    for (var i = 0; i < buckets.length; i++) {
+      final sweep = (buckets[i].total / total) * 2 * math.pi - gapAngle;
+      final color = _palette[i % _palette.length];
       final paint = Paint()
-        ..color = seg.color
+        ..color = color
         ..style = PaintingStyle.stroke
         ..strokeWidth = inset
         ..strokeCap = StrokeCap.butt;
@@ -307,37 +368,66 @@ class _DonutPainter extends CustomPainter {
       currentAngle += sweep + gapAngle;
     }
 
-    // Inner fill
-    final innerPaint = Paint()
-      ..color = MrCarsonColors.surface
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, innerRadius - 1, innerPaint);
+    // Inner fill.
+    canvas.drawCircle(
+      center,
+      innerRadius - 1,
+      Paint()
+        ..color = MrCarsonColors.surface
+        ..style = PaintingStyle.fill,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DonutPainter old) =>
+      old.buckets != buckets;
 }
 
-class _LegendColumn extends StatelessWidget {
-  const _LegendColumn();
+// ---------------------------------------------------------------------------
+// Legend
+// ---------------------------------------------------------------------------
 
-  static const _rows = [
-    _LegendRow('Dining', '£412.00', MrCarsonColors.accent),
-    _LegendRow('Groceries', '£318.00', MrCarsonColors.grocery),
-    _LegendRow('Household', '£214.00', MrCarsonColors.house),
-    _LegendRow('Transport', '£196.00', MrCarsonColors.transport),
-    _LegendRow('Other', '£144.60', MrCarsonColors.ink3),
+class _LegendColumn extends StatelessWidget {
+  const _LegendColumn({required this.summary});
+
+  final MonthlySummary? summary;
+
+  static const _palette = [
+    MrCarsonColors.accent,
+    MrCarsonColors.grocery,
+    MrCarsonColors.house,
+    MrCarsonColors.transport,
+    MrCarsonColors.ink3,
   ];
 
   @override
   Widget build(BuildContext context) {
+    final buckets = summary?.buckets ?? [];
+    final currency = summary?.currency ?? 'GBP';
+    final symbol = currencySymbol(currency);
+
+    if (buckets.isEmpty) {
+      return Text(
+        'No spending this month',
+        style: MrCarsonType.ui(size: 13, color: MrCarsonColors.ink3),
+      );
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: _rows
-          .map((r) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: r,
-              ))
+      children: buckets
+          .asMap()
+          .entries
+          .map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _LegendRow(
+                e.value.category,
+                '$symbol${formatAmount(e.value.total)}',
+                _palette[e.key % _palette.length],
+              ),
+            ),
+          )
           .toList(),
     );
   }
@@ -545,7 +635,6 @@ class _SpinnerPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     const radius = 8.0;
 
-    // Track
     canvas.drawCircle(
       center,
       radius,
@@ -555,7 +644,6 @@ class _SpinnerPainter extends CustomPainter {
         ..strokeWidth = 2,
     );
 
-    // Arc
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       t * 2 * math.pi - math.pi / 2,
@@ -730,36 +818,24 @@ class _ReviewButton extends StatelessWidget {
 // Expense tile
 // ---------------------------------------------------------------------------
 
-class _ExpenseData {
-  const _ExpenseData({
-    required this.id,
-    required this.merchant,
-    required this.category,
-    required this.date,
-    required this.amount,
-    required this.initial,
-    required this.color,
-  });
-
-  final String id;
-  final String merchant;
-  final String category;
-  final String date;
-  final String amount;
-  final String initial;
-  final Color color;
-}
-
 class _ExpenseTile extends StatelessWidget {
-  const _ExpenseTile({required this.data, required this.onTap});
+  const _ExpenseTile({required this.expense, required this.onTap});
 
-  final _ExpenseData data;
+  final ExpenseSummary expense;
   final void Function(String)? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final initial = expense.merchant.isNotEmpty
+        ? expense.merchant[0].toUpperCase()
+        : '?';
+    final color = _categoryColor(expense.category);
+    final currency = currencySymbol(expense.currency);
+    final amountStr = '$currency${formatAmount(expense.total)}';
+    final dateStr = _formatDate(expense.date);
+
     return GestureDetector(
-      onTap: () => onTap?.call(data.id),
+      onTap: () => onTap?.call(expense.id),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
         decoration: BoxDecoration(
@@ -779,11 +855,11 @@ class _ExpenseTile extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: Text(
-                data.initial,
+                initial,
                 style: MrCarsonType.display(
                   size: 22,
                   weight: FontWeight.w600,
-                  color: data.color,
+                  color: color,
                 ),
               ),
             ),
@@ -794,7 +870,7 @@ class _ExpenseTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    data.merchant,
+                    expense.merchant,
                     style: MrCarsonType.ui(
                       size: 15.5,
                       weight: FontWeight.w600,
@@ -803,7 +879,7 @@ class _ExpenseTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${data.category} · ${data.date}',
+                    '${expense.category} · $dateStr',
                     style: MrCarsonType.ui(size: 12.5, color: MrCarsonColors.ink3),
                   ),
                 ],
@@ -812,12 +888,48 @@ class _ExpenseTile extends StatelessWidget {
             const SizedBox(width: 8),
             // Amount
             Text(
-              data.amount,
+              amountStr,
               style: MrCarsonType.display(size: 21, weight: FontWeight.w600),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+Color _categoryColor(String category) {
+  switch (category.toLowerCase()) {
+    case 'groceries':
+      return MrCarsonColors.grocery;
+    case 'transport':
+      return MrCarsonColors.transport;
+    case 'household':
+    case 'house':
+      return MrCarsonColors.house;
+    default:
+      return MrCarsonColors.accent;
+  }
+}
+
+/// Format YYYY-MM-DD → "15 June 2026"
+String _formatDate(String iso) {
+  try {
+    final parts = iso.split('-');
+    if (parts.length != 3) return iso;
+    final day = int.parse(parts[2]);
+    final month = int.parse(parts[1]);
+    final year = parts[0];
+    const months = [
+      '', 'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return '$day ${months[month]} $year';
+  } catch (_) {
+    return iso;
   }
 }

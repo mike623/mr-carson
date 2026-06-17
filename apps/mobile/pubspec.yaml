@@ -25,6 +25,12 @@ dependencies:
   # On-device LLM (OCR + extraction + chat)
   flutter_gemma: ^0.16.5
 
+  # Image capture / gallery
+  image_picker: ^1.1.2
+
+  # Cryptography (sha256 for receipt dedup)
+  crypto: ^3.0.3
+
   # State
   flutter_riverpod: ^2.5.1
 
