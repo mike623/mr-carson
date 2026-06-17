@@ -162,7 +162,7 @@ class GemmaService {
   ///
   /// Throws [StateError] if the model is not loaded yet.
   Future<InferenceModelSession> createVisionSession() async {
-    _assertReady();
+    await _ensureLoaded();
     return _model!.createSession(
       temperature: 0.1,
       topK: 1,
@@ -188,7 +188,7 @@ class GemmaService {
     bool supportsFunctionCalls = false,
     ToolChoice toolChoice = ToolChoice.auto,
   }) async {
-    _assertReady();
+    await _ensureLoaded();
     return _model!.createChat(
       temperature: 0.8,
       topK: 40,
@@ -236,13 +236,17 @@ class GemmaService {
 
   // --- internal -------------------------------------------------------------
 
-  void _assertReady() {
-    if (_model == null || state != GemmaState.ready) {
-      throw StateError(
-        'GemmaService: model is not loaded. '
-        'Call loadModel() and wait for state == GemmaState.ready.',
-      );
-    }
+  /// Ensures the inference engine has a model loaded before a session is
+  /// created. [loadModel] only runs at the end of a fresh download, so on a
+  /// restart (or whenever onboarding was completed in a previous session) the
+  /// model file is on disk but [_model] is null. Lazy-load it here via the
+  /// active-model registry instead of failing the receipt/chat call.
+  ///
+  /// Throws if no model is installed at all — surfaced to the caller so the UI
+  /// can tell the user to finish setup.
+  Future<void> _ensureLoaded() async {
+    if (_model != null && state == GemmaState.ready) return;
+    await loadModel();
   }
 }
 

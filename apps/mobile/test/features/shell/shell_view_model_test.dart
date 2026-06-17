@@ -312,6 +312,60 @@ void main() {
     expect(state.toast, contains('could not read'));
   });
 
+  test('F1 — "model is not loaded" failure maps to a setup-needed toast',
+      () async {
+    final pipeline = _FakePipeline(
+      db: db,
+      repo: pendingRepo,
+      processResult: ReceiptResult.failure(
+        'pid',
+        'Bad state: GemmaService: model is not loaded. Call loadModel()…',
+      ),
+    );
+
+    final (:container, :sub) = buildContainer(
+      pipeline: pipeline,
+      pickedFile: XFile('/tmp/photo.jpg'),
+      db: db,
+      repo: pendingRepo,
+    );
+    addTearDown(sub.close);
+    addTearDown(container.dispose);
+
+    final vm = container.read(shellViewModelProvider.notifier);
+    await vm.capturePhoto();
+    await Future<void>.delayed(Duration.zero);
+
+    final state = container.read(shellViewModelProvider);
+    expect(state.toast, contains('not ready yet'));
+    expect(state.toast, isNot(contains('could not read')));
+  });
+
+  test('F1 — generic failure surfaces the real error in the toast', () async {
+    final pipeline = _FakePipeline(
+      db: db,
+      repo: pendingRepo,
+      processResult: ReceiptResult.failure('pid', 'FormatException: bad JSON'),
+    );
+
+    final (:container, :sub) = buildContainer(
+      pipeline: pipeline,
+      pickedFile: XFile('/tmp/photo.jpg'),
+      db: db,
+      repo: pendingRepo,
+    );
+    addTearDown(sub.close);
+    addTearDown(container.dispose);
+
+    final vm = container.read(shellViewModelProvider.notifier);
+    await vm.capturePhoto();
+    await Future<void>.delayed(Duration.zero);
+
+    final state = container.read(shellViewModelProvider);
+    expect(state.toast, contains('could not read'));
+    expect(state.toast, contains('FormatException'));
+  });
+
   test('F1 — user cancel (null file) does nothing', () async {
     final pipeline = _FakePipeline(
       db: db,

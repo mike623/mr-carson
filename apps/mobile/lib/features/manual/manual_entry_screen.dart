@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/providers.dart';
+import '../../domain/models/ai_models.dart';
 import '../../theme/app_theme.dart';
+import '../../ui/core/utils/currency_format.dart';
 import '../settings/currency_provider.dart';
 import '../shell/shell_view_model.dart';
 
@@ -9,10 +12,8 @@ import '../shell/shell_view_model.dart';
 /// hand. Mirrors the design's MANUAL ENTRY screen
 /// (`designs/mr-carson/project/Mr Carson.dc.html`, 667-771).
 ///
-/// Fidelity note: this app is a high-fidelity prototype — the Ledger renders
-/// hardcoded mock data and is NOT a DB-reactive list. Save therefore does not
-/// persist; it shows the butler toast and returns to the Ledger, matching the
-/// design prototype exactly. No DB write is performed here by design.
+/// Save persists the expense to the local DB via [AppDatabase.insertExpense];
+/// the DB-reactive Ledger (recentExpensesProvider) then shows it immediately.
 class ManualEntryScreen extends ConsumerStatefulWidget {
   const ManualEntryScreen({super.key});
 
@@ -120,11 +121,54 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
   void _cancel() =>
       ref.read(shellViewModelProvider.notifier).go(ShellScreen.ledger);
 
-  void _save() {
+  Future<void> _save() async {
     if (!_canSave) return;
-    ref.read(shellViewModelProvider.notifier)
-      ..showToast('Very good, sir.')
-      ..go(ShellScreen.ledger);
+    final notifier = ref.read(shellViewModelProvider.notifier);
+    final iso = currencyCode(ref.read(currencyProvider));
+    final category = _selectedCategory.isEmpty ? 'Other' : _selectedCategory;
+
+    final items = _particularsOpen
+        ? _items
+            .where((it) => it.name.trim().isNotEmpty && it.lineTotal > 0)
+            .map((it) => ExpenseItemDraft(
+                  name: it.name.trim(),
+                  amount: it.lineTotal,
+                  category: category,
+                ))
+            .toList()
+        : [
+            ExpenseItemDraft(
+              name: _merchant.trim(),
+              amount: _effectiveAmount,
+              category: category,
+            ),
+          ];
+
+    final draft = ExpenseDraft(
+      merchant: _merchant.trim(),
+      date: _todayIso(),
+      currency: iso,
+      total: _effectiveAmount,
+      vat: 0,
+      items: items,
+    );
+
+    try {
+      await ref.read(appDatabaseProvider).insertExpense(draft);
+      notifier
+        ..showToast('Very good, sir.')
+        ..go(ShellScreen.ledger);
+    } catch (_) {
+      notifier.showToast('Could not save the expense, sir.');
+    }
+  }
+
+  static String _todayIso() {
+    final now = DateTime.now();
+    final y = now.year.toString().padLeft(4, '0');
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   @override

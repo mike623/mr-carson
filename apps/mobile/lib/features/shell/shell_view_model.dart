@@ -146,6 +146,24 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
     });
   }
 
+  /// Surfaces a receipt-processing failure. The on-device pipeline swallows the
+  /// real cause into a generic toast; this keeps the butler line but appends the
+  /// actual error so failures are diagnosable instead of silent.
+  void _showReceiptError(String? error) {
+    final e = error ?? '';
+    // Most common cause: the lifecycle UI reached "ready" via the mock ramp
+    // while the real Gemma engine never loaded — createVisionSession throws.
+    if (e.contains('model is not loaded')) {
+      showToast('The model is not ready yet, sir. Please finish setup.');
+      return;
+    }
+    showToast(
+      e.isEmpty
+          ? 'I could not read that receipt, sir.'
+          : 'I could not read that receipt, sir. ($e)',
+    );
+  }
+
   // --- add sheet outcomes --------------------------------------------------
 
   /// "Take a photograph" — pick via camera, copy, process.
@@ -190,10 +208,10 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
         final result =
             await ref.read(receiptPipelineProvider).processReceipt(stablePath);
         if (!result.ok) {
-          showToast('I could not read that receipt, sir.');
+          _showReceiptError(result.error);
         }
-      } catch (_) {
-        showToast('I could not read that receipt, sir.');
+      } catch (e) {
+        _showReceiptError(e.toString());
       }
     }());
   }
