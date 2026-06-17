@@ -81,55 +81,11 @@
           </div>
         </div>
       </div>
-      <button onClick="{{ allowAndDownload }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.985)">Allow &amp; continue</button>
-    </div>
-    </sc-if>
-
-    <!-- step 2 — download -->
-    <sc-if value="{{ onbStep2 }}" hint-placeholder-val="{{ false }}">
-    <div style="flex:1;display:flex;flex-direction:column;text-align:center;align-items:center;animation:mcUp .45s ease both;">
-      <div style="flex:1;"></div>
-      <div style="position:relative;width:172px;height:172px;display:flex;align-items:center;justify-content:center;">
-        <svg width="172" height="172" viewBox="0 0 172 172" style="position:absolute;inset:0;transform:rotate(-90deg);">
-          <circle cx="86" cy="86" r="76" fill="none" stroke="var(--line)" stroke-width="6"/>
-          <circle cx="86" cy="86" r="76" fill="none" stroke="var(--accent)" stroke-width="6" stroke-linecap="round" stroke-dasharray="{{ ringCirc }}" stroke-dashoffset="{{ ringOffset }}" style="transition:stroke-dashoffset .3s ease;"/>
-        </svg>
-        <div style="display:flex;flex-direction:column;align-items:center;">
-          <sc-if value="{{ dlDone }}" hint-placeholder-val="{{ false }}">
-            <svg width="46" height="46" viewBox="0 0 48 48"><path d="M12 25l8 8 16-18" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </sc-if>
-          <sc-if value="{{ dlNotDone }}" hint-placeholder-val="{{ true }}">
-            <div style="font-family:'Cormorant Garamond',serif;font-size:50px;font-weight:600;line-height:1;">{{ dlPct }}</div>
-            <div style="font-size:12.5px;color:var(--ink-3);letter-spacing:0.3px;margin-top:2px;">per&nbsp;cent</div>
-          </sc-if>
-        </div>
+      <div style="display:flex;align-items:center;gap:8px;color:var(--ink-3);font-size:12.5px;margin:0 2px 14px;">
+        <span style="width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0;"></span>
+        <span>No download just yet — I come aboard only when you first call on me.</span>
       </div>
-
-      <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600;margin-top:30px;">{{ dlTitle }}</div>
-      <div style="font-size:14.5px;color:var(--ink-2);margin-top:7px;max-width:290px;line-height:1.5;">{{ dlSubtitle }}</div>
-
-      <sc-if value="{{ dlNotDone }}" hint-placeholder-val="{{ true }}">
-      <div style="width:100%;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:24px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;">
-        <div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--ink-2);">
-          <span>{{ dlMb }}</span><span>{{ dlSpeed }}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--ink-3);">
-          <span>{{ dlEta }}</span><span>One-time only</span>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;color:var(--ink-3);font-size:12.5px;margin-top:14px;">
-        <span style="width:5px;height:5px;border-radius:50%;background:var(--warn);"></span> Best done on Wi-Fi, sir.
-      </div>
-      </sc-if>
-
-      <div style="flex:1;"></div>
-
-      <sc-if value="{{ dlDone }}" hint-placeholder-val="{{ false }}">
-        <button onClick="{{ enterApp }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:600;cursor:pointer;margin-top:8px;" style-active="transform:scale(0.985)">Enter</button>
-      </sc-if>
-      <sc-if value="{{ dlNotDone }}" hint-placeholder-val="{{ true }}">
-        <button onClick="{{ togglePause }}" style="width:100%;height:54px;border:1px solid var(--line);border-radius:16px;background:transparent;color:var(--ink);font-size:16px;font-weight:600;cursor:pointer;margin-top:8px;" style-active="transform:scale(0.985)">{{ dlBtnLabel }}</button>
-      </sc-if>
+      <button onClick="{{ finishOnb }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.985)">Allow &amp; enter</button>
     </div>
     </sc-if>
 
@@ -146,17 +102,24 @@
           <span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:24px;color:var(--accent);padding-top:3px;">C</span>
         </span>
         <div>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:25px;font-weight:600;line-height:1;">Mr. Carson</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:25px;font-weight:600;line-height:1;white-space:nowrap;">Mr. Carson</div>
           <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);margin-top:3px;">
-            <span style="width:6px;height:6px;border-radius:50%;background:var(--grocery);"></span> On duty · offline
+            <span style="width:6px;height:6px;border-radius:50%;background:{{ headerDotColor }};"></span> {{ headerStatus }}
           </div>
         </div>
       </div>
-      <!-- service bell -->
-      <span style="width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
-        <svg width="19" height="19" viewBox="0 0 22 22"><path d="M4 16h14a6.5 6.5 0 0 0-6-6.48V8.2a1 1 0 1 0-2 0v1.32A6.5 6.5 0 0 0 4 16Z" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/><path d="M9.2 18.4a2 2 0 0 0 3.6 0" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/><line x1="2.5" y1="16" x2="19.5" y2="16" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
-      </span>
+      <!-- settings -->
+      <button onClick="{{ goSettings }}" style="width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;cursor:pointer;" style-hover="border-color:var(--accent)" style-active="transform:scale(0.92)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.1" stroke="var(--accent)" stroke-width="1.6"/><path d="M12 2.7v2.5M12 18.8v2.5M21.3 12h-2.5M5.2 12H2.7M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8M18.6 18.6l-1.8-1.8M7.2 7.2L5.4 5.4" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
     </div>
+    <sc-if value="{{ askBanner }}" hint-placeholder-val="{{ false }}">
+    <button onClick="{{ goModelMgmt }}" style="width:100%;text-align:left;display:flex;align-items:center;gap:11px;background:var(--accent-soft);border:none;border-bottom:1px solid var(--line);padding:11px 20px;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.997)">
+      <span style="width:16px;height:16px;border-radius:50%;border:2px solid var(--accent-soft);border-top-color:var(--accent);animation:mcSpin .8s linear infinite;flex-shrink:0;"></span>
+      <span style="flex:1;font-size:13px;color:var(--ink);font-weight:600;">Mr. Carson is preparing — {{ dlPct }}%</span>
+      <span style="font-size:12px;color:var(--accent);font-weight:600;">View</span>
+    </button>
+    </sc-if>
 
     <!-- conversation -->
     <div class="mc-scroll" style="flex:1;overflow:auto;padding:22px 18px 14px;display:flex;flex-direction:column;gap:18px;">
@@ -212,8 +175,11 @@
       </sc-for>
     </div>
 
-    <!-- suggestions + input -->
-    <div style="border-top:1px solid var(--line);background:var(--bg);padding:12px 16px 18px;">
+    <!-- footer: ready / locked / preparing -->
+    <div style="border-top:1px solid var(--line);background:var(--bg);padding:12px 16px {{ askFooterPad }};transition:padding-bottom .26s cubic-bezier(.22,.9,.3,1);">
+
+      <!-- READY — suggestions + input -->
+      <sc-if value="{{ askReady }}" hint-placeholder-val="{{ false }}">
       <sc-if value="{{ showSuggestions }}" hint-placeholder-val="{{ true }}">
       <div class="mc-scroll" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:11px;">
         <sc-for list="{{ suggestionsView }}" as="s" hint-placeholder-count="4">
@@ -222,7 +188,7 @@
       </div>
       </sc-if>
       <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:6px 6px 6px 16px;">
-        <input value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onKey }}" placeholder="Ask Mr. Carson…" style="flex:1;border:none;outline:none;background:transparent;color:var(--ink);font-size:15px;height:38px;" />
+        <input value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onKey }}" onFocus="{{ onAskFocus }}" onBlur="{{ onAskBlur }}" placeholder="Ask Mr. Carson…" style="flex:1;border:none;outline:none;background:transparent;color:var(--ink);font-size:15px;height:38px;" />
         <sc-if value="{{ streaming }}" hint-placeholder-val="{{ false }}">
           <button onClick="{{ onStop }}" style="width:38px;height:38px;border-radius:11px;border:none;background:var(--surface-2);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-active="transform:scale(0.92)">
             <span style="width:13px;height:13px;border-radius:3px;background:var(--accent);"></span>
@@ -234,6 +200,31 @@
           </button>
         </sc-if>
       </div>
+      </sc-if>
+
+      <!-- LOCKED — setup invitation -->
+      <sc-if value="{{ askLocked }}" hint-placeholder-val="{{ true }}">
+      <div style="background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:17px 17px 18px;animation:mcUp .35s ease both;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;"><span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:17px;color:var(--accent);padding-top:2px;">C</span></span>
+          <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16.5px;line-height:1.42;color:var(--ink-2);">To answer your questions, I'll need a moment to set up my mind — a one-time download. Shall I?</span>
+        </div>
+        <button onClick="{{ setupFromAsk }}" style="width:100%;height:52px;margin-top:15px;border:none;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-size:16px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="filter:brightness(1.06)" style-active="transform:scale(0.985)">Set up Mr. Carson</button>
+        <div style="display:flex;align-items:center;justify-content:center;gap:18px;margin-top:13px;color:var(--ink-3);font-size:12px;">
+          <span style="display:flex;align-items:center;gap:6px;"><span style="width:5px;height:5px;border-radius:50%;background:var(--accent);"></span>2.4 GB · one-time</span>
+          <span style="display:flex;align-items:center;gap:6px;"><span style="width:5px;height:5px;border-radius:50%;background:var(--grocery);"></span>Stays on device</span>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- PREPARING — setting up -->
+      <sc-if value="{{ askPreparing }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ goModelMgmt }}" style="display:flex;width:100%;text-align:left;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 15px;cursor:pointer;font-family:'Hanken Grotesk';animation:mcUp .35s ease both;" style-active="transform:scale(0.992)">
+        <span style="width:20px;height:20px;border-radius:50%;border:2px solid var(--accent-soft);border-top-color:var(--accent);animation:mcSpin .8s linear infinite;flex-shrink:0;"></span>
+        <span style="flex:1;min-width:0;"><span style="display:block;font-size:14.5px;font-weight:600;color:var(--ink);">Setting up my mind — {{ dlPct }}%</span><span style="display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px;">I shall be ready in a moment, sir.</span></span>
+        <span style="font-size:13px;color:var(--accent);font-weight:600;flex-shrink:0;">View</span>
+      </button>
+      </sc-if>
     </div>
   </div>
   </sc-if>
@@ -335,10 +326,18 @@
       <button style="height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.96)">Edit</button>
     </div>
     <div class="mc-scroll" style="flex:1;overflow:auto;padding:22px 18px 120px;">
-      <!-- receipt -->
+      <!-- receipt / by-hand -->
+      <sc-if value="{{ dHasReceipt }}" hint-placeholder-val="{{ true }}">
       <div style="height:158px;border-radius:18px;border:1px solid var(--line);overflow:hidden;position:relative;background:repeating-linear-gradient(135deg,var(--surface) 0 11px,var(--surface-2) 11px 22px);display:flex;align-items:center;justify-content:center;">
         <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;background:var(--bg);padding:6px 12px;border-radius:8px;border:1px solid var(--line);">receipt photo</span>
       </div>
+      </sc-if>
+      <sc-if value="{{ dIsManual }}" hint-placeholder-val="{{ false }}">
+      <div style="height:96px;border-radius:18px;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:center;gap:11px;">
+        <svg width="19" height="19" viewBox="0 0 24 24"><path d="M4 20.5l4.2-1 10-10-3.2-3.2-10 10-1 4.2Z" fill="none" stroke="var(--ink-3)" stroke-width="1.6" stroke-linejoin="round"/><path d="M13.6 5.1l3.2 3.2" stroke="var(--ink-3)" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;color:var(--ink-3);">Entered by hand, sir — no receipt.</span>
+      </div>
+      </sc-if>
       <div style="text-align:center;margin-top:22px;">
         <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600;line-height:1.05;">{{ d.merchant }}</div>
         <div style="font-size:13px;color:var(--ink-3);margin-top:4px;">{{ d.date }}</div>
@@ -349,6 +348,7 @@
         </div>
       </div>
 
+      <sc-if value="{{ dHasItems }}" hint-placeholder-val="{{ true }}">
       <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-3);margin:30px 4px 10px;">Items</div>
       <div style="background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;">
         <sc-for list="{{ d.items }}" as="it" hint-placeholder-count="3">
@@ -361,6 +361,7 @@
         <div style="display:flex;justify-content:space-between;padding:13px 16px;font-size:14px;color:var(--ink-2);border-bottom:1px solid var(--line);"><span>Service</span><span style="font-variant-numeric:tabular-nums;">{{ d.service }}</span></div>
         <div style="display:flex;justify-content:space-between;padding:15px 16px;font-size:15.5px;font-weight:700;"><span>Total</span><span style="font-variant-numeric:tabular-nums;color:var(--accent);">{{ d.total }}</span></div>
       </div>
+      </sc-if>
       <div style="display:flex;gap:9px;align-items:flex-start;margin-top:18px;padding:0 4px;">
         <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:18px;color:var(--accent);line-height:1;">“</span>
         <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:var(--ink-2);line-height:1.5;">{{ d.note }}</span>
@@ -447,18 +448,357 @@
   </div>
   </sc-if>
 
+  <!-- ============ ENGAGE · MODEL REQUIRED ============ -->
+  <sc-if value="{{ showEngage }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;flex-direction:column;height:100%;">
+    <div style="padding:56px 16px 0;display:flex;align-items:center;">
+      <button onClick="{{ dismissEngage }}" style="width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style-active="transform:scale(0.92)">
+        <svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="mc-scroll" style="flex:1;overflow:auto;display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 30px 38px;">
+      <div style="flex:1;min-height:12px;"></div>
+
+      <!-- seal / ring -->
+      <sc-if value="{{ engageIsCta }}" hint-placeholder-val="{{ true }}">
+        <div style="width:118px;height:118px;border-radius:50%;border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 8px var(--accent-soft);animation:mcUp .5s ease both;">
+          <span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:66px;color:var(--accent);line-height:1;padding-top:6px;">C</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{ engageIsProgress }}" hint-placeholder-val="{{ false }}">
+        <div style="position:relative;width:172px;height:172px;display:flex;align-items:center;justify-content:center;">
+          <svg width="172" height="172" viewBox="0 0 172 172" style="position:absolute;inset:0;transform:rotate(-90deg);">
+            <circle cx="86" cy="86" r="76" fill="none" stroke="var(--line)" stroke-width="6"/>
+            <circle cx="86" cy="86" r="76" fill="none" stroke="var(--accent)" stroke-width="6" stroke-linecap="round" stroke-dasharray="{{ ringCirc }}" stroke-dashoffset="{{ ringOffset }}" style="transition:stroke-dashoffset .3s ease;"/>
+          </svg>
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <div style="font-family:'Cormorant Garamond',serif;font-size:50px;font-weight:600;line-height:1;">{{ dlPct }}</div>
+            <div style="font-size:12.5px;color:var(--ink-3);letter-spacing:0.3px;margin-top:2px;">per&nbsp;cent</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ engageIsReady }}" hint-placeholder-val="{{ false }}">
+        <div style="position:relative;width:172px;height:172px;display:flex;align-items:center;justify-content:center;">
+          <svg width="172" height="172" viewBox="0 0 172 172" style="position:absolute;inset:0;"><circle cx="86" cy="86" r="76" fill="none" stroke="var(--accent)" stroke-width="6"/></svg>
+          <svg width="50" height="50" viewBox="0 0 48 48"><path d="M12 25l8 8 16-18" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </sc-if>
+
+      <div style="font-family:'Cormorant Garamond',serif;font-size:33px;font-weight:600;line-height:1.08;margin-top:30px;">{{ engageTitle }}</div>
+      <div style="font-size:15px;color:var(--ink-2);margin-top:10px;max-width:312px;line-height:1.55;">{{ engageSubtitle }}</div>
+
+      <!-- CTA extras -->
+      <sc-if value="{{ engageIsCta }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:flex-start;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 15px;margin-top:22px;text-align:left;max-width:330px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);flex-shrink:0;margin-top:5px;"></span>
+          <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;line-height:1.45;color:var(--ink-2);">{{ engageReason }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:22px;margin-top:20px;color:var(--ink-3);font-size:12.5px;">
+          <span style="display:flex;align-items:center;gap:6px;"><span style="width:5px;height:5px;border-radius:50%;background:var(--grocery);"></span>2.4 GB · one-time</span>
+          <span style="display:flex;align-items:center;gap:6px;"><span style="width:5px;height:5px;border-radius:50%;background:var(--transport);"></span>Stays on device</span>
+        </div>
+      </sc-if>
+
+      <!-- progress stats -->
+      <sc-if value="{{ engageIsProgress }}" hint-placeholder-val="{{ false }}">
+        <div style="width:100%;max-width:330px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:22px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--ink-2);"><span>{{ dlMb }}</span><span>{{ dlSpeed }}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--ink-3);"><span>{{ dlEta }}</span><span>One-time only</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;color:var(--ink-3);font-size:12.5px;margin-top:13px;">
+          <span style="width:5px;height:5px;border-radius:50%;background:var(--warn);"></span> Best done on Wi-Fi, sir.
+        </div>
+      </sc-if>
+
+      <div style="flex:1;min-height:24px;"></div>
+
+      <!-- actions -->
+      <sc-if value="{{ engageIsCta }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ engageModel }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.06)" style-active="transform:scale(0.985)">Engage Mr. Carson</button>
+        <button onClick="{{ dismissEngage }}" style="width:100%;height:50px;margin-top:8px;border:none;border-radius:14px;background:transparent;color:var(--ink-2);font-size:15.5px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.98)">Not just now</button>
+      </sc-if>
+      <sc-if value="{{ engageIsProgress }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ toggleModelPause }}" style="width:100%;height:54px;border:1px solid var(--line);border-radius:16px;background:transparent;color:var(--ink);font-size:16px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.985)">{{ dlBtnLabel }}</button>
+        <button onClick="{{ dismissEngage }}" style="width:100%;height:50px;margin-top:8px;border:none;border-radius:14px;background:transparent;color:var(--ink-2);font-size:15.5px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.98)">Continue in the background</button>
+      </sc-if>
+      <sc-if value="{{ engageIsReady }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ dismissEngage }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.985)">Enter</button>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ SETTINGS ============ -->
+  <sc-if value="{{ showSettings }}" hint-placeholder-val="{{ false }}" data-screen-label="Settings">
+  <div style="display:flex;flex-direction:column;height:100%;">
+    <div style="padding:58px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);background:var(--bg);">
+      <button onClick="{{ backFromSettings }}" style="width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style-active="transform:scale(0.92)">
+        <svg width="11" height="18" viewBox="0 0 12 20"><path d="M10 2L2 10l8 8" stroke="var(--ink-2)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div style="flex:1;font-size:16px;font-weight:600;">Settings</div>
+    </div>
+    <div class="mc-scroll" style="flex:1;overflow:auto;padding:22px 18px 40px;">
+
+      <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-3);margin:0 4px 12px;">Mr. Carson's mind</div>
+      <button onClick="{{ goModelMgmt }}" style="display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="border-color:var(--accent)" style-active="transform:scale(0.99)">
+        <span style="width:46px;height:46px;border-radius:13px;border:1.5px solid var(--accent);background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:27px;color:var(--accent);padding-top:3px;">C</span></span>
+        <span style="flex:1;min-width:0;"><span style="display:block;font-size:15.5px;font-weight:600;color:var(--ink);">The model</span><span style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:{{ settingsStatusColor }};margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:{{ settingsStatusColor }};flex-shrink:0;"></span>{{ settingsStatus }}</span></span>
+        <svg width="9" height="15" viewBox="0 0 10 16" style="flex-shrink:0;"><path d="M2 2l6 6-6 6" stroke="var(--ink-3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+
+      <!-- general -->
+      <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-3);margin:26px 4px 12px;">General</div>
+      <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;">
+        <span style="flex:1;min-width:0;"><span style="display:block;font-size:14.5px;color:var(--ink);">Currency</span><span style="display:block;font-size:12px;color:var(--ink-3);margin-top:2px;">For the figures you enter, sir.</span></span>
+        <div style="display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:3px;flex-shrink:0;">
+          <sc-for list="{{ currencyView }}" as="cu" hint-placeholder-count="2">
+            <button onClick="{{ cu.onClick }}" style="min-width:46px;height:34px;border:none;border-radius:8px;cursor:pointer;font-family:'Hanken Grotesk';font-size:14px;font-weight:600;background:{{ cu.bg }};color:{{ cu.color }};" style-active="transform:scale(0.95)">{{ cu.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- privacy -->
+      <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-3);margin:26px 4px 12px;">Discretion</div>
+      <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:4px 16px;">
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--grocery);flex-shrink:0;"></span>
+          <span style="flex:1;font-size:14.5px;color:var(--ink);">Everything stays on this phone</span>
+          <span style="font-size:12.5px;color:var(--ink-3);">Always</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 0;">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--transport);flex-shrink:0;"></span>
+          <span style="flex:1;font-size:14.5px;color:var(--ink);">No account, no cloud, no sign-in</span>
+          <span style="font-size:12.5px;color:var(--ink-3);">—</span>
+        </div>
+      </div>
+
+      <!-- appearance / themes -->
+      <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-3);margin:26px 4px 12px;">Livery</div>
+      <div style="display:flex;gap:11px;">
+        <sc-for list="{{ themesView }}" as="t" hint-placeholder-count="3">
+          <button onClick="{{ t.onClick }}" style="flex:1;background:var(--surface);border:{{ t.border }};border-radius:16px;padding:13px 10px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:9px;box-shadow:{{ t.ring }};" style-active="transform:scale(0.97)">
+            <span style="width:34px;height:34px;border-radius:50%;background:{{ t.swatch }};border:1px solid var(--line);"></span>
+            <span style="font-size:12px;font-weight:600;color:var(--ink-2);text-align:center;line-height:1.2;">{{ t.label }}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="text-align:center;font-size:11.5px;color:var(--ink-3);margin-top:28px;letter-spacing:0.3px;">Mr. Carson · on-device · v1.0</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ MODEL MANAGEMENT ============ -->
+  <sc-if value="{{ showModelMgmt }}" hint-placeholder-val="{{ false }}" data-screen-label="Model Management">
+  <div style="display:flex;flex-direction:column;height:100%;">
+    <div style="padding:58px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);background:var(--bg);">
+      <button onClick="{{ backFromModelMgmt }}" style="width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style-active="transform:scale(0.92)">
+        <svg width="11" height="18" viewBox="0 0 12 20"><path d="M10 2L2 10l8 8" stroke="var(--ink-2)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div style="flex:1;font-size:16px;font-weight:600;">The model</div>
+    </div>
+    <div class="mc-scroll" style="flex:1;overflow:auto;padding:26px 18px 40px;display:flex;flex-direction:column;align-items:center;text-align:center;">
+
+      <sc-if value="{{ mmShowSeal }}" hint-placeholder-val="{{ true }}">
+        <div style="width:96px;height:96px;border-radius:26px;border:1.5px solid var(--accent);background:var(--accent-soft);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 7px var(--accent-soft);animation:mcUp .45s ease both;">
+          <span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:54px;color:var(--accent);line-height:1;padding-top:5px;">C</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{ mDownloading }}" hint-placeholder-val="{{ false }}">
+        <div style="position:relative;width:152px;height:152px;display:flex;align-items:center;justify-content:center;">
+          <svg width="152" height="152" viewBox="0 0 172 172" style="position:absolute;inset:0;transform:rotate(-90deg);">
+            <circle cx="86" cy="86" r="76" fill="none" stroke="var(--line)" stroke-width="6"/>
+            <circle cx="86" cy="86" r="76" fill="none" stroke="var(--accent)" stroke-width="6" stroke-linecap="round" stroke-dasharray="{{ ringCirc }}" stroke-dashoffset="{{ ringOffset }}" style="transition:stroke-dashoffset .3s ease;"/>
+          </svg>
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <div style="font-family:'Cormorant Garamond',serif;font-size:44px;font-weight:600;line-height:1;">{{ dlPct }}</div>
+            <div style="font-size:11.5px;color:var(--ink-3);margin-top:1px;">per&nbsp;cent</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;line-height:1.12;margin-top:22px;">{{ mmTitle }}</div>
+      <div style="font-size:14.5px;color:var(--ink-2);line-height:1.55;margin-top:9px;max-width:300px;">{{ mmSubtitle }}</div>
+
+      <div style="display:inline-flex;align-items:center;gap:10px;margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 14px;">
+        <span style="width:8px;height:8px;border-radius:3px;background:var(--accent);"></span>
+        <span style="font-size:13px;font-weight:600;color:var(--ink);">Gemma · on-device</span>
+        <span style="width:1px;height:13px;background:var(--line);"></span>
+        <span style="font-size:13px;color:var(--ink-3);">~2.4 GB</span>
+      </div>
+
+      <sc-if value="{{ mDownloading }}" hint-placeholder-val="{{ false }}">
+        <div style="width:100%;max-width:340px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:18px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--ink-2);"><span>{{ dlMb }}</span><span>{{ dlSpeed }}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--ink-3);"><span>{{ dlEta }}</span><span>One-time only</span></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ mError }}" hint-placeholder-val="{{ false }}">
+        <div style="width:100%;max-width:340px;background:var(--warn-soft);border:1px solid var(--warn-soft);border-radius:14px;padding:12px 14px;margin-top:18px;text-align:left;box-sizing:border-box;">
+          <div style="font-size:11.5px;font-family:ui-monospace,Menlo,monospace;color:var(--warn);line-height:1.55;">{{ mmError }}</div>
+        </div>
+      </sc-if>
+
+      <div style="flex:1;min-height:22px;"></div>
+
+      <sc-if value="{{ mAbsent }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ engageModel }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:600;cursor:pointer;" style-hover="filter:brightness(1.06)" style-active="transform:scale(0.985)">Download now</button>
+        <div style="display:flex;align-items:center;gap:8px;color:var(--ink-3);font-size:12.5px;margin-top:14px;"><span style="width:5px;height:5px;border-radius:50%;background:var(--warn);"></span> A one-time download. Best done on Wi-Fi, sir.</div>
+      </sc-if>
+      <sc-if value="{{ mDownloading }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:11px;width:100%;">
+          <button onClick="{{ toggleModelPause }}" style="flex:1;height:54px;border:1px solid var(--line);border-radius:16px;background:transparent;color:var(--ink);font-size:16px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.98)">{{ dlBtnLabel }}</button>
+          <button onClick="{{ removeModel }}" style="flex:1;height:54px;border:1px solid var(--line);border-radius:16px;background:transparent;color:var(--warn);font-size:16px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.98)">Cancel</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{ mReady }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ askRemove }}" style="width:100%;height:56px;border:1px solid var(--warn-soft);border-radius:16px;background:var(--warn-soft);color:var(--warn);font-size:16.5px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.985)">Remove download</button>
+      </sc-if>
+      <sc-if value="{{ mError }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ engageModel }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.985)">Try again</button>
+      </sc-if>
+
+      <div style="font-size:11.5px;color:var(--ink-3);line-height:1.55;margin-top:18px;max-width:300px;">Hosted by us and fetched once — no account, no token, nothing to sign into.</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ MANUAL ENTRY ============ -->
+  <sc-if value="{{ showManual }}" hint-placeholder-val="{{ false }}" data-screen-label="Manual Entry">
+  <div style="display:flex;flex-direction:column;height:100%;">
+    <div style="padding:58px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);background:var(--bg);">
+      <button onClick="{{ cancelManual }}" style="width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style-active="transform:scale(0.92)">
+        <svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div style="flex:1;"><div style="font-size:16px;font-weight:600;">By hand</div><div style="font-size:12px;color:var(--ink-3);">No download needed, sir</div></div>
+    </div>
+    <div class="mc-scroll" style="flex:1;overflow:auto;padding:18px 18px 130px;">
+      <div style="display:flex;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 15px;animation:mcUp .4s ease both;">
+        <span style="width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:17px;color:var(--accent);padding-top:2px;">C</span></span>
+        <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15.5px;line-height:1.45;color:var(--ink-2);">The figures whenever you're ready, sir — I shall file them at once.</span>
+      </div>
+
+      <div style="margin-top:18px;display:flex;flex-direction:column;gap:13px;">
+        <!-- merchant -->
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+          <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);">Merchant</div>
+          <div style="font-size:12px;color:var(--ink-3);margin-top:2px;font-style:italic;font-family:'Cormorant Garamond',serif;">Where was this, sir?</div>
+          <input value="{{ mfMerchant }}" onChange="{{ setManualMerchant }}" placeholder="The establishment…" style="width:100%;border:none;outline:none;background:transparent;color:var(--ink);font-size:18px;font-weight:600;font-family:'Hanken Grotesk';margin-top:8px;" />
+        </div>
+
+        <!-- amount + date -->
+        <div style="display:flex;gap:13px;">
+          <div style="flex:1.4;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+            <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;">Amount</div>
+            <sc-if value="{{ manualItemsClosed }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:baseline;gap:4px;">
+                <span style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--ink-3);">{{ currencySymbol }}</span>
+                <input value="{{ mfAmount }}" onChange="{{ setManualAmount }}" placeholder="0.00" inputMode="decimal" style="flex:1;min-width:0;border:none;outline:none;background:transparent;color:var(--ink);font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;" />
+              </div>
+            </sc-if>
+            <sc-if value="{{ manualItemsOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;">{{ manualTotalDisplay }}</div>
+              <div style="font-size:11px;color:var(--accent);margin-top:4px;">reconciled from the particulars</div>
+            </sc-if>
+          </div>
+          <div style="flex:1;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+            <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;">Date</div>
+            <div style="font-size:15.5px;font-weight:600;line-height:1.2;">{{ mfDate }}</div>
+            <div style="font-size:11px;color:var(--ink-3);margin-top:3px;">Today</div>
+          </div>
+        </div>
+
+        <!-- category -->
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+          <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px;">Category</div>
+          <div class="mc-scroll" style="display:flex;gap:8px;overflow-x:auto;">
+            <sc-for list="{{ manualCategoriesView }}" as="c" hint-placeholder-count="5">
+              <button onClick="{{ c.onClick }}" style="flex:0 0 auto;white-space:nowrap;font-size:13.5px;padding:8px 14px;border-radius:11px;cursor:pointer;font-family:'Hanken Grotesk';font-weight:600;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.color }};" style-active="transform:scale(0.96)">{{ c.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- line items -->
+        <sc-if value="{{ manualItemsClosed }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ openParticulars }}" style="display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:50px;border:1.5px dashed var(--line);border-radius:16px;background:transparent;color:var(--ink-2);font-size:14.5px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="border-color:var(--accent);color:var(--accent)" style-active="transform:scale(0.99)">
+            <svg width="15" height="15" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Add the particulars
+          </button>
+        </sc-if>
+        <sc-if value="{{ manualItemsOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px;">
+              <span style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);">The particulars</span>
+              <button onClick="{{ closeParticulars }}" style="border:none;background:transparent;color:var(--ink-3);font-size:12.5px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.95)">Clear</button>
+            </div>
+            <sc-for list="{{ manualItemsView }}" as="it" hint-placeholder-count="1">
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 14px 10px 16px;border-top:1px solid var(--line);">
+                <input value="{{ it.name }}" onChange="{{ it.onName }}" placeholder="Item" style="flex:1;min-width:0;border:none;outline:none;background:transparent;color:var(--ink);font-size:15px;font-family:'Hanken Grotesk';" />
+                <span style="font-size:13px;color:var(--ink-3);">×</span>
+                <input value="{{ it.qty }}" onChange="{{ it.onQty }}" inputMode="numeric" style="width:26px;text-align:center;border:none;outline:none;background:transparent;color:var(--ink-2);font-size:15px;font-family:'Hanken Grotesk';" />
+                <span style="font-size:14px;color:var(--ink-3);">{{ currencySymbol }}</span>
+                <input value="{{ it.price }}" onChange="{{ it.onPrice }}" placeholder="0.00" inputMode="decimal" style="width:58px;text-align:right;border:none;outline:none;background:transparent;color:var(--ink);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;font-family:'Hanken Grotesk';" />
+                <button onClick="{{ it.onRemove }}" style="width:24px;height:24px;flex-shrink:0;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-active="transform:scale(0.9)">
+                  <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--ink-3)" stroke-width="1.7" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+            </sc-for>
+            <button onClick="{{ addManualItem }}" style="display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;border:none;border-top:1px solid var(--line);background:transparent;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.99)">
+              <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Add another
+            </button>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-top:1px solid var(--line);background:var(--bg);">
+              <span style="font-size:14px;font-weight:600;color:var(--ink);">Subtotal</span>
+              <span style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);">{{ manualTotalDisplay }}</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- note -->
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+          <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);">Note <span style="color:var(--ink-3);opacity:0.7;text-transform:none;letter-spacing:0;">· optional</span></div>
+          <input value="{{ mfNote }}" onChange="{{ setManualNote }}" placeholder="A word, if you like…" style="width:100%;border:none;outline:none;background:transparent;color:var(--ink);font-size:15px;font-family:'Hanken Grotesk';margin-top:8px;" />
+        </div>
+      </div>
+    </div>
+
+    <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 18px 30px;background:linear-gradient(to top,var(--bg) 70%,transparent);display:flex;gap:12px;">
+      <button onClick="{{ cancelManual }}" style="flex:1;height:54px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font-size:16px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.98)">Cancel</button>
+      <button onClick="{{ saveManual }}" style="flex:2;height:54px;border-radius:16px;border:none;background:{{ manualSaveBg }};color:{{ manualSaveColor }};font-size:16px;font-weight:600;cursor:{{ manualSaveCursor }};font-family:'Hanken Grotesk';" style-active="transform:scale(0.98)">Save expense</button>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ REMOVE CONFIRM DIALOG ============ -->
+  <sc-if value="{{ showRemoveDialog }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ cancelRemove }}" style="position:absolute;inset:0;z-index:120;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:30px;animation:mcFade .2s ease both;">
+    <div onClick="{{ stop }}" style="width:100%;max-width:330px;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:24px 22px;animation:mcUp .28s cubic-bezier(.22,.9,.3,1) both;">
+      <div style="width:52px;height:52px;border-radius:15px;background:var(--warn-soft);display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M5 7h14M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M7 7l1 12.5A1.5 1.5 0 0 0 9.5 21h5a1.5 1.5 0 0 0 1.5-1.5L17 7" fill="none" stroke="var(--warn)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;line-height:1.1;">Send me ashore, sir?</div>
+      <div style="font-size:14.5px;color:var(--ink-2);line-height:1.55;margin-top:10px;">Removing my mind frees <strong style="color:var(--ink);">2.4 GB</strong>. Your ledger remains untouched — but asking questions and reading receipts will need a one-time re-download.</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:22px;">
+        <button onClick="{{ confirmRemoveModel }}" style="width:100%;height:52px;border:none;border-radius:14px;background:var(--warn);color:var(--bg);font-size:16px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.985)">Remove · free 2.4 GB</button>
+        <button onClick="{{ cancelRemove }}" style="width:100%;height:50px;border:none;border-radius:14px;background:transparent;color:var(--ink-2);font-size:15.5px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.98)">Keep him aboard</button>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ BOTTOM NAV ============ -->
   <sc-if value="{{ showNav }}" hint-placeholder-val="{{ false }}">
-  <div style="position:absolute;left:0;right:0;bottom:0;height:96px;display:flex;align-items:flex-start;justify-content:center;gap:0;padding-top:8px;pointer-events:none;">
-    <div style="pointer-events:auto;display:flex;align-items:center;gap:34px;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:11px 26px;box-shadow:0 12px 30px rgba(0,0,0,0.4);">
-      <button onClick="{{ goAsk }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:46px;padding:0;">
+  <div style="position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;justify-content:flex-end;pointer-events:none;animation:mcFade .22s ease both;">
+    <div style="pointer-events:auto;display:flex;align-items:center;justify-content:space-around;background:var(--surface);border-top:1px solid var(--line);padding:12px 24px 30px;box-shadow:0 -8px 24px rgba(0,0,0,0.28);">
+      <button onClick="{{ goAsk }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;padding:0;">
         <svg width="23" height="23" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="4" fill="none" stroke="{{ askColor }}" stroke-width="1.8"/><path d="M8 20l4-3" stroke="{{ askColor }}" stroke-width="1.8" stroke-linecap="round"/><circle cx="8.5" cy="10.5" r="1.1" fill="{{ askColor }}"/><circle cx="12" cy="10.5" r="1.1" fill="{{ askColor }}"/><circle cx="15.5" cy="10.5" r="1.1" fill="{{ askColor }}"/></svg>
         <span style="font-size:10.5px;font-weight:600;color:{{ askColor }};">Ask</span>
       </button>
-      <button onClick="{{ goAdd }}" style="background:var(--accent);border:none;cursor:pointer;width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:-2px;box-shadow:0 6px 16px var(--accent-soft);" style-active="transform:scale(0.93)">
+      <button onClick="{{ goAdd }}" style="background:var(--accent);border:none;cursor:pointer;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:-26px;box-shadow:0 8px 20px var(--accent-soft);flex-shrink:0;" style-active="transform:scale(0.93)">
         <svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"/></svg>
       </button>
-      <button onClick="{{ goExpenses }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:46px;padding:0;position:relative;">
+      <button onClick="{{ goExpenses }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;padding:0;position:relative;">
         <svg width="23" height="23" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9" stroke="{{ expColor }}" stroke-width="1.8" stroke-linecap="round"/></svg>
         <sc-if value="{{ hasPending }}" hint-placeholder-val="{{ false }}">
           <span style="position:absolute;top:-3px;right:4px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:1.5px solid var(--surface);"></span>
@@ -475,22 +815,37 @@
     <div onClick="{{ stop }}" style="background:var(--surface);border-top:1px solid var(--line);border-radius:26px 26px 0 0;padding:12px 18px 34px;animation:mcUp .3s cubic-bezier(.22,.9,.3,1) both;">
       <div style="width:38px;height:4px;border-radius:3px;background:var(--ink-3);opacity:0.5;margin:0 auto 16px;"></div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;line-height:1;">Add an expense</div>
-      <div style="font-size:13.5px;color:var(--ink-3);margin-top:5px;">How shall I receive the receipt, sir?</div>
+      <div style="font-size:13.5px;color:var(--ink-3);margin-top:5px;">How shall we record it, sir?</div>
+      <sc-if value="{{ sheetNeedsModel }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;align-items:flex-start;gap:9px;background:var(--accent-soft);border:1px solid var(--line);border-radius:13px;padding:11px 13px;margin-top:14px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);flex-shrink:0;margin-top:4px;"></span>
+        <span style="font-size:12.5px;color:var(--ink-2);line-height:1.45;">Entering by hand needs nothing of me, sir. To <em>read</em> a receipt I must first come aboard — a one-time 2.4 GB download.</span>
+      </div>
+      </sc-if>
 
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px;">
+        <button onClick="{{ openManual }}" style="display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:15px 16px;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="border-color:var(--accent)" style-active="transform:scale(0.99)">
+          <span style="width:44px;height:44px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="21" height="21" viewBox="0 0 24 24"><path d="M4 20.5l4.2-1 10-10-3.2-3.2-10 10-1 4.2Z" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><path d="M13.6 5.1l3.2 3.2" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </span>
+          <span style="flex:1;"><span style="display:block;font-size:16px;font-weight:600;color:var(--ink);">Enter manually</span><span style="display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px;">Tell me the figures yourself, sir</span></span>
+          <svg width="9" height="15" viewBox="0 0 10 16" style="flex-shrink:0;"><path d="M2 2l6 6-6 6" stroke="var(--ink-3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <button onClick="{{ takePhoto }}" style="display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:15px 16px;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="border-color:var(--accent)" style-active="transform:scale(0.99)">
           <span style="width:44px;height:44px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <svg width="22" height="20" viewBox="0 0 24 22"><rect x="2" y="5" width="20" height="14" rx="3.5" fill="none" stroke="var(--accent)" stroke-width="1.7"/><circle cx="12" cy="12" r="4" fill="none" stroke="var(--accent)" stroke-width="1.7"/><path d="M8 5l1.7-2.6h4.6L16 5" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linejoin="round"/></svg>
           </span>
-          <span style="flex:1;"><span style="display:block;font-size:16px;font-weight:600;color:var(--ink);">Take a photograph</span><span style="display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px;">Capture a receipt this instant</span></span>
-          <svg width="9" height="15" viewBox="0 0 10 16" style="flex-shrink:0;"><path d="M2 2l6 6-6 6" stroke="var(--ink-3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="flex:1;"><span style="display:block;font-size:16px;font-weight:600;color:var(--ink);">Take a photograph</span><span style="display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px;">Capture a receipt; I shall read it</span></span>
+          <sc-if value="{{ sheetNeedsModel }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--ink-3);background:var(--surface-2);padding:5px 9px;border-radius:8px;flex-shrink:0;"><svg width="9" height="11" viewBox="0 0 10 12"><rect x="1.4" y="5" width="7.2" height="6" rx="1.3" fill="none" stroke="var(--ink-3)" stroke-width="1.2"/><path d="M3 5V3.6a2 2 0 0 1 4 0V5" fill="none" stroke="var(--ink-3)" stroke-width="1.2"/></svg>Setup</span></sc-if>
+          <sc-if value="{{ sheetReady }}" hint-placeholder-val="{{ false }}"><svg width="9" height="15" viewBox="0 0 10 16" style="flex-shrink:0;"><path d="M2 2l6 6-6 6" stroke="var(--ink-3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></sc-if>
         </button>
         <button onClick="{{ uploadReceipt }}" style="display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:15px 16px;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="border-color:var(--accent)" style-active="transform:scale(0.99)">
           <span style="width:44px;height:44px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="var(--accent)" stroke-width="1.7"/><path d="M3 16l5-5 4 4 3-3 6 6" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8.5" cy="9" r="1.6" fill="var(--accent)"/></svg>
           </span>
           <span style="flex:1;"><span style="display:block;font-size:16px;font-weight:600;color:var(--ink);">Upload from library</span><span style="display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px;">I shall read it in the background</span></span>
-          <svg width="9" height="15" viewBox="0 0 10 16" style="flex-shrink:0;"><path d="M2 2l6 6-6 6" stroke="var(--ink-3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <sc-if value="{{ sheetNeedsModel }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--ink-3);background:var(--surface-2);padding:5px 9px;border-radius:8px;flex-shrink:0;"><svg width="9" height="11" viewBox="0 0 10 12"><rect x="1.4" y="5" width="7.2" height="6" rx="1.3" fill="none" stroke="var(--ink-3)" stroke-width="1.2"/><path d="M3 5V3.6a2 2 0 0 1 4 0V5" fill="none" stroke="var(--ink-3)" stroke-width="1.2"/></svg>Setup</span></sc-if>
+          <sc-if value="{{ sheetReady }}" hint-placeholder-val="{{ false }}"><svg width="9" height="15" viewBox="0 0 10 16" style="flex-shrink:0;"><path d="M2 2l6 6-6 6" stroke="var(--ink-3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></sc-if>
         </button>
       </div>
       <button onClick="{{ closeSheet }}" style="width:100%;height:50px;margin-top:14px;border-radius:14px;border:none;background:transparent;color:var(--ink-2);font-size:15.5px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.98)">Not just now</button>
@@ -551,10 +906,11 @@ class Component extends DCLogic {
 
   state = {
     onboarded: false, onbStep: 0,
-    dl: { pct: 0, paused: false, done: false },
+    model: { status: 'absent', pct: 0, paused: false },
+    pendingAction: null, pendingQuestion: null, prevScreen: 'ask',
     screen: 'ask',
     theme: 'brass',
-    messages: [], draft: '', streaming: false, chartGrown: false,
+    messages: [], draft: '', streaming: false, chartGrown: false, askFocused: false,
     detailId: 'wolseley', savedNero: false,
     confirm: {
       merchant: { val: 'Caffè Nero', low: true },
@@ -564,7 +920,12 @@ class Component extends DCLogic {
     editing: null, editValue: '',
     toast: '', showToast: false,
     sheet: false, pending: [], reviewingId: null,
+    currency: '£', manualIds: [], confirmRemove: false, manualReturn: 'expenses',
+    manual: { merchant: '', amount: '', date: '14 June 2026', category: 'Dining', itemsOpen: false, items: [{ name: '', qty: '1', price: '' }], note: '' },
   };
+  _freshManual = () => ({ merchant: '', amount: '', date: '14 June 2026', category: 'Dining', itemsOpen: false, items: [{ name: '', qty: '1', price: '' }], note: '' });
+  _catColor = (cat) => ({ Dining: 'var(--accent)', Groceries: 'var(--grocery)', Transport: 'var(--transport)', Household: 'var(--house)', Other: 'var(--ink-3)' }[cat] || 'var(--accent)');
+  _manualSubtotal = (m) => m.items.reduce((sum, it) => sum + (parseFloat(it.price) || 0), 0);
 
   _draftFor = () => ({
     merchant: { val: 'Caffè Nero', low: true },
@@ -585,37 +946,120 @@ class Component extends DCLogic {
 
   // ---- onboarding ----
   beginOnb = () => this.setState({ onbStep: 1 });
-  allowAndDownload = () => { this.setState({ onbStep: 2 }); this.startDownload(); };
-  startDownload = () => {
+  finishOnb = () => this.setState({ onboarded: true, screen: 'ask' });
+
+  // ---- model lifecycle (deferred — fetched only when first needed) ----
+  engageModel = () => {
+    if (this.state.model.status === 'ready') { this.onModelReady(); return; }
+    this.setState(s => ({ model: { ...s.model, status: 'downloading', paused: false } }));
+    this.runDownload();
+  };
+  runDownload = () => {
     clearInterval(this._dlTimer);
     this._dlTimer = setInterval(() => {
       this.setState(s => {
-        if (s.dl.paused || s.dl.done) return null;
-        let pct = s.dl.pct + 0.7 + Math.random() * 1.3;
-        if (pct >= 100) { pct = 100; clearInterval(this._dlTimer); return { dl: { ...s.dl, pct: 100, done: true } }; }
-        return { dl: { ...s.dl, pct } };
+        if (s.model.status !== 'downloading' || s.model.paused) return null;
+        let pct = s.model.pct + 0.7 + Math.random() * 1.3;
+        if (pct >= 100) { clearInterval(this._dlTimer); setTimeout(this.onModelReady, 750); return { model: { status: 'ready', pct: 100, paused: false } }; }
+        return { model: { ...s.model, pct } };
       });
     }, 110);
   };
-  togglePause = () => this.setState(s => ({ dl: { ...s.dl, paused: !s.dl.paused } }));
-  enterApp = () => this.setState({ onboarded: true, screen: 'ask' });
+  toggleModelPause = () => this.setState(s => ({ model: { ...s.model, paused: !s.model.paused } }));
+  removeModel = () => {
+    clearInterval(this._dlTimer);
+    this.setState({ model: { status: 'absent', pct: 0, paused: false } });
+    this.toast('Removed. 2.4 GB reclaimed, sir.');
+  };
+  // called once the model finishes; resumes whatever the user was trying to do
+  onModelReady = () => {
+    const { pendingAction: pa, pendingQuestion: pq } = this.state;
+    this.setState({ pendingAction: null, pendingQuestion: null });
+    this.toast('Engaged. At your service, sir.');
+    if (pa === 'ask' && pq) { this.setState({ screen: 'ask' }); setTimeout(() => this.send(pq), 320); }
+    else if (pa === 'photo') { this.setState({ confirm: this._draftFor(), reviewingId: null, editing: null, screen: 'confirm' }); }
+    else if (pa === 'upload') { this.setState({ screen: 'expenses' }); this.beginUpload(); }
+    else if (this.state.screen === 'engage') { this.setState({ screen: 'ask' }); }
+  };
+  // returns true if the model is ready; otherwise routes to the engage screen
+  requireModel = (action, question) => {
+    if (this.state.model.status === 'ready') return true;
+    this.setState({ pendingAction: action, pendingQuestion: question || null, sheet: false, screen: 'engage' });
+    return false;
+  };
+  dismissEngage = () => this.setState(s => ({ screen: s.model.status === 'ready' ? 'ask' : (s.prevScreen || 'ask'), pendingAction: null, pendingQuestion: null }));
 
   // ---- nav ----
-  go = (screen) => this.setState({ screen });
+  _overlayScreens = ['engage', 'manage', 'settings', 'modelmgmt', 'manual'];
+  _isTab = (sc) => sc === 'ask' || sc === 'expenses' || sc === 'detail';
+  go = (screen) => this.setState(s => ({ prevScreen: this._overlayScreens.includes(s.screen) ? s.prevScreen : s.screen, screen }));
   goAsk = () => this.go('ask');
   goExpenses = () => this.go('expenses');
   goAdd = () => this.setState({ sheet: true });
   backToExpenses = () => this.go('expenses');
   openDetail = (id) => this.setState({ detailId: id, screen: 'detail' });
+  goSettings = () => this.go('settings');
+  backFromSettings = () => this.setState(s => ({ screen: s.prevScreen || 'ask' }));
+  goModelMgmt = () => this.setState(s => ({ prevScreen: this._isTab(s.screen) ? s.screen : s.prevScreen, screen: 'modelmgmt' }));
+  backFromModelMgmt = () => this.setState({ screen: 'settings' });
+  setupFromAsk = () => this.requireModel('ask');
+  setCurrency = (sym) => this.setState({ currency: sym });
+
+  // ---- model removal (confirm) ----
+  askRemove = () => this.setState({ confirmRemove: true });
+  cancelRemove = () => this.setState({ confirmRemove: false });
+  confirmRemoveModel = () => { this.setState({ confirmRemove: false }); this.removeModel(); };
+
+  // ---- manual entry ----
+  openManual = () => this.setState(s => ({ sheet: false, manualReturn: this._isTab(s.screen) ? s.screen : 'expenses', manual: this._freshManual(), screen: 'manual' }));
+  cancelManual = () => this.setState(s => ({ screen: s.manualReturn || 'expenses' }));
+  setManualMerchant = (e) => { const v = e.target.value; this.setState(s => ({ manual: { ...s.manual, merchant: v } })); };
+  setManualAmount = (e) => { const v = e.target.value; this.setState(s => ({ manual: { ...s.manual, amount: v } })); };
+  setManualNote = (e) => { const v = e.target.value; this.setState(s => ({ manual: { ...s.manual, note: v } })); };
+  setManualCat = (cat) => this.setState(s => ({ manual: { ...s.manual, category: cat } }));
+  openParticulars = () => this.setState(s => ({ manual: { ...s.manual, itemsOpen: true, items: s.manual.items.length ? s.manual.items : [{ name: '', qty: '1', price: '' }] } }));
+  closeParticulars = () => this.setState(s => ({ manual: { ...s.manual, itemsOpen: false } }));
+  addManualItem = () => this.setState(s => ({ manual: { ...s.manual, items: [...s.manual.items, { name: '', qty: '1', price: '' }] } }));
+  removeManualItem = (i) => this.setState(s => { const items = s.manual.items.filter((_, idx) => idx !== i); return { manual: { ...s.manual, items: items.length ? items : [{ name: '', qty: '1', price: '' }] } }; });
+  setManualItem = (i, field, val) => this.setState(s => ({ manual: { ...s.manual, items: s.manual.items.map((it, idx) => idx === i ? { ...it, [field]: val } : it) } }));
+  saveManual = () => {
+    const s = this.state, m = s.manual, sym = s.currency;
+    const useItems = m.itemsOpen && this._manualSubtotal(m) > 0;
+    const totalNum = useItems ? this._manualSubtotal(m) : (parseFloat(m.amount) || 0);
+    if (!m.merchant.trim() || totalNum <= 0) return;
+    const id = 'm' + Date.now();
+    const items = useItems
+      ? m.items.filter(it => (it.name || '').trim() || parseFloat(it.price))
+          .map(it => ({ name: (it.name || '').trim() || 'Item', qty: '×' + (parseInt(it.qty) || 1), price: sym + (parseFloat(it.price) || 0).toFixed(2) }))
+      : [];
+    const totalStr = sym + totalNum.toFixed(2);
+    this._expenses[id] = {
+      merchant: m.merchant.trim(), cat: m.category, date: m.date, total: totalStr,
+      initial: (m.merchant.trim()[0] || '·').toUpperCase(), color: this._catColor(m.category),
+      items, subtotal: totalStr, service: sym + '0.00',
+      note: (m.note || '').trim() || 'Entered by hand, sir. Filed and forgotten.', isManual: true,
+    };
+    this.setState(s2 => ({ manualIds: [id, ...s2.manualIds], screen: 'expenses' }));
+    this.toast('Very good, sir.');
+  };
 
   // ---- add sheet / capture ----
   closeSheet = () => this.setState({ sheet: false });
   stop = (e) => { if (e && e.stopPropagation) e.stopPropagation(); };
-  takePhoto = () => { this.setState({ sheet: false, confirm: this._draftFor(), reviewingId: null, editing: null, screen: 'confirm' }); };
+  takePhoto = () => {
+    this.setState({ sheet: false });
+    if (!this.requireModel('photo')) return;
+    this.setState({ confirm: this._draftFor(), reviewingId: null, editing: null, screen: 'confirm' });
+  };
   uploadReceipt = () => {
+    this.setState({ sheet: false });
+    if (!this.requireModel('upload')) return;
+    this.beginUpload();
+  };
+  beginUpload = () => {
     const id = 'p' + Date.now();
     this.setState(s => ({
-      sheet: false, screen: 'expenses',
+      screen: 'expenses',
       pending: [ { id, status: 'processing', pct: 0, stage: 'Reading the receipt…' }, ...s.pending ],
     }));
     this.toast('Very good, sir. Reading it in the background.');
@@ -644,6 +1088,8 @@ class Component extends DCLogic {
   };
 
   // ---- chat ----
+  onAskFocus = () => this.setState({ askFocused: true });
+  onAskBlur = () => this.setState({ askFocused: false });
   onDraft = (e) => this.setState({ draft: e.target.value });
   onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); this.sendDraft(); } };
   sendDraft = () => { const t = this.state.draft.trim(); if (t && !this.state.streaming) this.send(t); };
@@ -670,6 +1116,7 @@ class Component extends DCLogic {
 
   send = (prompt) => {
     if (this.state.streaming) return;
+    if (this.state.model.status !== 'ready') { this.requireModel('ask', prompt); return; }
     const uid = 'u' + Date.now();
     const cid = 'c' + Date.now();
     this._sid = cid;
@@ -729,12 +1176,30 @@ class Component extends DCLogic {
     const onboarding = !s.onboarded;
     const inApp = (sc) => s.onboarded && s.screen === sc;
 
-    // download labels
-    const pct = s.dl.pct;
+    // ---- model state ----
+    const model = s.model;
+    const pct = model.pct;
     const circ = 2 * Math.PI * 76;
     const mb = Math.round(2438 * pct / 100).toLocaleString('en-GB');
     const etaSec = Math.max(1, Math.round((100 - pct) * 0.55));
     const eta = pct >= 100 ? 'Complete' : (etaSec > 60 ? 'about ' + Math.ceil(etaSec / 60) + ' min remaining' : 'about ' + etaSec + 's remaining');
+    const mReady = model.status === 'ready';
+    const mDownloading = model.status === 'downloading';
+    const mAbsent = model.status === 'absent';
+    // engage screen mode: 'cta' | 'progress' | 'ready'
+    const engageMode = mReady ? 'ready' : (mDownloading ? 'progress' : 'cta');
+    const engageTitle = mReady ? 'At your post.' : (mDownloading ? (model.paused ? 'Paused, sir.' : 'A moment while I prepare.') : 'Shall I prepare myself, sir?');
+    const engageSubtitle = mReady
+      ? 'Mr. Carson is ready. The floor is yours.'
+      : (mDownloading
+        ? 'Reading myself onto your device — you may carry on; I shall be along shortly.'
+        : 'To answer your questions and read your receipts, I must first come aboard — a one-time download of roughly 2.4 GB, kept entirely on this device.');
+    // contextual line for WHY the gate appeared
+    const engageReason = s.pendingAction === 'ask' ? 'You asked a question — allow me a moment to be ready for it.'
+      : (s.pendingAction === 'photo' || s.pendingAction === 'upload') ? 'A receipt awaits — I must be engaged before I can read it.'
+      : 'I keep everything on your phone; nothing is ever sent away.';
+    const headerStatus = mReady ? 'On duty · offline' : (mDownloading ? 'Preparing · ' + Math.round(pct) + '%' : 'Awaiting your word');
+    const headerDotColor = mReady ? 'var(--grocery)' : (mDownloading ? 'var(--accent)' : 'var(--ink-3)');
 
     // messages
     const messagesView = s.messages.map(m => {
@@ -758,10 +1223,51 @@ class Component extends DCLogic {
     const legend = this._chart.map(r => ({ label: r.label, color: r.color, amount: '£' + Math.round(r.amount) }));
     const donut = 'conic-gradient(var(--accent) 0 32%, var(--grocery) 0 57%, var(--house) 0 74%, var(--transport) 0 89%, var(--ink-3) 0 100%)';
 
-    const order = s.savedNero ? ['nero', 'wolseley', 'waitrose', 'uber', 'fortnum'] : ['wolseley', 'waitrose', 'uber', 'fortnum'];
+    const order = [ ...s.manualIds, ...(s.savedNero ? ['nero'] : []), 'wolseley', 'waitrose', 'uber', 'fortnum' ];
     const expensesView = order.map(id => { const e = this._expenses[id]; return { merchant: e.merchant, cat: e.cat, date: e.date, total: e.total, initial: e.initial, color: e.color, onClick: () => this.openDetail(id) }; });
 
     const d = this._expenses[s.detailId] || this._expenses.wolseley;
+    const dIsManual = !!d.isManual;
+    const dHasReceipt = !dIsManual;
+    const dHasItems = !!(d.items && d.items.length);
+
+    // ---- settings + model management ----
+    const mError = model.status === 'error';
+    const settingsStatus = mReady ? 'Ready' : (mDownloading ? ('Downloading… ' + Math.round(pct) + '%') : (mError ? 'Needs attention' : 'Not set up'));
+    const settingsStatusColor = mReady ? 'var(--grocery)' : (mDownloading ? 'var(--accent)' : (mError ? 'var(--warn)' : 'var(--ink-3)'));
+    const mmShowSeal = !mDownloading;
+    const mmTitle = mReady ? 'At your service.' : (mDownloading ? (model.paused ? 'Paused, sir.' : 'Coming aboard…') : (mError ? 'Something went amiss.' : "My mind isn't aboard yet."));
+    const mmSubtitle = mReady ? 'My mind is aboard, sir — ask freely, and present any receipt you like.'
+      : (mDownloading ? 'Reading myself onto your device. You may carry on; I shall be along shortly.'
+        : (mError ? 'I could not bring my mind aboard. Do try again — best on Wi-Fi, sir.'
+          : 'A one-time download brings my mind onto this device, where it stays. Until then, enter expenses by hand at your leisure.'));
+    const mmError = model.lastError || 'net_err: connection reset while fetching shard 3 of 5 (offset 1.42 GB).';
+
+    // ---- currency ----
+    const currencyView = [{ sym: '£' }, { sym: '$' }].map(c => ({
+      label: c.sym, onClick: () => this.setCurrency(c.sym),
+      bg: s.currency === c.sym ? 'var(--accent)' : 'transparent',
+      color: s.currency === c.sym ? 'var(--accent-ink)' : 'var(--ink-2)',
+    }));
+
+    // ---- manual entry ----
+    const m = s.manual;
+    const manualSubtotalNum = this._manualSubtotal(m);
+    const manualUseItems = m.itemsOpen && manualSubtotalNum > 0;
+    const manualTotalNum = manualUseItems ? manualSubtotalNum : (parseFloat(m.amount) || 0);
+    const manualCanSave = !!m.merchant.trim() && manualTotalNum > 0;
+    const manualCategoriesView = this._cats.map(cat => {
+      const on = m.category === cat;
+      return { label: cat, onClick: () => this.setManualCat(cat), border: on ? 'var(--accent)' : 'var(--line)', bg: on ? 'var(--accent-soft)' : 'transparent', color: on ? 'var(--accent)' : 'var(--ink-2)' };
+    });
+    const manualItemsView = m.items.map((it, i) => ({
+      name: it.name, qty: it.qty, price: it.price,
+      onName: (e) => this.setManualItem(i, 'name', e.target.value),
+      onQty: (e) => this.setManualItem(i, 'qty', e.target.value),
+      onPrice: (e) => this.setManualItem(i, 'price', e.target.value),
+      onRemove: () => this.removeManualItem(i),
+    }));
+    const manualTotalDisplay = s.currency + manualSubtotalNum.toFixed(2);
 
     // pending receipts (background processing)
     const pendingView = s.pending.map(p => ({
@@ -805,28 +1311,68 @@ class Component extends DCLogic {
       showOnboarding: onboarding,
       onbStep0: onboarding && s.onbStep === 0,
       onbStep1: onboarding && s.onbStep === 1,
-      onbStep2: onboarding && s.onbStep === 2,
       assurances: [
         { text: 'No account, no cloud, no sign-in — ever.' },
         { text: 'I read your receipts here; the camera never sends them away.' },
-        { text: 'You may dismiss me, and all data, at any moment.' },
+        { text: 'I download only when you first call on me — never before.' },
       ],
-      beginOnb: this.beginOnb, allowAndDownload: this.allowAndDownload, togglePause: this.togglePause, enterApp: this.enterApp,
+      beginOnb: this.beginOnb, finishOnb: this.finishOnb,
+
+      // shared download progress values
       ringCirc: circ, ringOffset: circ * (1 - pct / 100),
-      dlPct: Math.round(pct), dlDone: s.dl.done, dlNotDone: !s.dl.done,
-      dlTitle: s.dl.done ? 'Ready when you are.' : (s.dl.paused ? 'Paused, sir.' : 'A moment while I prepare.'),
-      dlSubtitle: s.dl.done ? 'Mr. Carson is at his post.' : 'Engaging Mr. Carson — a one-time download of roughly 2.4 GB.',
-      dlMb: mb + ' MB of 2,438 MB', dlSpeed: s.dl.paused ? 'Paused' : '12.4 MB/s', dlEta: eta,
-      dlBtnLabel: s.dl.paused ? 'Resume download' : 'Pause',
+      dlPct: Math.round(pct),
+      dlMb: mb + ' MB of 2,438 MB', dlSpeed: model.paused ? 'Paused' : '12.4 MB/s', dlEta: model.paused ? 'Paused' : eta,
+      dlBtnLabel: model.paused ? 'Resume' : 'Pause',
+
+      // model state (used across engage / manage / header)
+      mReady, mDownloading, mAbsent, modelPaused: model.paused,
+      engageModel: this.engageModel, toggleModelPause: this.toggleModelPause, removeModel: this.removeModel,
+      goSettings: this.goSettings, backFromSettings: this.backFromSettings,
+      goModelMgmt: this.goModelMgmt, backFromModelMgmt: this.backFromModelMgmt,
+      setupFromAsk: this.setupFromAsk, mError,
+
+      // ENGAGE (model-required CTA) screen
+      showEngage: s.onboarded && s.screen === 'engage',
+      engageMode, engageIsCta: engageMode === 'cta', engageIsProgress: engageMode === 'progress', engageIsReady: engageMode === 'ready',
+      engageTitle, engageSubtitle, engageReason,
+      dismissEngage: this.dismissEngage,
+
+      // SETTINGS screen
+      showSettings: s.onboarded && s.screen === 'settings',
+      settingsStatus, settingsStatusColor, currencyView, currencySymbol: s.currency,
+      // MODEL MANAGEMENT screen
+      showModelMgmt: s.onboarded && s.screen === 'modelmgmt',
+      mmShowSeal, mmTitle, mmSubtitle, mmError,
+      askRemove: this.askRemove,
+      showRemoveDialog: s.onboarded && s.confirmRemove,
+      confirmRemoveModel: this.confirmRemoveModel, cancelRemove: this.cancelRemove,
+      // MANUAL ENTRY screen
+      showManual: s.onboarded && s.screen === 'manual',
+      openManual: this.openManual, cancelManual: this.cancelManual, saveManual: this.saveManual,
+      mfMerchant: m.merchant, mfAmount: m.amount, mfDate: m.date, mfNote: m.note,
+      setManualMerchant: this.setManualMerchant, setManualAmount: this.setManualAmount, setManualNote: this.setManualNote,
+      manualItemsOpen: m.itemsOpen, manualItemsClosed: !m.itemsOpen,
+      openParticulars: this.openParticulars, closeParticulars: this.closeParticulars, addManualItem: this.addManualItem,
+      manualCategoriesView, manualItemsView, manualTotalDisplay,
+      manualSaveBg: manualCanSave ? 'var(--accent)' : 'var(--surface-2)',
+      manualSaveColor: manualCanSave ? 'var(--accent-ink)' : 'var(--ink-3)',
+      manualSaveCursor: manualCanSave ? 'pointer' : 'default',
+
+      // header status (Ask)
+      headerStatus, headerDotColor,
+      askBanner: mDownloading,
 
       // ask
       showAsk: inApp('ask'),
+      askReady: mReady, askLocked: mAbsent || mError, askPreparing: mDownloading,
       messagesView,
       showGreeting: s.messages.length === 0,
       greeting: 'Good evening, sir.',
       showSuggestions: s.messages.length === 0,
       suggestionsView: this._sugg.map(t => ({ text: t, onClick: () => this.send(t) })),
       draft: s.draft, onDraft: this.onDraft, onKey: this.onKey, sendDraft: this.sendDraft, onStop: this.onStop,
+      onAskFocus: this.onAskFocus, onAskBlur: this.onAskBlur,
+      askFooterPad: (mReady && s.askFocused) ? '18px' : '96px',
       streaming: s.streaming, notStreaming: !s.streaming,
       chartTotal: '£1,284.60',
 
@@ -837,11 +1383,12 @@ class Component extends DCLogic {
 
       // add sheet
       showSheet: s.onboarded && s.sheet,
+      sheetReady: mReady, sheetNeedsModel: !mReady,
       closeSheet: this.closeSheet, stop: this.stop, takePhoto: this.takePhoto, uploadReceipt: this.uploadReceipt,
 
       // detail
       showDetail: inApp('detail'),
-      d,
+      d, dIsManual, dHasReceipt, dHasItems,
 
       // confirm
       showConfirm: inApp('confirm'),
@@ -858,7 +1405,7 @@ class Component extends DCLogic {
         : 'The lower half was a touch faded, sir. I have flagged the two entries I am least certain of — do correct me.',
 
       // nav
-      showNav: s.onboarded && (s.screen === 'ask' || s.screen === 'expenses' || s.screen === 'detail'),
+      showNav: s.onboarded && ((s.screen === 'ask' && !(mReady && s.askFocused)) || s.screen === 'expenses' || s.screen === 'detail'),
       askColor: s.screen === 'ask' ? 'var(--accent)' : 'var(--ink-3)',
       expColor: (s.screen === 'expenses' || s.screen === 'detail') ? 'var(--accent)' : 'var(--ink-3)',
       goAsk: this.goAsk, goExpenses: this.goExpenses, goAdd: this.goAdd, backToExpenses: this.backToExpenses,
