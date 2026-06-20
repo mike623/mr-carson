@@ -21,6 +21,20 @@ String currencySymbol(String currency) {
   }
 }
 
+/// Returns the ISO-4217 code for a currency [symbol] (the inverse of
+/// [currencySymbol]). Falls back to 'GBP' for unknown symbols.
+String currencyCode(String symbol) {
+  switch (symbol) {
+    case '\$':
+      return 'USD';
+    case '€':
+      return 'EUR';
+    case '£':
+    default:
+      return 'GBP';
+  }
+}
+
 /// Formats [amount] as a two-decimal-place string, e.g. `'12.50'`.
 String formatAmount(double amount) {
   return amount.toStringAsFixed(2);

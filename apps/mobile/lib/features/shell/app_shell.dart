@@ -303,7 +303,10 @@ class _AddSheet extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(MrCarsonRadii.sheet)),
       ),
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 34),
-      child: Column(
+      // Scrollable so the sheet never overflows on short screens — the extra
+      // "needs model" note can push content past the modal's max height.
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -367,6 +370,7 @@ class _AddSheet extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
