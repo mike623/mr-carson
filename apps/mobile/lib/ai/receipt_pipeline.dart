@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter_gemma/core/message.dart';
+import 'package:flutter/foundation.dart'
+    show debugPrint, kDebugMode, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/error_reporter.dart';
@@ -10,7 +10,7 @@ import '../data/db/app_database.dart';
 import '../data/providers.dart';
 import '../data/repositories/pending_repository.dart';
 import '../domain/models/ai_models.dart';
-import 'gemma_service.dart';
+import 'receipt_ocr_engine.dart';
 import 'prompts.dart';
 
 // ---------------------------------------------------------------------------
@@ -60,9 +60,9 @@ class ReceiptResult {
 /// 3. [commitConfirmed] — user approves; row is inserted into `expenses`.
 /// 4. [reject]          — user declines; row is marked rejected.
 class ReceiptPipelineService {
-  ReceiptPipelineService(this._gemma, this._db, this._pending);
+  ReceiptPipelineService(this._engine, this._db, this._pending);
 
-  final GemmaService _gemma;
+  final ReceiptOcrEngine _engine;
   final AppDatabase _db;
   final PendingRepository _pending;
 
@@ -107,19 +107,14 @@ class ReceiptPipelineService {
         today: today,
       )}';
 
-      final session = await _gemma.createVisionSession();
-      String rawResponse;
-      try {
-        await session.addQueryChunk(
-          Message.withImage(
-            text: prompt,
-            imageBytes: imageBytes,
-            isUser: true,
-          ),
-        );
-        rawResponse = await session.getResponse();
-      } finally {
-        await session.close();
+      final rawResponse =
+          await _engine.readReceipt(prompt: prompt, imageBytes: imageBytes);
+
+      // Debug builds: dump the model's raw output so key/format drift is
+      // visible in the console (Xcode/`flutter logs`). Also kept in the DB row's
+      // rawOcr column for post-hoc inspection.
+      if (kDebugMode) {
+        debugPrint('[receipt_ocr] raw response:\n$rawResponse');
       }
 
       // Strip optional markdown fences (```json ... ``` or ``` ... ```)
@@ -197,35 +192,76 @@ class ReceiptPipelineService {
 
   /// Normalises a raw model JSON object into a shape [ExpenseDraft.fromJson]
   /// can parse without throwing on null/missing required fields.
+  ///
+  /// Also tolerates *key drift*: small on-device models don't reliably emit the
+  /// exact schema keys, so each field is read from a list of aliases (e.g. a
+  /// line item's amount may arrive as `amount`, `price`, `cost`, or `value`).
+  /// Without this, well-extracted receipts render as "Item / 0.00" placeholders.
   @visibleForTesting
   static Map<String, dynamic> coerceDraftJson(
     Map<String, dynamic> d,
     String today,
   ) {
-    String str(Object? v, String fallback) =>
-        (v is String && v.trim().isNotEmpty) ? v.trim() : fallback;
-    double num_(Object? v) =>
-        v is num ? v.toDouble() : double.tryParse('$v') ?? 0.0;
+    return {
+      'merchant': _str(
+          _pick(d, const ['merchant', 'store', 'vendor', 'seller', 'name']),
+          'Unknown merchant'),
+      'date': _str(_pick(d, const ['date', 'purchase_date', 'transaction_date']),
+          today),
+      'currency': _currency(
+          _pick(d, const ['currency', 'currency_code', 'iso_currency'])),
+      'total': _num(_pick(d, const [
+        'total',
+        'grand_total',
+        'amount',
+        'amount_due',
+        'total_amount',
+      ])),
+      'vat': _numOrNull(_pick(d, const ['vat', 'tax', 'gst', 'sales_tax'])),
+      'items': _items(_pick(d, const ['items', 'line_items', 'lineItems'])),
+    };
+  }
 
-    final cur = str(d['currency'], kDefaultCurrency).toUpperCase();
-    final rawItems = d['items'] is List ? d['items'] as List : const [];
-    final items = rawItems.whereType<Map>().map((it) {
-      return {
-        'name': str(it['name'], 'Item'),
-        'amount': num_(it['amount']),
-        'category': str(it['category'], 'Other'),
+  // --- coercion helpers ---
+
+  /// Returns the first non-null value among [keys] in [m].
+  static Object? _pick(Map m, List<String> keys) {
+    for (final k in keys) {
+      if (m[k] != null) return m[k];
+    }
+    return null;
+  }
+
+  static String _str(Object? v, String fallback) =>
+      (v is String && v.trim().isNotEmpty) ? v.trim() : fallback;
+
+  static double _num(Object? v) {
+    if (v is num) return v.toDouble();
+    // Strip currency symbols / thousands separators: "£1,234.50" -> 1234.50
+    final cleaned = '$v'.replaceAll(RegExp(r'[^0-9.\-]'), '');
+    return double.tryParse(cleaned) ?? 0.0;
+  }
+
+  static double? _numOrNull(Object? v) => v == null ? null : _num(v);
+
+  /// DB enforces a 3-char currency; fall back to the default for null/junk.
+  static String _currency(Object? v) {
+    final cur = _str(v, kDefaultCurrency).toUpperCase();
+    return cur.length == 3 ? cur : kDefaultCurrency;
+  }
+
+  static List<Map<String, dynamic>> _items(Object? raw) {
+    final list = raw is List ? raw : const [];
+    return list.whereType<Map>().map((it) {
+      return <String, dynamic>{
+        'name': _str(
+            _pick(it, const ['name', 'title', 'description', 'item', 'desc']),
+            'Item'),
+        'amount': _num(_pick(
+            it, const ['amount', 'price', 'cost', 'value', 'total', 'line_total'])),
+        'category': _str(_pick(it, const ['category', 'type']), 'Other'),
       };
     }).toList();
-
-    return {
-      'merchant': str(d['merchant'], 'Unknown merchant'),
-      'date': str(d['date'], today),
-      // DB enforces a 3-char currency; fall back if the model returns junk.
-      'currency': cur.length == 3 ? cur : kDefaultCurrency,
-      'total': num_(d['total']),
-      'vat': d['vat'] is num ? (d['vat'] as num).toDouble() : null,
-      'items': items,
-    };
   }
 
   /// Removes leading/trailing markdown code fences if present.
@@ -245,7 +281,7 @@ class ReceiptPipelineService {
 /// Riverpod provider for [ReceiptPipelineService].
 final receiptPipelineProvider = Provider<ReceiptPipelineService>((ref) {
   return ReceiptPipelineService(
-    ref.watch(gemmaServiceProvider),
+    ref.watch(receiptOcrEngineProvider),
     ref.watch(appDatabaseProvider),
     ref.watch(pendingRepositoryProvider),
   );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../ai/device_capability.dart';
+import '../../ai/model_mode.dart';
 import '../../data/providers.dart';
 import '../../domain/models/ai_models.dart';
 import '../../theme/app_theme.dart';
@@ -14,6 +16,16 @@ import '../model/model_lifecycle_view_model.dart';
 import '../model/model_management_screen.dart';
 import '../settings/settings_screen.dart';
 import 'shell_view_model.dart';
+
+/// Whether the user can start a receipt capture. True when the on-device model
+/// is ready OR the resolved backend is online — cloud OCR needs no local model,
+/// so Online users must not be blocked by the on-device model gate.
+final captureReadyProvider = Provider<bool>((ref) {
+  final mode = ref.watch(modelModeProvider);
+  final cap = ref.watch(deviceCapabilityProvider);
+  if (resolveBackend(mode, cap) == Backend.online) return true;
+  return ref.watch(modelLifecycleProvider).isReady;
+});
 
 /// The in-app navigation shell — everything after onboarding.
 ///
@@ -95,7 +107,7 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(shellViewModelProvider);
     final vm = ref.read(shellViewModelProvider.notifier);
-    final isReady = ref.watch(modelLifecycleProvider).isReady;
+    final isReady = ref.watch(captureReadyProvider);
 
     // Map pending DB rows to LedgerPending view model objects.
     final pendingRows = ref.watch(pendingReceiptsProvider);
@@ -303,7 +315,7 @@ class _AddSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isReady = ref.watch(modelLifecycleProvider).isReady;
+    final isReady = ref.watch(captureReadyProvider);
 
     return Container(
       decoration: const BoxDecoration(

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'ai/device_capability.dart';
+import 'ai/model_mode.dart';
 import 'core/error_reporter.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/shell/app_shell.dart';
@@ -17,6 +20,9 @@ Future<void> main() async {
   // CTA / Model Management screen) — not during onboarding.
   await FlutterGemma.initialize();
 
+  final prefs = await SharedPreferences.getInstance();
+  final capability = await detectCapability();
+
   // SentryFlutter.init's appRunner installs the zone + Flutter error handlers
   // that capture uncaught errors. With no DSN it's a no-op shell, so dev/local
   // builds run unchanged; pass --dart-define=SENTRY_DSN=... to enable.
@@ -27,7 +33,15 @@ Future<void> main() async {
       // Privacy: receipts are personal. Don't ship request bodies / PII.
       options.sendDefaultPii = false;
     },
-    appRunner: () => runApp(const ProviderScope(child: MrCarsonApp())),
+    appRunner: () => runApp(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceCapabilityProvider.overrideWith((ref) => capability),
+        ],
+        child: const MrCarsonApp(),
+      ),
+    ),
   );
 }
 

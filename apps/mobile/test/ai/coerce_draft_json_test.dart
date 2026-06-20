@@ -45,6 +45,32 @@ void main() {
     expect(d.items.first.category, 'Other');
   });
 
+  test('alternate model keys are mapped (the empty-items bug)', () {
+    // Model returned items with description/price instead of name/amount —
+    // previously rendered as 7x "Item / 0.00".
+    final d = parse({
+      'store': 'Waitrose',
+      'transaction_date': '2026-05-26',
+      'currency_code': 'GBP',
+      'grand_total': '£17.25',
+      'tax': '1.20',
+      'line_items': [
+        {'description': 'Bananas', 'price': '2.50', 'type': 'Groceries'},
+        {'title': 'Milk', 'cost': 1.75},
+      ],
+    });
+    expect(d.merchant, 'Waitrose');
+    expect(d.date, '2026-05-26');
+    expect(d.total, 17.25);
+    expect(d.vat, 1.20);
+    expect(d.items, hasLength(2));
+    expect(d.items[0].name, 'Bananas');
+    expect(d.items[0].amount, 2.50);
+    expect(d.items[0].category, 'Groceries');
+    expect(d.items[1].name, 'Milk');
+    expect(d.items[1].amount, 1.75);
+  });
+
   test('valid payload passes through unchanged', () {
     final d = parse({
       'merchant': 'Tesco',

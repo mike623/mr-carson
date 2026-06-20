@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mr_carson/ai/gemma_service.dart';
+import 'package:mr_carson/ai/receipt_ocr_engine.dart';
 import 'package:mr_carson/ai/receipt_pipeline.dart';
 import 'package:mr_carson/data/db/app_database.dart';
 import 'package:mr_carson/data/providers.dart';
@@ -158,9 +159,9 @@ class _FakePipeline extends ReceiptPipelineService {
     required this.onCommit,
     required this.onReject,
   }) : super(
-          // GemmaService has a no-arg constructor; it is never called because
-          // all public methods are overridden in this subclass.
-          GemmaService(),
+          // Engine is never invoked here — all public methods are overridden in
+          // this subclass.
+          GemmaOcrEngine(GemmaService()),
           db,
           repo,
         );

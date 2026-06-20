@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mr_carson/ai/gemma_service.dart';
+import 'package:mr_carson/ai/model_mode.dart';
 import 'package:mr_carson/features/model/model_lifecycle_view_model.dart';
 import 'package:mr_carson/features/settings/currency_provider.dart';
 import 'package:mr_carson/features/settings/settings_screen.dart';
 import 'package:mr_carson/theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// A [ModelLifecycleViewModel] stand-in that simply returns a seeded state and
 /// performs no service wiring (so tests run with no network / no GemmaService).
@@ -26,10 +28,19 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
+  // Shared prefs instance seeded before each test — _DiscretionCard (now a
+  // ConsumerWidget) reads modelModeProvider which depends on this provider.
+  late SharedPreferences prefs;
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
+  });
+
   Widget buildSubject(ModelLifecycleState model) {
     return ProviderScope(
       overrides: [
         modelLifecycleProvider.overrideWith(() => _FakeModelVm(model)),
+        sharedPreferencesProvider.overrideWithValue(prefs),
       ],
       child: MaterialApp(
         theme: buildMrCarsonTheme(),
@@ -132,6 +143,7 @@ void main() {
               const ModelLifecycleState(phase: GemmaState.ready),
             ),
           ),
+          sharedPreferencesProvider.overrideWithValue(prefs),
         ],
         child: Consumer(
           builder: (context, ref, _) {
