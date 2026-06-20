@@ -29,3 +29,5 @@ studio-presets.json
 
 # wrangler local state
 .wrangler/
+infrastructure/openrouter-proxy/.dev.vars
+infrastructure/openrouter-proxy/node_modules/
