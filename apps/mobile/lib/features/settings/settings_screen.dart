@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mr_carson/theme/app_theme.dart';
 
+import '../../ai/device_capability.dart';
+import '../../ai/model_mode.dart';
 import '../model/model_lifecycle_view_model.dart';
 import '../shell/shell_view_model.dart';
 import 'currency_provider.dart';
@@ -46,6 +48,11 @@ class SettingsScreen extends ConsumerWidget {
                     statusColor: status.color,
                     onTap: () => shellVm.go(ShellScreen.modelMgmt),
                   ),
+
+                  // ── Where he thinks ───────────────────────────────────
+                  const SizedBox(height: 18),
+                  const _SectionLabel('Where he thinks'),
+                  const _ModelLocationCard(),
 
                   // ── General → Currency ─────────────────────────────────
                   const _SectionLabel('General'),
@@ -169,7 +176,7 @@ class _SectionLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
       child: Text(
-        label.toUpperCase(),
+        label,
         style: MrCarsonType.ui(
           size: 11,
           color: MrCarsonColors.ink3,
@@ -375,12 +382,150 @@ class _CurrencyButton extends StatelessWidget {
   }
 }
 
-/// Two static discretion rows.
-class _DiscretionCard extends StatelessWidget {
-  const _DiscretionCard();
+/// Segmented Auto / Offline / Online control with consent + capability hint.
+class _ModelLocationCard extends ConsumerWidget {
+  const _ModelLocationCard();
+
+  static const _modes = [
+    (mode: ModelMode.auto, label: 'Auto'),
+    (mode: ModelMode.offline, label: 'Offline'),
+    (mode: ModelMode.online, label: 'Online'),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(modelModeProvider);
+    final cap = ref.watch(deviceCapabilityProvider);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: MrCarsonColors.surface,
+        border: Border.all(color: MrCarsonColors.line, width: 1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Reads receipts', style: MrCarsonType.ui(size: 14.5)),
+          const SizedBox(height: 2),
+          Text(
+            'Offline keeps everything on this phone. Online is faster and works '
+            'on any device, but sends the receipt to our server to be read.',
+            style: MrCarsonType.ui(size: 12, color: MrCarsonColors.ink3),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              for (final m in _modes)
+                Padding(
+                  padding: EdgeInsets.only(left: m == _modes.first ? 0 : 6),
+                  child: _ModeButton(
+                    label: m.label,
+                    selected: m.mode == selected,
+                    onTap: () => _choose(context, ref, m.mode),
+                  ),
+                ),
+            ],
+          ),
+          if (!cap.canRunOffline && cap.reason.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              cap.reason,
+              style: MrCarsonType.ui(size: 11.5, color: MrCarsonColors.warn),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _choose(
+      BuildContext context, WidgetRef ref, ModelMode mode) async {
+    if (mode == ModelMode.online) {
+      final ok = await _confirmOnline(context);
+      if (ok != true) return;
+    }
+    ref.read(modelModeProvider.notifier).set(mode);
+  }
+
+  Future<bool?> _confirmOnline(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MrCarsonColors.surface,
+        title: Text('Read receipts online?',
+            style: MrCarsonType.ui(size: 16, weight: FontWeight.w600)),
+        content: Text(
+          'With Online, the receipt image leaves your phone and is sent to our '
+          'server to be read. Nothing is stored there. You can switch back to '
+          'Offline at any time.',
+          style: MrCarsonType.ui(size: 13.5, color: MrCarsonColors.ink2),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Keep offline',
+                style: MrCarsonType.ui(size: 14, color: MrCarsonColors.ink2)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Use Online',
+                style: MrCarsonType.ui(
+                    size: 14,
+                    color: MrCarsonColors.accent,
+                    weight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeButton extends StatelessWidget {
+  const _ModeButton(
+      {required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: selected ? MrCarsonColors.accent : MrCarsonColors.bg,
+          border: Border.all(color: MrCarsonColors.line, width: 1),
+          borderRadius: BorderRadius.circular(9),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: MrCarsonType.ui(
+            size: 13.5,
+            weight: FontWeight.w600,
+            color: selected ? MrCarsonColors.accentInk : MrCarsonColors.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Two discretion rows — copy reflects the active backend.
+class _DiscretionCard extends ConsumerWidget {
+  const _DiscretionCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(modelModeProvider);
+    final cap = ref.watch(deviceCapabilityProvider);
+    final online = resolveBackend(mode, cap) == Backend.online;
+
     return Container(
       decoration: BoxDecoration(
         color: MrCarsonColors.surface,
@@ -391,14 +536,18 @@ class _DiscretionCard extends StatelessWidget {
       child: Column(
         children: [
           _row(
-            dot: MrCarsonColors.grocery,
-            label: 'Everything stays on this phone',
-            trailing: 'Always',
+            dot: online ? MrCarsonColors.warn : MrCarsonColors.grocery,
+            label: online
+                ? 'Receipts are read online when needed'
+                : 'Everything stays on this phone',
+            trailing: online ? 'Online' : 'Always',
             border: true,
           ),
           _row(
             dot: MrCarsonColors.transport,
-            label: 'No account, no cloud, no sign-in',
+            label: online
+                ? 'No account — only receipt images are sent'
+                : 'No account, no cloud, no sign-in',
             trailing: '—',
             border: false,
           ),
