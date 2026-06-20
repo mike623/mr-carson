@@ -1,6 +1,8 @@
 PODS:
   - background_downloader (0.0.1):
     - Flutter
+  - device_info_plus (0.0.1):
+    - Flutter
   - Flutter (1.0.0)
   - flutter_gemma (0.16.5):
     - Flutter
@@ -53,6 +55,7 @@ PODS:
 
 DEPENDENCIES:
   - background_downloader (from `.symlinks/plugins/background_downloader/ios`)
+  - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
   - Flutter (from `Flutter`)
   - flutter_gemma (from `.symlinks/plugins/flutter_gemma/ios`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
@@ -73,6 +76,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   background_downloader:
     :path: ".symlinks/plugins/background_downloader/ios"
+  device_info_plus:
+    :path: ".symlinks/plugins/device_info_plus/ios"
   Flutter:
     :path: Flutter
   flutter_gemma:
@@ -94,6 +99,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   background_downloader: 50e91d979067b82081aba359d7d916b3ba5fadad
+  device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_gemma: 9f3d7063d70249e0d76a85aa5c79e42392e1766b
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
