@@ -85,6 +85,73 @@ class OllamaOcrEngine implements ReceiptOcrEngine {
   }
 }
 
+/// Posts a JSON body and returns the decoded JSON object. Default transport for
+/// [CloudOcrEngine]; injectable for tests.
+typedef JsonPoster = Future<Map<String, dynamic>> Function(
+    Uri url, Map<String, dynamic> body);
+
+/// Default [JsonPoster] over dart:io HttpClient (no HTTP package dependency).
+Future<Map<String, dynamic>> defaultJsonPoster(
+    Uri url, Map<String, dynamic> body) async {
+  final client = HttpClient();
+  try {
+    final req = await client.postUrl(url);
+    req.headers.contentType = ContentType.json;
+    req.add(utf8.encode(jsonEncode(body)));
+    final resp = await req.close();
+    final text = await resp.transform(utf8.decoder).join();
+    if (resp.statusCode != 200) {
+      throw HttpException('Proxy ${resp.statusCode}: $text');
+    }
+    return jsonDecode(text) as Map<String, dynamic>;
+  } finally {
+    client.close();
+  }
+}
+
+/// Cloud OCR backend — sends the receipt to an OpenAI-compatible proxy
+/// (Cloudflare Worker → OpenRouter). The proxy holds the API key.
+class CloudOcrEngine implements ReceiptOcrEngine {
+  CloudOcrEngine({
+    required this.proxyUrl,
+    required this.model,
+    JsonPoster? poster,
+  }) : _post = poster ?? defaultJsonPoster;
+
+  final String proxyUrl;
+  final String model;
+  final JsonPoster _post;
+
+  @override
+  Future<String> readReceipt({
+    required String prompt,
+    required Uint8List imageBytes,
+  }) async {
+    final dataUrl = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
+    final json = await _post(Uri.parse('$proxyUrl/v1/chat/completions'), {
+      'model': model,
+      'messages': [
+        {
+          'role': 'user',
+          'content': [
+            {'type': 'text', 'text': prompt},
+            {'type': 'image_url', 'image_url': {'url': dataUrl}},
+          ],
+        }
+      ],
+    });
+    final choices = json['choices'];
+    if (choices is List && choices.isNotEmpty) {
+      final msg = choices.first;
+      if (msg is Map) {
+        final content = (msg['message'] as Map?)?['content'];
+        if (content is String) return content;
+      }
+    }
+    return '';
+  }
+}
+
 const String _ocrBackend =
     String.fromEnvironment('OCR_BACKEND', defaultValue: 'gemma');
 const String _ollamaBaseUrl = String.fromEnvironment(
