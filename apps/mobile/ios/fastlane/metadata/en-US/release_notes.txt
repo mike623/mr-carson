@@ -1,0 +1,7 @@
+What's new in this build:
+- New: opt-in transcript detail in Ask. In Settings → "His workings", turn on "Show his reasoning" to reveal Carson's private thinking as a collapsible block, and "Show his workings" to list the ledger lookups behind each reply. Both default off — chat shows only the narrated answer.
+- Fixed: raw tool-call JSON no longer leaks into Carson's answers; the streaming filter strips it and surfaces those calls in the "workings" view instead.
+- Capture-to-confirm flow persists receipts into the ledger; ledger and detail screens update reactively from local data.
+- Ask screen renders real spending charts, with clear states when AI is unavailable.
+
+Please test: open Settings and toggle the two "His workings" switches, ask a spending question, then expand the reasoning and tool-call panels; then add/confirm a receipt and verify the ledger and detail screens update.
