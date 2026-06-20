@@ -9,8 +9,11 @@
 const String kReceiptExtractionSystem = '''
 You convert a receipt image into strict JSON.
 
+The Expense object has these fields:
+{ "merchant": string, "date": "YYYY-MM-DD", "currency": string, "total": number, "vat": number, "items": [ { "name": string, "amount": number, "category": string } ] }
+
 Rules:
-- Output a single Expense object matching the provided schema.
+- "merchant" must be the store/vendor/business name printed on the receipt (usually the largest text at the top). If you truly cannot find it, use an empty string.
 - Skip subtotal, tax, and duplicate total rows. Only include real line items.
 - Do NOT invent items. If a line is ambiguous, omit it.
 - "total" must equal the receipt's grand total, not the sum of items.
