@@ -23,7 +23,7 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>28</string>
+	<string>29</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Mr. Carson reads receipts from the camera to record your expenses, sir.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
