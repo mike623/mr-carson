@@ -5,7 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter_gemma/core/message.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'device_capability.dart';
 import 'gemma_service.dart';
+import 'model_mode.dart';
 
 /// Narrow seam the receipt pipeline depends on: given the extraction prompt and
 /// the receipt image, return the model's raw text response.
@@ -152,19 +154,35 @@ class CloudOcrEngine implements ReceiptOcrEngine {
   }
 }
 
-const String _ocrBackend =
-    String.fromEnvironment('OCR_BACKEND', defaultValue: 'gemma');
 const String _ollamaBaseUrl = String.fromEnvironment(
   'OLLAMA_BASE_URL',
   defaultValue: 'http://localhost:11434',
 );
 const String _ollamaModel =
     String.fromEnvironment('OLLAMA_MODEL', defaultValue: 'gemma3');
+const String _ocrProxyUrl = String.fromEnvironment(
+  'OCR_PROXY_URL',
+  defaultValue: 'http://localhost:8787',
+);
+const String _ocrCloudModel = String.fromEnvironment(
+  'OCR_CLOUD_MODEL',
+  defaultValue: 'google/gemini-2.0-flash-001',
+);
+// Dev escape hatch: force the local Ollama backend regardless of ModelMode.
+const String _ocrBackendOverride =
+    String.fromEnvironment('OCR_BACKEND', defaultValue: '');
 
-/// Picks the OCR backend from build-time config; defaults to on-device Gemma.
+/// Selects the OCR backend at runtime from the user's [ModelMode] and the
+/// device's [DeviceCapability]. `--dart-define=OCR_BACKEND=ollama` forces the
+/// local Ollama dev backend.
 final receiptOcrEngineProvider = Provider<ReceiptOcrEngine>((ref) {
-  if (_ocrBackend == 'ollama') {
+  if (_ocrBackendOverride == 'ollama') {
     return OllamaOcrEngine(baseUrl: _ollamaBaseUrl, model: _ollamaModel);
+  }
+  final mode = ref.watch(modelModeProvider);
+  final cap = ref.watch(deviceCapabilityProvider);
+  if (resolveBackend(mode, cap) == Backend.online) {
+    return CloudOcrEngine(proxyUrl: _ocrProxyUrl, model: _ocrCloudModel);
   }
   return GemmaOcrEngine(ref.watch(gemmaServiceProvider));
 });
