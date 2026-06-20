@@ -23,6 +23,7 @@ export default {
       body,
     });
     // Pass status + body straight through (streaming bodies pass through too).
+    // TODO(phase-2): for SSE chat, forward upstream headers (Cache-Control/Connection) too — only Content-Type is preserved here.
     return cors(new Response(upstream.body, {
       status: upstream.status,
       headers: { 'Content-Type': upstream.headers.get('Content-Type') || 'application/json' },

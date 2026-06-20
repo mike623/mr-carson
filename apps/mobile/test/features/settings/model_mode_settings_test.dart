@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mr_carson/ai/device_capability.dart';
 import 'package:mr_carson/ai/model_mode.dart';
 import 'package:mr_carson/features/settings/settings_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,5 +50,27 @@ void main() {
     final ctx = tester.element(find.byType(SettingsScreen));
     final container = ProviderScope.containerOf(ctx);
     expect(container.read(modelModeProvider), isNot(ModelMode.online));
+  });
+
+  testWidgets('shows capability hint when device cannot run offline',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceCapabilityProvider.overrideWith(
+            (ref) => const DeviceCapability(
+              canRunOffline: false,
+              reason: "The simulator can't run the on-device model — use Online here.",
+            ),
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('simulator'), findsOneWidget);
   });
 }

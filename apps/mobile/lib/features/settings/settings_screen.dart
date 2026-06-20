@@ -20,11 +20,14 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final model = ref.watch(modelLifecycleProvider);
+    final mode = ref.watch(modelModeProvider);
+    final cap = ref.watch(deviceCapabilityProvider);
     final currency = ref.watch(currencyProvider);
     final currencyVm = ref.read(currencyProvider.notifier);
     final shellVm = ref.read(shellViewModelProvider.notifier);
 
     final status = _modelStatus(model);
+    final online = resolveBackend(mode, cap) == Backend.online;
 
     return Scaffold(
       backgroundColor: MrCarsonColors.bg,
@@ -76,7 +79,7 @@ class SettingsScreen extends ConsumerWidget {
                   const SizedBox(height: 28),
                   Center(
                     child: Text(
-                      'Mr. Carson · on-device · v1.0',
+                      online ? 'Mr. Carson · v1.0' : 'Mr. Carson · on-device · v1.0',
                       style: MrCarsonType.ui(
                         size: 11.5,
                         color: MrCarsonColors.ink3,
