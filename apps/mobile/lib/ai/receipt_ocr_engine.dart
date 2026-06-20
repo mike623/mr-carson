@@ -166,7 +166,7 @@ const String _ocrProxyUrl = String.fromEnvironment(
 );
 const String _ocrCloudModel = String.fromEnvironment(
   'OCR_CLOUD_MODEL',
-  defaultValue: 'google/gemini-2.0-flash-001',
+  defaultValue: 'google/gemini-2.5-flash',
 );
 // Dev escape hatch: force the local Ollama backend regardless of ModelMode.
 const String _ocrBackendOverride =

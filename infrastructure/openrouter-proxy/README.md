@@ -18,7 +18,7 @@ App → this Worker → OpenRouter. Forwards `POST /v1/chat/completions` verbati
 ```bash
 curl -s http://localhost:8787/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"model":"google/gemini-2.0-flash-001","messages":[{"role":"user","content":"say ok"}]}' \
+  -d '{"model":"google/gemini-2.5-flash","messages":[{"role":"user","content":"say ok"}]}' \
   | head -c 300
 ```
 Expect a JSON body containing `"choices"`.

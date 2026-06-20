@@ -14,7 +14,7 @@
 - **Privacy default is offline-first.** Online is opt-in and requires an explicit one-time consent confirmation. The Settings "Discretion" copy must NOT claim "everything stays on this phone / no cloud" while Online is active.
 - **API key is server-side only** (Cloudflare Worker secret `OPENROUTER_API_KEY`). Never embed it in the app or commit it.
 - Proxy URL is non-secret config: `--dart-define=OCR_PROXY_URL=...` (default `http://localhost:8787` for local `wrangler dev`).
-- Cloud model: `--dart-define=OCR_CLOUD_MODEL=...`, default `google/gemini-2.0-flash-001` (vision-capable, cheap).
+- Cloud model: `--dart-define=OCR_CLOUD_MODEL=...`, default `google/gemini-2.5-flash` (vision-capable, cheap).
 - Reuse the existing `ReceiptOcrEngine` seam (`lib/ai/receipt_ocr_engine.dart`) and the existing tolerant parse (`ReceiptPipelineService.coerceDraftJson`) — the cloud path returns the same raw-text contract as Gemma/Ollama.
 - New deps must be first-party Flutter Favorites: `shared_preferences`, `device_info_plus`. No other new deps.
 - All Dart commands run from `apps/mobile/`. Tests: `flutter test`. Analyze: `flutter analyze lib/`.
@@ -130,7 +130,7 @@ App → this Worker → OpenRouter. Forwards `POST /v1/chat/completions` verbati
 ```bash
 curl -s http://localhost:8787/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"model":"google/gemini-2.0-flash-001","messages":[{"role":"user","content":"say ok"}]}' \
+  -d '{"model":"google/gemini-2.5-flash","messages":[{"role":"user","content":"say ok"}]}' \
   | head -c 300
 ```
 Expect a JSON body containing `"choices"`.
@@ -143,7 +143,7 @@ Run (in another shell):
 ```bash
 curl -s http://localhost:8787/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"model":"google/gemini-2.0-flash-001","messages":[{"role":"user","content":"say ok"}]}' | head -c 300
+  -d '{"model":"google/gemini-2.5-flash","messages":[{"role":"user","content":"say ok"}]}' | head -c 300
 ```
 Expected: JSON containing `"choices"` and a message with "ok".
 
@@ -536,7 +536,7 @@ void main() {
 
     final engine = CloudOcrEngine(
       proxyUrl: 'http://localhost:8787',
-      model: 'google/gemini-2.0-flash-001',
+      model: 'google/gemini-2.5-flash',
       poster: (url, body) async {
         capturedUrl = url;
         capturedBody = body;
@@ -555,7 +555,7 @@ void main() {
 
     expect(out, '{"merchant":"Tesco","total":9.99}');
     expect(capturedUrl.toString(), 'http://localhost:8787/v1/chat/completions');
-    expect(capturedBody['model'], 'google/gemini-2.0-flash-001');
+    expect(capturedBody['model'], 'google/gemini-2.5-flash');
     final content = (capturedBody['messages'] as List).first['content'] as List;
     expect(content[0]['type'], 'text');
     expect(content[0]['text'], 'extract');
@@ -675,7 +675,7 @@ git commit -m "feat(mobile): CloudOcrEngine (OpenAI vision via proxy)"
 
 **Interfaces:**
 - Consumes: `modelModeProvider`, `deviceCapabilityProvider`, `resolveBackend` (Tasks 3–4); `CloudOcrEngine`, `GemmaOcrEngine` (Task 5 + existing).
-- Produces: a rewritten `receiptOcrEngineProvider` that returns `CloudOcrEngine` when `resolveBackend(...) == Backend.online`, else `GemmaOcrEngine`. Cloud config from dart-defines `OCR_PROXY_URL` (default `http://localhost:8787`) and `OCR_CLOUD_MODEL` (default `google/gemini-2.0-flash-001`).
+- Produces: a rewritten `receiptOcrEngineProvider` that returns `CloudOcrEngine` when `resolveBackend(...) == Backend.online`, else `GemmaOcrEngine`. Cloud config from dart-defines `OCR_PROXY_URL` (default `http://localhost:8787`) and `OCR_CLOUD_MODEL` (default `google/gemini-2.5-flash`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -748,7 +748,7 @@ const String _ocrProxyUrl = String.fromEnvironment(
 );
 const String _ocrCloudModel = String.fromEnvironment(
   'OCR_CLOUD_MODEL',
-  defaultValue: 'google/gemini-2.0-flash-001',
+  defaultValue: 'google/gemini-2.5-flash',
 );
 // Dev escape hatch: force the local Ollama backend regardless of ModelMode.
 const String _ocrBackendOverride =
@@ -1142,7 +1142,7 @@ Run:
 ```bash
 cd apps/mobile && flutter run -d <ios-simulator-id> \
   --dart-define=OCR_PROXY_URL=http://localhost:8787 \
-  --dart-define=OCR_CLOUD_MODEL=google/gemini-2.0-flash-001
+  --dart-define=OCR_CLOUD_MODEL=google/gemini-2.5-flash
 ```
 Expected: app launches. Because it's a simulator, `deviceCapabilityProvider.canRunOffline` is false, so `Auto` already resolves to Online.
 
