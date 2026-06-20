@@ -40,6 +40,7 @@ dependencies:
   # Design system fonts: Cormorant Garamond (display) + Hanken Grotesk (UI)
   google_fonts: ^6.2.1
   sentry_flutter: ^8.14.2
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
