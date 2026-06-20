@@ -10,11 +10,12 @@ def match_profile_name
 end
 
 def install_signing_assets(api_key)
-  # Do not call setup_ci/create_keychain here: those create and switch to a
-  # Fastlane temp keychain (for example fastlane_tmp_keychain-db). Local builds
-  # should use the current user default keychain (normally login.keychain-db).
+  # Local dev must not touch keychains: do not create, switch, unlock, delete,
+  # reset, or pass explicit keychain settings. Temporary keychain setup belongs
+  # only in CI=true-only lanes, never in local beta/build/release lanes.
   # App Store Connect API-key auth avoids Apple ID/2FA, but macOS codesigning
-  # still requires the distribution private key to be available via a keychain.
+  # still requires the distribution private key to be available through the
+  # existing macOS signing environment.
   match(type: "appstore", readonly: true, api_key: api_key)
 end
 
@@ -104,7 +105,7 @@ platform :ios do
       in_house: false
     )
 
-    # 2. Fetch the appstore signing assets into the current default keychain.
+    # 2. Fetch the appstore signing assets without explicit keychain handling.
     install_signing_assets(api_key)
     update_code_signing_settings(
       use_automatic_signing: false,

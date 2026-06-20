@@ -9,6 +9,16 @@
 #   4. The model file present locally as $MODEL_FILE (download once from
 #      HuggingFace with your HF token, or a non-gated LiteRT mirror).
 #
+# !! VISION/OCR COMPATIBILITY — pin a PRE-MTP revision !!
+#   Post-MTP Gemma 4 E2B .litertlm builds ship a *multi-signature* vision
+#   encoder (vision_70/140/280) that LiteRT-LM rejects at engine_create:
+#     "Failed to create engine: INTERNAL ... vision_litert_compiled_model_executor.cc:272"
+#   Text inference still works, but on-device receipt OCR (createVisionSession)
+#   fails. Confirmed on a physical iPhone via the receipt e2e (2026-06-20).
+#   Fix: download the pre-MTP HF revision and re-upload under the same key:
+#     gemma-4-E2B-it.litertlm @ revision 7fa1d78473894f7e736a21d920c3aa80f950c0db
+#   Refs: flutter_gemma 0.16.5 CHANGELOG; google-ai-edge/LiteRT-LM#2225.
+#
 # wrangler can only PUT files <315 MB, so the ~3 GB model is uploaded with
 # rclone (S3-compatible). wrangler is used for the bucket + public URL.
 set -euo pipefail
