@@ -176,7 +176,7 @@ class _SectionLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
       child: Text(
-        label,
+        label.toUpperCase(),
         style: MrCarsonType.ui(
           size: 11,
           color: MrCarsonColors.ink3,

@@ -20,7 +20,7 @@ Future<void> _pump(WidgetTester tester) async {
 void main() {
   testWidgets('shows the model-location section', (tester) async {
     await _pump(tester);
-    expect(find.text('Where he thinks'), findsOneWidget);
+    expect(find.text('WHERE HE THINKS'), findsOneWidget);
     expect(find.text('Offline'), findsOneWidget);
     expect(find.text('Online'), findsOneWidget);
   });

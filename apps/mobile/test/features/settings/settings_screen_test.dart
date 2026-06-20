@@ -61,7 +61,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Settings'), findsOneWidget);
-    expect(find.text("Mr. Carson's mind"), findsOneWidget);
+    expect(find.text("MR. CARSON'S MIND"), findsOneWidget);
     expect(find.text('The model'), findsOneWidget);
     expect(find.text('Mr. Carson · on-device · v1.0'), findsOneWidget);
   });
