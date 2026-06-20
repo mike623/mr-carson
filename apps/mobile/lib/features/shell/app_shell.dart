@@ -66,6 +66,7 @@ class AppShell extends ConsumerWidget {
           pending: pendingList,
           onOpenExpense: vm.openExpense,
           onReviewPending: vm.reviewPending,
+          onRetryPending: vm.retryPending,
         );
       case ShellScreen.detail:
         return DetailScreen(
@@ -99,20 +100,28 @@ class AppShell extends ConsumerWidget {
     // Map pending DB rows to LedgerPending view model objects.
     final pendingRows = ref.watch(pendingReceiptsProvider);
     final pendingList = pendingRows.maybeWhen(
-      data: (rows) => rows
-          .map((r) => LedgerPending(
-                id: r.id,
-                ready: r.status == PendingStatus.awaitingConfirmation.name,
-                stage: r.status == PendingStatus.awaitingConfirmation.name
-                    ? 'Ready for your review'
-                    : 'Reading the receipt…',
-                pct: r.status == PendingStatus.awaitingConfirmation.name
-                    ? 100
-                    : 50,
-                merchant: null,
-                total: null,
-              ))
-          .toList(),
+      data: (rows) => rows.map((r) {
+        final ready = r.status == PendingStatus.awaitingConfirmation.name;
+        final failed = r.status == PendingStatus.failed.name;
+        return LedgerPending(
+          id: r.id,
+          ready: ready,
+          failed: failed,
+          error: r.errorMessage,
+          stage: failed
+              ? 'I could not read that one, sir'
+              : ready
+                  ? 'Ready for your review'
+                  : 'Reading the receipt…',
+          pct: ready
+              ? 100
+              : failed
+                  ? 0
+                  : 50,
+          merchant: null,
+          total: null,
+        );
+      }).toList(),
       orElse: () => <LedgerPending>[],
     );
 

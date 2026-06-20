@@ -30,12 +30,20 @@ class LedgerPending {
     required this.ready,
     required this.stage,
     required this.pct,
+    this.failed = false,
+    this.error,
     this.merchant,
     this.total,
   });
 
   final String id;
   final bool ready;
+
+  /// True when OCR failed; the card shows the error and a Retry button.
+  final bool failed;
+
+  /// Failure detail, shown on a failed card.
+  final String? error;
   final String stage;
   final int pct;
   final String? merchant;
@@ -56,6 +64,7 @@ class LedgerScreen extends ConsumerWidget {
     super.key,
     this.onOpenExpense,
     this.onReviewPending,
+    this.onRetryPending,
     this.pending = const [],
   });
 
@@ -64,6 +73,9 @@ class LedgerScreen extends ConsumerWidget {
 
   /// Called when the user taps "Review" on a ready pending card. Receives the pending id.
   final void Function(String pendingId)? onReviewPending;
+
+  /// Called when the user taps "Retry" on a failed pending card. Receives the pending id.
+  final void Function(String pendingId)? onRetryPending;
 
   /// In-flight receipts to display (fed from shell via pendingReceiptsProvider).
   final List<LedgerPending> pending;
@@ -116,6 +128,7 @@ class LedgerScreen extends ConsumerWidget {
       pending: pending,
       onOpenExpense: onOpenExpense,
       onReviewPending: onReviewPending,
+      onRetryPending: onRetryPending,
     );
   }
 }
@@ -174,6 +187,7 @@ class _Body extends StatelessWidget {
     required this.pending,
     required this.onOpenExpense,
     required this.onReviewPending,
+    required this.onRetryPending,
   });
 
   final MonthlySummary? summary;
@@ -181,6 +195,7 @@ class _Body extends StatelessWidget {
   final List<LedgerPending> pending;
   final void Function(String)? onOpenExpense;
   final void Function(String)? onReviewPending;
+  final void Function(String)? onRetryPending;
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +206,11 @@ class _Body extends StatelessWidget {
         children: [
           _SummaryCard(summary: summary),
           if (pending.isNotEmpty) ...[
-            _PendingSection(pending: pending, onReviewPending: onReviewPending),
+            _PendingSection(
+              pending: pending,
+              onReviewPending: onReviewPending,
+              onRetryPending: onRetryPending,
+            ),
           ],
           const SizedBox(height: 26),
           Text(
@@ -480,10 +499,12 @@ class _PendingSection extends StatelessWidget {
   const _PendingSection({
     required this.pending,
     required this.onReviewPending,
+    required this.onRetryPending,
   });
 
   final List<LedgerPending> pending;
   final void Function(String)? onReviewPending;
+  final void Function(String)? onRetryPending;
 
   @override
   Widget build(BuildContext context) {
@@ -520,6 +541,7 @@ class _PendingSection extends StatelessWidget {
                     child: _PendingCard(
                       item: p,
                       onReview: onReviewPending,
+                      onRetry: onRetryPending,
                     ),
                   ))
               .toList(),
@@ -530,10 +552,15 @@ class _PendingSection extends StatelessWidget {
 }
 
 class _PendingCard extends StatelessWidget {
-  const _PendingCard({required this.item, required this.onReview});
+  const _PendingCard({
+    required this.item,
+    required this.onReview,
+    required this.onRetry,
+  });
 
   final LedgerPending item;
   final void Function(String)? onReview;
+  final void Function(String)? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -547,16 +574,27 @@ class _PendingCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _PendingTile(ready: item.ready),
+          _PendingTile(ready: item.ready, failed: item.failed),
           const SizedBox(width: 14),
           Expanded(
-            child: item.ready
-                ? _ReadyContent(item: item)
-                : _ProcessingContent(item: item),
+            child: item.failed
+                ? _FailedContent(item: item)
+                : item.ready
+                    ? _ReadyContent(item: item)
+                    : _ProcessingContent(item: item),
           ),
-          if (item.ready) ...[
+          if (item.failed) ...[
             const SizedBox(width: 12),
-            _ReviewButton(onTap: () => onReview?.call(item.id)),
+            _PillButton(
+              label: 'Retry',
+              onTap: () => onRetry?.call(item.id),
+            ),
+          ] else if (item.ready) ...[
+            const SizedBox(width: 12),
+            _PillButton(
+              label: 'Review',
+              onTap: () => onReview?.call(item.id),
+            ),
           ],
         ],
       ),
@@ -566,8 +604,9 @@ class _PendingCard extends StatelessWidget {
 
 /// The 46×46 thumbnail tile on the left of a pending card.
 class _PendingTile extends StatelessWidget {
-  const _PendingTile({required this.ready});
+  const _PendingTile({required this.ready, this.failed = false});
   final bool ready;
+  final bool failed;
 
   @override
   Widget build(BuildContext context) {
@@ -580,9 +619,13 @@ class _PendingTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(
-        child: ready
-            ? const Icon(Icons.check, color: MrCarsonColors.accent, size: 20)
-            : const _SpinningRing(),
+        child: failed
+            ? const Icon(Icons.error_outline,
+                color: MrCarsonColors.ink3, size: 20)
+            : ready
+                ? const Icon(Icons.check,
+                    color: MrCarsonColors.accent, size: 20)
+                : const _SpinningRing(),
       ),
     );
   }
@@ -785,8 +828,43 @@ class _ReadyContent extends StatelessWidget {
   }
 }
 
-class _ReviewButton extends StatelessWidget {
-  const _ReviewButton({required this.onTap});
+/// Failed-card body: butler apology + the underlying error, kept terse.
+class _FailedContent extends StatelessWidget {
+  const _FailedContent({required this.item});
+  final LedgerPending item;
+
+  @override
+  Widget build(BuildContext context) {
+    final detail = (item.error ?? '').trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          item.stage,
+          style: MrCarsonType.ui(
+            size: 14.5,
+            weight: FontWeight.w600,
+            color: MrCarsonColors.ink,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          detail.isEmpty
+              ? 'Your photo is kept safe — retry when ready.'
+              : detail,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: MrCarsonType.ui(size: 12, color: MrCarsonColors.ink3),
+        ),
+      ],
+    );
+  }
+}
+
+/// Accent pill button used for "Review" and "Retry" on pending cards.
+class _PillButton extends StatelessWidget {
+  const _PillButton({required this.label, required this.onTap});
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -802,7 +880,7 @@ class _ReviewButton extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: Text(
-          'Review',
+          label,
           style: MrCarsonType.ui(
             size: 14,
             weight: FontWeight.w600,

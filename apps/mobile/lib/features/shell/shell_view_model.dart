@@ -216,6 +216,20 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
     }());
   }
 
+  /// Re-runs OCR on a previously-failed pending receipt, reusing its stored
+  /// image — no re-upload. The card updates live via [pendingReceiptsProvider].
+  Future<void> retryPending(String id) async {
+    showToast('Trying that again, sir.');
+    unawaited(() async {
+      try {
+        final result = await ref.read(receiptPipelineProvider).retry(id);
+        if (!result.ok) _showReceiptError(result.error);
+      } catch (e) {
+        _showReceiptError(e.toString());
+      }
+    }());
+  }
+
   // --- review / confirm ----------------------------------------------------
 
   void reviewPending(String id) {

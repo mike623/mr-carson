@@ -71,16 +71,19 @@ class PendingRepository {
         .getSingleOrNull();
   }
 
-  /// Streams pending receipts that are in an active (non-terminal) state:
-  /// [PendingStatus.received], [PendingStatus.ocrComplete],
-  /// [PendingStatus.awaitingConfirmation].
+  /// Streams pending receipts the user still needs to act on:
+  /// in-flight ([received], [ocrComplete]), ready ([awaitingConfirmation]),
+  /// or [failed] — failed rows stay so the user can retry without re-uploading.
+  /// Terminal states ([inserted], [rejected]) are excluded.
   Stream<List<PendingRow>> watchActive() {
     return (_db.select(_db.pendingExpenses)
           ..where((t) => t.status.isIn([
                 PendingStatus.received.name,
                 PendingStatus.ocrComplete.name,
                 PendingStatus.awaitingConfirmation.name,
-              ])))
+                PendingStatus.failed.name,
+              ]))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
         .watch();
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
+import 'core/error_reporter.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/shell/app_shell.dart';
 import 'theme/app_theme.dart';
@@ -14,7 +16,19 @@ Future<void> main() async {
   // (lib/ai/gemma_service.dart) via the in-app model lifecycle (Ask locked-state
   // CTA / Model Management screen) — not during onboarding.
   await FlutterGemma.initialize();
-  runApp(const ProviderScope(child: MrCarsonApp()));
+
+  // SentryFlutter.init's appRunner installs the zone + Flutter error handlers
+  // that capture uncaught errors. With no DSN it's a no-op shell, so dev/local
+  // builds run unchanged; pass --dart-define=SENTRY_DSN=... to enable.
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = kSentryDsn;
+      options.tracesSampleRate = 0.2;
+      // Privacy: receipts are personal. Don't ship request bodies / PII.
+      options.sendDefaultPii = false;
+    },
+    appRunner: () => runApp(const ProviderScope(child: MrCarsonApp())),
+  );
 }
 
 /// Root of the Mr. Carson app. Brass & Ink, dark-first.

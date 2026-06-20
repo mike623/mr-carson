@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_gemma/core/message.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/error_reporter.dart';
 import '../data/db/app_database.dart';
 import '../data/providers.dart';
 import '../data/repositories/pending_repository.dart';
@@ -72,7 +74,28 @@ class ReceiptPipelineService {
   /// the pending row is updated to [PendingStatus.failed].
   Future<ReceiptResult> processReceipt(String imagePath) async {
     final pendingId = await _pending.create(filePath: imagePath);
+    return _runOcr(pendingId, imagePath);
+  }
 
+  /// Re-runs OCR on an already-failed pending row, reusing its stored image —
+  /// the user need not upload again. The row's file path and id are preserved.
+  Future<ReceiptResult> retry(String pendingId) async {
+    final row = await _pending.getById(pendingId);
+    final path = row?.filePath;
+    if (path == null) {
+      const msg = 'No image on file to retry.';
+      await _pending.setStatus(pendingId, PendingStatus.failed,
+          errorMessage: msg);
+      return ReceiptResult.failure(pendingId, msg);
+    }
+    // Clear the prior error and re-enter the active state before retrying.
+    await _pending.setStatus(pendingId, PendingStatus.received,
+        errorMessage: '');
+    return _runOcr(pendingId, path);
+  }
+
+  /// Core OCR pass against an existing pending row [pendingId].
+  Future<ReceiptResult> _runOcr(String pendingId, String imagePath) async {
     try {
       final imageBytes = await File(imagePath).readAsBytes();
 
@@ -107,7 +130,11 @@ class ReceiptPipelineService {
           'Model returned ${decoded.runtimeType}, expected a JSON object',
         );
       }
-      final draft = ExpenseDraft.fromJson(decoded);
+      // Coerce missing/null required fields to safe defaults before parsing.
+      // The model often omits a merchant or returns null total; without this the
+      // strict freezed fromJson throws "type 'Null' is not a subtype of String"
+      // and a salvageable receipt is lost. The user edits the rest in Confirm.
+      final draft = ExpenseDraft.fromJson(coerceDraftJson(decoded, today));
 
       await _pending.setStatus(
         pendingId,
@@ -117,7 +144,8 @@ class ReceiptPipelineService {
       );
 
       return ReceiptResult.success(pendingId, draft);
-    } catch (e) {
+    } catch (e, st) {
+      await reportError(e, st, hint: 'receipt_ocr');
       await _pending.setStatus(
         pendingId,
         PendingStatus.failed,
@@ -165,6 +193,39 @@ class ReceiptPipelineService {
     final m = now.month.toString().padLeft(2, '0');
     final d = now.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
+  }
+
+  /// Normalises a raw model JSON object into a shape [ExpenseDraft.fromJson]
+  /// can parse without throwing on null/missing required fields.
+  @visibleForTesting
+  static Map<String, dynamic> coerceDraftJson(
+    Map<String, dynamic> d,
+    String today,
+  ) {
+    String str(Object? v, String fallback) =>
+        (v is String && v.trim().isNotEmpty) ? v.trim() : fallback;
+    double num_(Object? v) =>
+        v is num ? v.toDouble() : double.tryParse('$v') ?? 0.0;
+
+    final cur = str(d['currency'], kDefaultCurrency).toUpperCase();
+    final rawItems = d['items'] is List ? d['items'] as List : const [];
+    final items = rawItems.whereType<Map>().map((it) {
+      return {
+        'name': str(it['name'], 'Item'),
+        'amount': num_(it['amount']),
+        'category': str(it['category'], 'Other'),
+      };
+    }).toList();
+
+    return {
+      'merchant': str(d['merchant'], 'Unknown merchant'),
+      'date': str(d['date'], today),
+      // DB enforces a 3-char currency; fall back if the model returns junk.
+      'currency': cur.length == 3 ? cur : kDefaultCurrency,
+      'total': num_(d['total']),
+      'vat': d['vat'] is num ? (d['vat'] as num).toDouble() : null,
+      'items': items,
+    };
   }
 
   /// Removes leading/trailing markdown code fences if present.
