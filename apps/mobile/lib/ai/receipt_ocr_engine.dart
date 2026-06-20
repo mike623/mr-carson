@@ -160,9 +160,11 @@ const String _ollamaBaseUrl = String.fromEnvironment(
 );
 const String _ollamaModel =
     String.fromEnvironment('OLLAMA_MODEL', defaultValue: 'gemma3');
+// Deployed Cloudflare Worker (holds the OpenRouter key). Non-secret. Override
+// for local dev: --dart-define=OCR_PROXY_URL=http://localhost:8787
 const String _ocrProxyUrl = String.fromEnvironment(
   'OCR_PROXY_URL',
-  defaultValue: 'http://localhost:8787',
+  defaultValue: 'https://mr-carson-openrouter-proxy.namike623.workers.dev',
 );
 const String _ocrCloudModel = String.fromEnvironment(
   'OCR_CLOUD_MODEL',
