@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mr_carson/ai/gemma_service.dart';
+import 'package:mr_carson/ai/receipt_ocr_engine.dart';
 import 'package:mr_carson/ai/receipt_pipeline.dart';
 import 'package:mr_carson/data/db/app_database.dart';
 import 'package:mr_carson/data/providers.dart';
@@ -54,7 +55,7 @@ class _RecordingReceiptImageStore extends ReceiptImageStore {
 
 class _RecordingPipeline extends ReceiptPipelineService {
   _RecordingPipeline({required AppDatabase db, required PendingRepository repo})
-      : super(GemmaService(), db, repo);
+      : super(GemmaOcrEngine(GemmaService()), db, repo);
 
   final List<String> rejectedIds = [];
 
@@ -83,7 +84,7 @@ class _FakePipeline extends ReceiptPipelineService {
     required AppDatabase db,
     required PendingRepository repo,
     required this.processResult,
-  }) : super(GemmaService(), db, repo);
+  }) : super(GemmaOcrEngine(GemmaService()), db, repo);
 
   final ReceiptResult processResult;
 
@@ -115,7 +116,7 @@ class _CompleterPipeline extends ReceiptPipelineService {
     required AppDatabase db,
     required PendingRepository repo,
     required this.completer,
-  }) : super(GemmaService(), db, repo);
+  }) : super(GemmaOcrEngine(GemmaService()), db, repo);
 
   final Completer<ReceiptResult> completer;
   int processCallCount = 0;
@@ -140,7 +141,7 @@ class _CompleterPipeline extends ReceiptPipelineService {
 
 class _FailingRejectPipeline extends ReceiptPipelineService {
   _FailingRejectPipeline({required AppDatabase db, required PendingRepository repo})
-      : super(GemmaService(), db, repo);
+      : super(GemmaOcrEngine(GemmaService()), db, repo);
 
   @override
   Future<void> reject(String pendingId) async {

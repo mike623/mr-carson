@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mr_carson/ai/gemma_service.dart';
+import 'package:mr_carson/ai/receipt_ocr_engine.dart';
 import 'package:mr_carson/ai/receipt_pipeline.dart';
 import 'package:mr_carson/data/db/app_database.dart';
 import 'package:mr_carson/data/providers.dart';
@@ -57,7 +58,7 @@ void main() {
         appDatabaseProvider.overrideWithValue(db),
         pendingRepositoryProvider.overrideWithValue(pendingRepo),
         receiptPipelineProvider.overrideWith((ref) => ReceiptPipelineService(
-              GemmaService(),
+              GemmaOcrEngine(GemmaService()),
               db,
               pendingRepo,
             )),
@@ -101,7 +102,7 @@ void main() {
         appDatabaseProvider.overrideWithValue(db),
         pendingRepositoryProvider.overrideWithValue(pendingRepo),
         receiptPipelineProvider.overrideWith((ref) => ReceiptPipelineService(
-              GemmaService(),
+              GemmaOcrEngine(GemmaService()),
               db,
               pendingRepo,
             )),
@@ -145,7 +146,7 @@ void main() {
         appDatabaseProvider.overrideWithValue(db),
         pendingRepositoryProvider.overrideWithValue(pendingRepo),
         receiptPipelineProvider.overrideWith((ref) => ReceiptPipelineService(
-              GemmaService(),
+              GemmaOcrEngine(GemmaService()),
               db,
               pendingRepo,
             )),
@@ -188,7 +189,7 @@ void main() {
         appDatabaseProvider.overrideWithValue(db),
         pendingRepositoryProvider.overrideWithValue(pendingRepo),
         receiptPipelineProvider.overrideWith((ref) => ReceiptPipelineService(
-              GemmaService(),
+              GemmaOcrEngine(GemmaService()),
               db,
               pendingRepo,
             )),
