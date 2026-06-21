@@ -65,6 +65,7 @@ class LedgerScreen extends ConsumerWidget {
     this.onOpenExpense,
     this.onReviewPending,
     this.onRetryPending,
+    this.onDeletePending,
     this.pending = const [],
   });
 
@@ -76,6 +77,9 @@ class LedgerScreen extends ConsumerWidget {
 
   /// Called when the user taps "Retry" on a failed pending card. Receives the pending id.
   final void Function(String pendingId)? onRetryPending;
+
+  /// Called when the user taps the delete action on a pending card. Receives the pending id.
+  final void Function(String pendingId)? onDeletePending;
 
   /// In-flight receipts to display (fed from shell via pendingReceiptsProvider).
   final List<LedgerPending> pending;
@@ -129,6 +133,7 @@ class LedgerScreen extends ConsumerWidget {
       onOpenExpense: onOpenExpense,
       onReviewPending: onReviewPending,
       onRetryPending: onRetryPending,
+      onDeletePending: onDeletePending,
     );
   }
 }
@@ -188,6 +193,7 @@ class _Body extends StatelessWidget {
     required this.onOpenExpense,
     required this.onReviewPending,
     required this.onRetryPending,
+    required this.onDeletePending,
   });
 
   final MonthlySummary? summary;
@@ -196,6 +202,7 @@ class _Body extends StatelessWidget {
   final void Function(String)? onOpenExpense;
   final void Function(String)? onReviewPending;
   final void Function(String)? onRetryPending;
+  final void Function(String)? onDeletePending;
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +217,7 @@ class _Body extends StatelessWidget {
               pending: pending,
               onReviewPending: onReviewPending,
               onRetryPending: onRetryPending,
+              onDeletePending: onDeletePending,
             ),
           ],
           const SizedBox(height: 26),
@@ -500,11 +508,13 @@ class _PendingSection extends StatelessWidget {
     required this.pending,
     required this.onReviewPending,
     required this.onRetryPending,
+    required this.onDeletePending,
   });
 
   final List<LedgerPending> pending;
   final void Function(String)? onReviewPending;
   final void Function(String)? onRetryPending;
+  final void Function(String)? onDeletePending;
 
   @override
   Widget build(BuildContext context) {
@@ -542,6 +552,7 @@ class _PendingSection extends StatelessWidget {
                       item: p,
                       onReview: onReviewPending,
                       onRetry: onRetryPending,
+                      onDelete: onDeletePending,
                     ),
                   ))
               .toList(),
@@ -556,11 +567,13 @@ class _PendingCard extends StatelessWidget {
     required this.item,
     required this.onReview,
     required this.onRetry,
+    required this.onDelete,
   });
 
   final LedgerPending item;
   final void Function(String)? onReview;
   final void Function(String)? onRetry;
+  final void Function(String)? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -594,6 +607,19 @@ class _PendingCard extends StatelessWidget {
             _PillButton(
               label: 'Review',
               onTap: () => onReview?.call(item.id),
+            ),
+          ],
+          // Delete is offered on actionable cards (failed or ready), not while
+          // a receipt is still being read.
+          if ((item.failed || item.ready) && onDelete != null) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              onPressed: () => onDelete!.call(item.id),
+              icon: const Icon(Icons.delete_outline),
+              color: MrCarsonColors.ink3,
+              iconSize: 20,
+              tooltip: 'Remove',
+              visualDensity: VisualDensity.compact,
             ),
           ],
         ],

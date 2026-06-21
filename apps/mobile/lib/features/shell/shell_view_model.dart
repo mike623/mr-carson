@@ -230,6 +230,24 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
     }());
   }
 
+  /// Deletes a pending receipt from the ledger (rejects the row + removes its
+  /// stored image). Used by the ledger's pending-card delete action. The card
+  /// disappears live via [pendingReceiptsProvider].
+  Future<void> deletePending(String id) async {
+    try {
+      final pending = await ref.read(pendingRepositoryProvider).getById(id);
+      await ref.read(receiptPipelineProvider).reject(id);
+      if (pending?.filePath != null) {
+        await ref
+            .read(receiptImageStoreProvider)
+            .deleteReceipt(pending!.filePath!);
+      }
+      showToast('Removed, sir.');
+    } catch (_) {
+      showToast('Could not remove that receipt, sir.');
+    }
+  }
+
   // --- review / confirm ----------------------------------------------------
 
   void reviewPending(String id) {
