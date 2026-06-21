@@ -21,10 +21,14 @@ class DetailScreen extends ConsumerWidget {
     super.key,
     required this.id,
     required this.onBack,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   final String id;
   final VoidCallback onBack;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,7 +38,7 @@ class DetailScreen extends ConsumerWidget {
       backgroundColor: MrCarsonColors.bg,
       body: Column(
         children: [
-          _TopBar(onBack: onBack),
+          _TopBar(onBack: onBack, onEdit: onEdit),
           Expanded(
             child: detailAsync.when(
               loading: () => const LoadingState(message: 'Fetching the receipt, sir.'),
@@ -50,7 +54,7 @@ class DetailScreen extends ConsumerWidget {
                     icon: Icons.receipt_long_outlined,
                   );
                 }
-                return _DetailBody(detail: detail);
+                return _DetailBody(detail: detail, onDelete: onDelete);
               },
             ),
           ),
@@ -65,9 +69,10 @@ class DetailScreen extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack});
+  const _TopBar({required this.onBack, required this.onEdit});
 
   final VoidCallback onBack;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -106,22 +111,25 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // Edit pill (placeholder — editing not in scope for Task 4)
-          Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: MrCarsonColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: MrCarsonColors.line, width: 1),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              'Edit',
-              style: MrCarsonType.ui(
-                size: 14,
-                weight: FontWeight.w600,
-                color: MrCarsonColors.accent,
+          // Edit pill → opens the Edit Expense screen.
+          GestureDetector(
+            onTap: onEdit,
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: MrCarsonColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: MrCarsonColors.line, width: 1),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                'Edit',
+                style: MrCarsonType.ui(
+                  size: 14,
+                  weight: FontWeight.w600,
+                  color: MrCarsonColors.accent,
+                ),
               ),
             ),
           ),
@@ -136,9 +144,10 @@ class _TopBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.detail});
+  const _DetailBody({required this.detail, required this.onDelete});
 
   final ExpenseDetail detail;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +172,77 @@ class _DetailBody extends StatelessWidget {
             ),
           ),
           _ReceiptImage(sourceFile: detail.sourceFile),
+          _DeleteButton(merchant: detail.merchant, onDelete: onDelete),
         ],
+      ),
+    );
+  }
+}
+
+/// "Delete expense" — destructive, so it confirms first (committed expenses are
+/// not recoverable). The design's button alone deletes silently; the dialog is
+/// the real-app safeguard for irreversible removal.
+class _DeleteButton extends StatelessWidget {
+  const _DeleteButton({required this.merchant, required this.onDelete});
+
+  final String merchant;
+  final VoidCallback onDelete;
+
+  Future<void> _confirm(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MrCarsonColors.surface,
+        title: Text('Remove this expense, sir?',
+            style: MrCarsonType.ui(size: 17, weight: FontWeight.w600)),
+        content: Text(
+          'I shall strike $merchant from the ledger for good — there is no undoing it.',
+          style: MrCarsonType.ui(size: 14, color: MrCarsonColors.ink2, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Keep it',
+                style: MrCarsonType.ui(
+                    size: 14.5, weight: FontWeight.w600, color: MrCarsonColors.ink2)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Delete',
+                style: MrCarsonType.ui(
+                    size: 14.5, weight: FontWeight.w600, color: MrCarsonColors.warn)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) onDelete();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 30),
+      child: GestureDetector(
+        onTap: () => _confirm(context),
+        child: Container(
+          height: 50,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: MrCarsonColors.line, width: 1),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.delete_outline, size: 16, color: MrCarsonColors.ink3),
+              const SizedBox(width: 9),
+              Text('Delete expense',
+                  style: MrCarsonType.ui(
+                      size: 14.5, weight: FontWeight.w600, color: MrCarsonColors.ink3)),
+            ],
+          ),
+        ),
       ),
     );
   }

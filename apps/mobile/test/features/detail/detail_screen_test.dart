@@ -39,6 +39,8 @@ Widget _wrap({
       home: DetailScreen(
         id: expenseId,
         onBack: onBack ?? () {},
+        onEdit: () {},
+        onDelete: () {},
       ),
     ),
   );
@@ -69,7 +71,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildMrCarsonTheme(),
-          home: DetailScreen(id: 'loading-id', onBack: () {}),
+          home: DetailScreen(id: 'loading-id', onBack: () {}, onEdit: () {}, onDelete: () {}),
         ),
       ),
     );
@@ -107,7 +109,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildMrCarsonTheme(),
-          home: DetailScreen(id: 'any', onBack: () {}),
+          home: DetailScreen(id: 'any', onBack: () {}, onEdit: () {}, onDelete: () {}),
         ),
       ),
     );
@@ -223,7 +225,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildMrCarsonTheme(),
-          home: DetailScreen(id: 'img-test', onBack: () {}),
+          home: DetailScreen(id: 'img-test', onBack: () {}, onEdit: () {}, onDelete: () {}),
         ),
       ),
     );
@@ -260,7 +262,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildMrCarsonTheme(),
-          home: DetailScreen(id: 'no-img', onBack: () {}),
+          home: DetailScreen(id: 'no-img', onBack: () {}, onEdit: () {}, onDelete: () {}),
         ),
       ),
     );
@@ -299,7 +301,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildMrCarsonTheme(),
-          home: DetailScreen(id: 'bad-path', onBack: () {}),
+          home: DetailScreen(id: 'bad-path', onBack: () {}, onEdit: () {}, onDelete: () {}),
         ),
       ),
     );

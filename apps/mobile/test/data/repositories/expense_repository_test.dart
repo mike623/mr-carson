@@ -62,6 +62,59 @@ void main() {
       expect(list.first.date, equals('2024-03-15'));
     });
 
+    test('updateExpense amends merchant/total/date/categories, keeps items',
+        () async {
+      final id = await db.insertExpense(
+        const ExpenseDraft(
+          merchant: 'Tesco',
+          date: '2024-03-15',
+          currency: 'GBP',
+          total: 12.50,
+          items: [
+            ExpenseItemDraft(name: 'Milk', amount: 12.50, category: 'Groceries')
+          ],
+          categories: ['Groceries'],
+        ),
+      );
+
+      await db.updateExpense(
+        id,
+        merchant: 'Waitrose',
+        total: 20.00,
+        date: '2024-04-01',
+        categories: ['Groceries', 'Household'],
+      );
+
+      final detail = await db.watchExpenseById(id).first;
+      expect(detail, isNotNull);
+      expect(detail!.merchant, equals('Waitrose'));
+      expect(detail.total, equals(20.00));
+      expect(detail.date, equals('2024-04-01'));
+      expect(detail.categories, equals(['Groceries', 'Household']));
+      // Line items are left as filed.
+      expect(detail.items, hasLength(1));
+      expect(detail.items.first.name, equals('Milk'));
+    });
+
+    test('deleteExpense removes the expense and its items', () async {
+      final id = await db.insertExpense(
+        const ExpenseDraft(
+          merchant: 'Tesco',
+          date: '2024-03-15',
+          currency: 'GBP',
+          total: 12.50,
+          items: [
+            ExpenseItemDraft(name: 'Milk', amount: 12.50, category: 'Groceries')
+          ],
+        ),
+      );
+
+      await db.deleteExpense(id);
+
+      expect(await db.watchExpenseById(id).first, isNull);
+      expect(await repo.watchRecentExpenses().first, isEmpty);
+    });
+
     test(
         'two expenses in different categories → watchMonthlySummary has correct total and buckets',
         () async {

@@ -106,6 +106,49 @@ class AppDatabase extends _$AppDatabase {
     return id;
   }
 
+  /// Amends the expense-level fields of an existing expense. Line items are left
+  /// untouched — the editor only changes merchant/total/date/categories (the
+  /// design's edit screen keeps "the particulars as filed, sir"). Also records
+  /// the (possibly new) merchant in the merchants table for autocomplete parity
+  /// with [insertExpense].
+  Future<void> updateExpense(
+    String id, {
+    required String merchant,
+    required double total,
+    required String date,
+    required List<String> categories,
+  }) async {
+    final trimmed = merchant.trim();
+    await transaction(() async {
+      await (update(expenses)..where((t) => t.id.equals(id))).write(
+        ExpensesCompanion(
+          merchant: Value(trimmed),
+          total: Value(total),
+          date: Value(date),
+          categories:
+              Value(categories.isEmpty ? null : jsonEncode(categories)),
+        ),
+      );
+      await into(merchants).insert(
+        MerchantsCompanion.insert(
+          name: trimmed,
+          normalized: trimmed.toLowerCase(),
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    });
+  }
+
+  /// Deletes an expense and its line items. Items are removed explicitly rather
+  /// than relying on the FK cascade, since SQLite foreign-key enforcement is not
+  /// guaranteed to be on for the native executor.
+  Future<void> deleteExpense(String id) async {
+    await transaction(() async {
+      await (delete(expenseItems)..where((t) => t.expenseId.equals(id))).go();
+      await (delete(expenses)..where((t) => t.id.equals(id))).go();
+    });
+  }
+
   // --- dedup ----------------------------------------------------------------
 
   /// Ported from `findByImageHash`.

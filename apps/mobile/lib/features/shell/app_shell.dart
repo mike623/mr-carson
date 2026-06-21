@@ -12,6 +12,7 @@ import '../../ui/core/utils/currency_format.dart';
 import '../ask/ask_screen.dart';
 import '../confirm/confirm_screen.dart';
 import '../detail/detail_screen.dart';
+import '../edit/edit_expense_screen.dart';
 import '../ledger/ledger_screen.dart';
 import '../manual/manual_entry_screen.dart';
 import '../model/engage_screen.dart';
@@ -121,7 +122,11 @@ class AppShell extends ConsumerWidget {
         return DetailScreen(
           id: s.selectedExpenseId ?? '',
           onBack: () => vm.go(ShellScreen.ledger),
+          onEdit: () => vm.openEdit(s.selectedExpenseId ?? ''),
+          onDelete: () => vm.deleteExpense(s.selectedExpenseId ?? ''),
         );
+      case ShellScreen.edit:
+        return EditExpenseScreen(id: s.selectedExpenseId ?? '');
       case ShellScreen.confirm:
         return ConfirmScreen(
           pendingId: s.reviewingId ?? '',

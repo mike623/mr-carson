@@ -21,7 +21,8 @@ recreate it faithfully in Flutter widgets and wire to the existing data/AI layer
 | Onboarding: welcome / privacy / download | `lib/features/onboarding/onboarding_screen.dart` | ✅ done |
 | Ask / chat (hero) | `lib/features/ask/ask_screen.dart` | ✅ done |
 | Ledger (donut + pending + recent) | `lib/features/ledger/ledger_screen.dart` | ✅ done |
-| Expense detail | `lib/features/detail/detail_screen.dart` | ✅ done |
+| Expense detail (+ delete) | `lib/features/detail/detail_screen.dart` | ✅ done |
+| Edit expense | `lib/features/edit/edit_expense_screen.dart` | ✅ done |
 | Confirm expense | `lib/features/confirm/confirm_screen.dart` | ✅ done |
 | Bottom nav + add sheet + toast | `lib/features/shell/app_shell.dart` | ✅ done |
 | App shell / routing / main.dart | `lib/main.dart` | ✅ done |
@@ -45,6 +46,14 @@ Ran all 9 screens live (idb-driven). All match the design. iOS scaffolding added
 ### Tests (flutter-add-widget-test skill)
 - `test/features/{onboarding,ledger,confirm}/…` + smoke test. `flutter test` →
   **+8 all pass**. `GoogleFonts.allowRuntimeFetching=false`, no timer leaks.
+
+### Design refresh (remote `Mr Carson.dc.html`, fetched 2026-06-21)
+Edit/Delete added: detail Edit button opens a new Edit Expense screen
+(merchant / amount / date / multi-category), Save → `AppDatabase.updateExpense`;
+detail has a Delete-expense button → confirm dialog → `AppDatabase.deleteExpense`.
+Deferred: the design's optional **note** field — no `note` column on `expenses`,
+so the input would not persist (add a column first). Nav-bar bell/book SVG icons
+not swapped (still Material icons) — out of scope this pass.
 
 ### Still mock / not yet done
 - **Real model**: `kDefaultModelUrl` is a placeholder. Download/streaming/pending

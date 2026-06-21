@@ -34,6 +34,7 @@ enum ShellScreen {
   ask,
   ledger,
   detail,
+  edit,
   confirm,
   settings,
   modelMgmt,
@@ -127,6 +128,26 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
   /// Navigate to the detail screen for a specific expense id.
   void openExpense(String id) {
     state = state.copyWith(selectedExpenseId: id, screen: ShellScreen.detail);
+  }
+
+  /// Open the edit screen for the currently-open expense.
+  void openEdit(String id) {
+    state = state.copyWith(selectedExpenseId: id, screen: ShellScreen.edit);
+  }
+
+  /// Permanently deletes a committed expense (and its line items), then returns
+  /// to the ledger. The reactive ledger stream drops the row automatically.
+  Future<void> deleteExpense(String id) async {
+    try {
+      await ref.read(appDatabaseProvider).deleteExpense(id);
+      state = state.copyWith(
+        selectedExpenseId: null,
+        screen: ShellScreen.ledger,
+      );
+      showToast('Removed from the ledger, sir.');
+    } catch (_) {
+      showToast('Could not remove that expense, sir.');
+    }
   }
 
   void setAskComposerFocused(bool focused) {
