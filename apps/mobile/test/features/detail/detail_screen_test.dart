@@ -206,7 +206,7 @@ void main() {
     final detail = ExpenseDetail(
       id: 'img-test',
       merchant: 'The Savoy',
-      category: 'Dining',
+      categories: ['Dining'],
       date: '2026-06-17',
       total: 42.00,
       currency: 'GBP',
@@ -243,7 +243,7 @@ void main() {
     const detail = ExpenseDetail(
       id: 'no-img',
       merchant: 'Claridges',
-      category: 'Dining',
+      categories: ['Dining'],
       date: '2026-06-17',
       total: 55.00,
       currency: 'GBP',
@@ -282,7 +282,7 @@ void main() {
     const detail = ExpenseDetail(
       id: 'bad-path',
       merchant: 'Ritz',
-      category: 'Dining',
+      categories: ['Dining'],
       date: '2026-06-17',
       total: 99.00,
       currency: 'GBP',

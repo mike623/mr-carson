@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 // Hide drift's internal QueryRow — our domain QueryRow (ai_models.dart) wins.
@@ -28,7 +29,18 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // v2: expense-level categories (JSON array).
+            await m.addColumn(expenses, expenses.categories);
+          }
+        },
+      );
 
   // --- seed -----------------------------------------------------------------
 
@@ -57,6 +69,11 @@ class AppDatabase extends _$AppDatabase {
     String? imageHash,
   }) async {
     final id = _uuid.v4();
+    // Expense-level tags: explicit list if given, else the distinct set of
+    // line-item categories (insertion order preserved).
+    final cats = (expense.categories != null && expense.categories!.isNotEmpty)
+        ? expense.categories!
+        : expense.items.map((i) => i.category).toSet().toList();
     await transaction(() async {
       await into(expenses).insert(ExpensesCompanion.insert(
         id: id,
@@ -65,6 +82,7 @@ class AppDatabase extends _$AppDatabase {
         currency: expense.currency,
         total: expense.total,
         vat: Value(expense.vat ?? 0),
+        categories: Value(cats.isEmpty ? null : jsonEncode(cats)),
         sourceFile: Value(sourceFile),
         imageHash: Value(imageHash),
       ));
@@ -402,9 +420,7 @@ class AppDatabase extends _$AppDatabase {
       SELECT
         e.id          AS e_id,
         e.merchant    AS merchant,
-        COALESCE((SELECT i2.category FROM expense_items i2
-                  WHERE i2.expense_id = e.id
-                  ORDER BY i2.amount DESC LIMIT 1), 'Other') AS category,
+        e.categories  AS categories,
         e.date        AS date,
         e.total       AS total,
         e.currency    AS currency,
@@ -432,10 +448,20 @@ class AppDatabase extends _$AppDatabase {
                 amount: (r.data['i_amount'] as num).toDouble(),
               ))
           .toList();
+      // Expense-level tags: stored JSON array, else fall back to the distinct
+      // line-item categories, else 'Other'.
+      List<String> cats;
+      final rawCats = first['categories'] as String?;
+      if (rawCats != null && rawCats.isNotEmpty) {
+        cats = (jsonDecode(rawCats) as List).cast<String>();
+      } else {
+        cats = items.map((i) => i.category).toSet().toList();
+      }
+      if (cats.isEmpty) cats = const ['Other'];
       return ExpenseDetail(
         id: first['e_id'] as String,
         merchant: first['merchant'] as String,
-        category: first['category'] as String,
+        categories: cats,
         date: first['date'] as String,
         total: (first['total'] as num).toDouble(),
         currency: first['currency'] as String,

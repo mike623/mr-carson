@@ -147,10 +147,22 @@ class _DetailBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ReceiptImage(sourceFile: detail.sourceFile),
           _MerchantBlock(detail: detail),
           _ItemsSection(detail: detail),
           const _ButlerNote(),
+          // Receipt now sits at the foot of the page (moved from the top).
+          Padding(
+            padding: const EdgeInsets.only(top: 30, bottom: 10),
+            child: Text(
+              'RECEIPT',
+              style: MrCarsonType.ui(
+                size: 11,
+                color: MrCarsonColors.ink3,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          _ReceiptImage(sourceFile: detail.sourceFile),
         ],
       ),
     );
@@ -305,7 +317,14 @@ class _MerchantBlock extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            _CategoryPill(category: detail.category),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final c in detail.categories) _CategoryPill(category: c),
+              ],
+            ),
           ],
         ),
       ),
@@ -334,7 +353,7 @@ class _CategoryPill extends StatelessWidget {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: MrCarsonColors.accent,
+              color: MrCarsonColors.forCategory(category),
               borderRadius: BorderRadius.circular(3),
             ),
           ),

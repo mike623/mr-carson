@@ -47,6 +47,9 @@ abstract class ExpenseDraft with _$ExpenseDraft {
     required double total,
     double? vat,
     required List<ExpenseItemDraft> items,
+    // Expense-level category tags. Independent of line items so an expense can
+    // be filed under several categories at once.
+    List<String>? categories,
   }) = _ExpenseDraft;
 
   factory ExpenseDraft.fromJson(Map<String, dynamic> json) =>

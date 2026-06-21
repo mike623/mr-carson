@@ -5,6 +5,7 @@ import '../../data/providers.dart';
 import '../../domain/models/ai_models.dart';
 import '../../theme/app_theme.dart';
 import '../../ui/core/utils/currency_format.dart';
+import '../../ui/core/widgets/carson_monogram.dart';
 import '../settings/currency_provider.dart';
 import '../shell/shell_view_model.dart';
 
@@ -41,7 +42,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
 
   String _merchant = '';
   String _amount = '';
-  String _selectedCategory = '';
+  final Set<String> _selectedCategories = {};
   bool _particularsOpen = false;
   final List<_ManualItem> _items = [];
 
@@ -125,7 +126,9 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
     if (!_canSave) return;
     final notifier = ref.read(shellViewModelProvider.notifier);
     final iso = currencyCode(ref.read(currencyProvider));
-    final category = _selectedCategory.isEmpty ? 'Other' : _selectedCategory;
+    final cats =
+        _selectedCategories.isEmpty ? ['Other'] : _selectedCategories.toList();
+    final category = cats.first; // representative per-item category
 
     final items = _particularsOpen
         ? _items
@@ -151,6 +154,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
       total: _effectiveAmount,
       vat: 0,
       items: items,
+      categories: cats,
     );
 
     try {
@@ -206,9 +210,13 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
                       const SizedBox(height: 13),
                       _CategoryField(
                         categories: _categories,
-                        selected: _selectedCategory,
+                        selected: _selectedCategories,
                         colorFor: _categoryColor,
-                        onSelect: (c) => setState(() => _selectedCategory = c),
+                        onToggle: (c) => setState(() {
+                          if (!_selectedCategories.remove(c)) {
+                            _selectedCategories.add(c);
+                          }
+                        }),
                       ),
                       const SizedBox(height: 13),
                       if (!_particularsOpen)
@@ -317,17 +325,7 @@ class _ManualNoteCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: MrCarsonColors.accent, width: 1),
-            ),
-            alignment: Alignment.center,
-            child: Text('C',
-                style: MrCarsonType.display(size: 17, color: MrCarsonColors.accent)),
-          ),
+          const CarsonMonogram(size: 30, borderWidth: 1),
           const SizedBox(width: 11),
           Expanded(
             child: Text(
@@ -539,13 +537,13 @@ class _CategoryField extends StatelessWidget {
     required this.categories,
     required this.selected,
     required this.colorFor,
-    required this.onSelect,
+    required this.onToggle,
   });
 
   final List<String> categories;
-  final String selected;
+  final Set<String> selected;
   final Color Function(String) colorFor;
-  final ValueChanged<String> onSelect;
+  final ValueChanged<String> onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -553,7 +551,27 @@ class _CategoryField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _fieldLabel('CATEGORY'),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              _fieldLabel('CATEGORY'),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Choose as many as apply, sir',
+                  textAlign: TextAlign.end,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: MrCarsonType.display(
+                    size: 12.5,
+                    italic: true,
+                    color: MrCarsonColors.ink3,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -564,8 +582,8 @@ class _CategoryField extends StatelessWidget {
                   _CategoryChip(
                     label: categories[i],
                     color: colorFor(categories[i]),
-                    isSelected: categories[i] == selected,
-                    onTap: () => onSelect(categories[i]),
+                    isSelected: selected.contains(categories[i]),
+                    onTap: () => onToggle(categories[i]),
                   ),
                 ],
               ],
@@ -595,22 +613,43 @@ class _CategoryChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.18) : MrCarsonColors.surface,
+          color:
+              isSelected ? color.withValues(alpha: 0.18) : MrCarsonColors.surface,
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
             color: isSelected ? color : MrCarsonColors.line,
             width: 1,
           ),
         ),
-        child: Text(
-          label,
-          style: MrCarsonType.ui(
-            size: 13.5,
-            weight: FontWeight.w600,
-            color: isSelected ? color : MrCarsonColors.ink2,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 15,
+              height: 15,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(5),
+                color: isSelected ? color.withValues(alpha: 0.30) : Colors.transparent,
+                border: Border.all(
+                  color: isSelected ? color : MrCarsonColors.ink3,
+                  width: 1.5,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: isSelected ? Icon(Icons.check, size: 10, color: color) : null,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: MrCarsonType.ui(
+                size: 13.5,
+                weight: FontWeight.w600,
+                color: isSelected ? color : MrCarsonColors.ink2,
+              ),
+            ),
+          ],
         ),
       ),
     );
