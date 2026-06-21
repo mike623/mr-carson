@@ -189,6 +189,18 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
     late final String stablePath;
     try {
       final copy = await store.copyReceipt(file.path);
+      // Duplicate guard: if an expense with this exact image already exists,
+      // skip OCR and drop the just-made copy. Only catches byte-identical
+      // re-uploads against committed expenses — a re-photographed receipt has
+      // different bytes and is caught later by soft-duplicate at confirm.
+      final existing =
+          await ref.read(appDatabaseProvider).findByImageHash(copy.imageHash);
+      if (existing != null) {
+        await store.deleteReceipt(copy.path);
+        showToast('I already have that receipt, sir.');
+        go(ShellScreen.ledger);
+        return;
+      }
       stablePath = copy.path;
     } catch (_) {
       showToast('Could not save the image, sir.');

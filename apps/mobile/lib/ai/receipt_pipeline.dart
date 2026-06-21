@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 import 'package:flutter/foundation.dart'
     show debugPrint, kDebugMode, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -169,6 +171,7 @@ class ReceiptPipelineService {
     final id = await _db.insertExpense(
       draft,
       sourceFile: pending.filePath,
+      imageHash: await _hashOf(pending.filePath),
     );
     await _pending.setStatus(pendingId, PendingStatus.inserted);
     return id;
@@ -180,6 +183,20 @@ class ReceiptPipelineService {
   }
 
   // --- helpers --------------------------------------------------------------
+
+  /// SHA-256 of the file at [path], or null if absent/unreadable. Used to stamp
+  /// committed expenses for duplicate detection (matches the hash computed by
+  /// ReceiptImageStore.copyReceipt at upload).
+  Future<String?> _hashOf(String? path) async {
+    if (path == null) return null;
+    try {
+      final f = File(path);
+      if (!await f.exists()) return null;
+      return sha256.convert(await f.readAsBytes()).toString();
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Returns today's date as 'YYYY-MM-DD'.
   String _todayIso() {
