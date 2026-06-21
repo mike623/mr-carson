@@ -392,6 +392,44 @@ void main() {
     expect(pipeline.processCallCount, equals(0));
   });
 
+  test('F-D — duplicate image (matching hash) is blocked: no OCR, dedup toast',
+      () async {
+    // Seed an expense carrying the same hash the fake store returns ('fake-hash').
+    await db.insertExpense(
+      const ExpenseDraft(
+        merchant: 'Nero',
+        date: '2026-06-20',
+        currency: 'GBP',
+        total: 4.5,
+        items: [],
+      ),
+      imageHash: 'fake-hash',
+    );
+
+    final pipeline = _FakePipeline(
+      db: db,
+      repo: pendingRepo,
+      processResult: ReceiptResult.failure('pid', 'not used'),
+    );
+
+    final (:container, :sub) = buildContainer(
+      pipeline: pipeline,
+      pickedFile: XFile('/tmp/photo.jpg'),
+      db: db,
+      repo: pendingRepo,
+    );
+    addTearDown(sub.close);
+    addTearDown(container.dispose);
+
+    final vm = container.read(shellViewModelProvider.notifier);
+    await vm.capturePhoto();
+    await Future<void>.delayed(Duration.zero);
+
+    final state = container.read(shellViewModelProvider);
+    expect(pipeline.processCallCount, equals(0)); // OCR skipped
+    expect(state.toast, contains('already have'));
+  });
+
   test('F-B — discardConfirm calls deleteReceipt with stored path and rejects the row',
       () async {
     const storedPath = '/stable/receipt_fb.jpg';
