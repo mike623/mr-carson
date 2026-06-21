@@ -8,13 +8,24 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mr_carson/ai/model_mode.dart';
 import 'package:mr_carson/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('app smoke test — renders without crashing', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: MrCarsonApp()));
+  testWidgets('app smoke test — renders without crashing',
+      (WidgetTester tester) async {
+    // _Root reads onboarding state from SharedPreferences, so the provider
+    // must be overridden (as main() does) before mounting the app.
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const MrCarsonApp(),
+    ));
     await tester.pump();
-    // The app starts on the onboarding screen; verify the title is present.
+    // A fresh install starts on the onboarding screen; verify the title.
     expect(find.text('Mr. Carson'), findsOneWidget);
   });
 }

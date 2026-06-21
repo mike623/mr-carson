@@ -4,6 +4,7 @@ import 'package:mr_carson/theme/app_theme.dart';
 
 import '../../ai/device_capability.dart';
 import '../../ai/model_mode.dart';
+import '../../ui/core/widgets/carson_monogram.dart';
 import '../model/model_lifecycle_view_model.dart';
 import '../shell/shell_view_model.dart';
 import 'currency_provider.dart';
@@ -71,10 +72,6 @@ class SettingsScreen extends ConsumerWidget {
                   // ── Discretion ─────────────────────────────────────────
                   const _SectionLabel('Discretion'),
                   const _DiscretionCard(),
-
-                  // ── Livery ─────────────────────────────────────────────
-                  const _SectionLabel('Livery'),
-                  const _LiverySwatches(),
 
                   const SizedBox(height: 28),
                   Center(
@@ -226,17 +223,7 @@ class _ModelCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(13),
               ),
               alignment: Alignment.center,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Text(
-                  'C',
-                  style: MrCarsonType.display(
-                    size: 27,
-                    weight: FontWeight.w600,
-                    color: MrCarsonColors.accent,
-                  ),
-                ),
-              ),
+              child: const CarsonBell(size: 26),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -687,101 +674,3 @@ class _ToggleRow extends StatelessWidget {
   }
 }
 
-/// Three theme swatches. The app is brass-locked: only "Brass & Ink" is
-/// selectable (ring) and there is no runtime theming engine — tapping the
-/// other swatches is a deliberate no-op (purely cosmetic affordance).
-class _LiverySwatches extends StatelessWidget {
-  const _LiverySwatches();
-
-  static const _themes = [
-    (label: 'Brass & Ink', swatch: MrCarsonColors.accent, selected: true),
-    (label: 'Study Green', swatch: MrCarsonColors.grocery, selected: false),
-    (label: 'Silver Service', swatch: Color(0xFFB9BEC4), selected: false),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var i = 0; i < _themes.length; i++) ...[
-          if (i > 0) const SizedBox(width: 11),
-          Expanded(
-            child: _Swatch(
-              label: _themes[i].label,
-              color: _themes[i].swatch,
-              selected: _themes[i].selected,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _Swatch extends StatelessWidget {
-  const _Swatch({
-    required this.label,
-    required this.color,
-    required this.selected,
-  });
-  final String label;
-  final Color color;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: MrCarsonColors.surface,
-        border: Border.all(
-          // Selected: 2px solid ink (design line ~579: '2px solid var(--ink)').
-          color: selected ? MrCarsonColors.ink : MrCarsonColors.line,
-          width: selected ? 2 : 1,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        // Selected outer double-ring (design 'ring'): a 2px bg gap then a
-        // 3.5px accent ring outside it. Inner shadow listed first so it sits
-        // beneath the accent ring.
-        boxShadow: selected
-            ? const [
-                BoxShadow(
-                  color: MrCarsonColors.bg,
-                  blurRadius: 0,
-                  spreadRadius: 2,
-                ),
-                BoxShadow(
-                  color: MrCarsonColors.accent,
-                  blurRadius: 0,
-                  spreadRadius: 3.5,
-                ),
-              ]
-            : null,
-      ),
-      padding: const EdgeInsets.fromLTRB(10, 13, 10, 12),
-      child: Column(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              border: Border.all(color: MrCarsonColors.line, width: 1),
-            ),
-          ),
-          const SizedBox(height: 9),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: MrCarsonType.ui(
-              size: 12,
-              weight: FontWeight.w600,
-              color: MrCarsonColors.ink2,
-              height: 1.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

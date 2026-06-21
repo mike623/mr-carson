@@ -60,16 +60,25 @@ class MrCarsonApp extends StatelessWidget {
   }
 }
 
-/// Gates onboarding → in-app shell.
-class _Root extends StatefulWidget {
+/// Gates onboarding → in-app shell. The `onboarded` flag persists in
+/// SharedPreferences so the welcome screen shows only on a fresh install.
+const _kOnboardedKey = 'onboarded';
+
+class _Root extends ConsumerStatefulWidget {
   const _Root();
 
   @override
-  State<_Root> createState() => _RootState();
+  ConsumerState<_Root> createState() => _RootState();
 }
 
-class _RootState extends State<_Root> {
-  bool _onboarded = false;
+class _RootState extends ConsumerState<_Root> {
+  late bool _onboarded =
+      ref.read(sharedPreferencesProvider).getBool(_kOnboardedKey) ?? false;
+
+  void _enter() {
+    ref.read(sharedPreferencesProvider).setBool(_kOnboardedKey, true);
+    setState(() => _onboarded = true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +86,7 @@ class _RootState extends State<_Root> {
       duration: const Duration(milliseconds: 350),
       child: _onboarded
           ? const AppShell()
-          : OnboardingScreen(onEnter: () => setState(() => _onboarded = true)),
+          : OnboardingScreen(onEnter: _enter),
     );
   }
 }

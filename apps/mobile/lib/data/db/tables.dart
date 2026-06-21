@@ -23,6 +23,11 @@ class Expenses extends Table {
   TextColumn get currency => text().withLength(min: 3, max: 3)();
   RealColumn get total => real()();
   RealColumn get vat => real().withDefault(const Constant(0))();
+  // Expense-level categories — JSON array of category names. Lets one expense
+  // carry several tags independent of line items ("choose as many as apply").
+  // Nullable for rows written before schema v2; readers fall back to the
+  // distinct set of line-item categories.
+  TextColumn get categories => text().nullable()();
   TextColumn get sourceFile => text().nullable()();
   TextColumn get imageHash => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

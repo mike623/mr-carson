@@ -123,8 +123,8 @@ void main() {
       expect(detail, isNotNull);
       expect(detail!.merchant, equals('Sainsbury'));
       expect(detail.items, hasLength(2));
-      // F2: expense-level category resolved from highest-amount item
-      expect(detail.category, equals('Dining')); // Wine £20 > Eggs £15
+      // F2: expense-level categories derived from the distinct line-item set
+      expect(detail.categories, containsAll(['Groceries', 'Dining']));
     });
 
     test('watchExpenseById unknown id emits null', () async {

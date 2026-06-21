@@ -51,6 +51,23 @@ class MrCarsonColors {
   static const grocery = Color(0xFF9DB58C); // CSS `--grocery`
   static const transport = Color(0xFF8FA9C2); // CSS `--transport`
   static const house = Color(0xFFC98F6A); // CSS `--house`
+
+  /// Dot/bar colour for a category name. Falls back to brass for anything
+  /// outside the three palette accents.
+  static Color forCategory(String name) {
+    switch (name.toLowerCase()) {
+      case 'groceries':
+        return grocery;
+      case 'transport':
+      case 'travel':
+        return transport;
+      case 'household':
+      case 'utilities':
+        return house;
+      default:
+        return accent;
+    }
+  }
 }
 
 /// Typography helpers. Cormorant Garamond for display, Hanken Grotesk for UI.

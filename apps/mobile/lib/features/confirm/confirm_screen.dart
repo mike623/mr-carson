@@ -54,8 +54,8 @@ class _ConfirmScreenState extends ConsumerState<ConfirmScreen> {
   bool _merchantEditing = false;
   late TextEditingController _merchantController;
 
-  // Category state
-  late String _selectedCategory;
+  // Category state — an expense may carry several tags.
+  final Set<String> _selectedCategories = {};
 
   // Total editing
   late double _total;
@@ -81,11 +81,15 @@ class _ConfirmScreenState extends ConsumerState<ConfirmScreen> {
     _merchant = draft.merchant;
     _merchantLowConfidence = false;
     _merchantController = TextEditingController(text: _merchant);
-    // Initialise category from the first item's category; fall back to the
-    // default list's first entry if there are no items.
-    _selectedCategory = draft.items.isNotEmpty
-        ? draft.items.first.category
-        : kDefaultCategories.first;
+    // Seed tags from the draft's expense-level categories, else the distinct
+    // line-item categories, else the first default.
+    _selectedCategories
+      ..clear()
+      ..addAll((draft.categories != null && draft.categories!.isNotEmpty)
+          ? draft.categories!
+          : (draft.items.isNotEmpty
+              ? draft.items.map((i) => i.category).toSet()
+              : {kDefaultCategories.first}));
     _total = draft.total;
     _totalController =
         TextEditingController(text: draft.total.toStringAsFixed(2));
@@ -93,15 +97,13 @@ class _ConfirmScreenState extends ConsumerState<ConfirmScreen> {
   }
 
   ExpenseDraft _buildEditedDraft() {
-    // Apply the chip category to ALL line items so the selected category is
-    // persisted via expense_items.category (there is no expense-level column).
-    final itemsWithCategory = _items
-        .map((i) => i.copyWith(category: _selectedCategory))
-        .toList();
+    // Tags persist via the expense-level `categories` column; line items keep
+    // their own extracted categories.
     return _draft!.copyWith(
       merchant: _merchant,
       total: _total,
-      items: itemsWithCategory,
+      items: _items,
+      categories: _selectedCategories.toList(),
     );
   }
 
@@ -212,9 +214,12 @@ class _ConfirmScreenState extends ConsumerState<ConfirmScreen> {
                       const SizedBox(height: 13),
                       _CategoryCard(
                         categories: kDefaultCategories,
-                        selected: _selectedCategory,
-                        onSelect: (cat) =>
-                            setState(() => _selectedCategory = cat),
+                        selected: _selectedCategories,
+                        onToggle: (cat) => setState(() {
+                          if (!_selectedCategories.remove(cat)) {
+                            _selectedCategories.add(cat);
+                          }
+                        }),
                       ),
                       const SizedBox(height: 13),
                       _LineItemsCard(items: _items),
@@ -588,12 +593,12 @@ class _CategoryCard extends StatelessWidget {
   const _CategoryCard({
     required this.categories,
     required this.selected,
-    required this.onSelect,
+    required this.onToggle,
   });
 
   final List<String> categories;
-  final String selected;
-  final ValueChanged<String> onSelect;
+  final Set<String> selected;
+  final ValueChanged<String> onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -607,7 +612,27 @@ class _CategoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _fieldLabel('CATEGORY'),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              _fieldLabel('CATEGORY'),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Choose as many as apply, sir',
+                  textAlign: TextAlign.end,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: MrCarsonType.display(
+                    size: 12.5,
+                    italic: true,
+                    color: MrCarsonColors.ink3,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -617,8 +642,8 @@ class _CategoryCard extends StatelessWidget {
                   if (i > 0) const SizedBox(width: 8),
                   _CategoryChip(
                     label: categories[i],
-                    isSelected: categories[i] == selected,
-                    onTap: () => onSelect(categories[i]),
+                    isSelected: selected.contains(categories[i]),
+                    onTap: () => onToggle(categories[i]),
                   ),
                 ],
               ],
@@ -646,7 +671,7 @@ class _CategoryChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? MrCarsonColors.accent : MrCarsonColors.surface,
           borderRadius: BorderRadius.circular(11),
@@ -655,13 +680,42 @@ class _CategoryChip extends StatelessWidget {
             width: 1,
           ),
         ),
-        child: Text(
-          label,
-          style: MrCarsonType.ui(
-            size: 13.5,
-            weight: FontWeight.w600,
-            color: isSelected ? MrCarsonColors.accentInk : MrCarsonColors.ink2,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Checkbox tick — filled when selected.
+            Container(
+              width: 15,
+              height: 15,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(5),
+                color: isSelected
+                    ? MrCarsonColors.accentInk.withAlpha(38)
+                    : Colors.transparent,
+                border: Border.all(
+                  color: isSelected
+                      ? MrCarsonColors.accentInk
+                      : MrCarsonColors.ink3,
+                  width: 1.5,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: isSelected
+                  ? const Icon(Icons.check,
+                      size: 10, color: MrCarsonColors.accentInk)
+                  : null,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: MrCarsonType.ui(
+                size: 13.5,
+                weight: FontWeight.w600,
+                color:
+                    isSelected ? MrCarsonColors.accentInk : MrCarsonColors.ink2,
+              ),
+            ),
+          ],
         ),
       ),
     );
