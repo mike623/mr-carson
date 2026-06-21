@@ -79,6 +79,7 @@ class AppShell extends ConsumerWidget {
           onOpenExpense: vm.openExpense,
           onReviewPending: vm.reviewPending,
           onRetryPending: vm.retryPending,
+          onDeletePending: vm.deletePending,
         );
       case ShellScreen.detail:
         return DetailScreen(
