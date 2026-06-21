@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,7 @@ import '../../ai/model_mode.dart';
 import '../../data/providers.dart';
 import '../../domain/models/ai_models.dart';
 import '../../theme/app_theme.dart';
+import '../../ui/core/utils/currency_format.dart';
 import '../ask/ask_screen.dart';
 import '../confirm/confirm_screen.dart';
 import '../detail/detail_screen.dart';
@@ -26,6 +29,39 @@ final captureReadyProvider = Provider<bool>((ref) {
   if (resolveBackend(mode, cap) == Backend.online) return true;
   return ref.watch(modelLifecycleProvider).isReady;
 });
+
+/// Parses a pending row's stored extraction JSON into an [ExpenseDraft],
+/// returning null on any malformed/absent payload.
+ExpenseDraft? _parseDraft(String? extractedJson) {
+  if (extractedJson == null || extractedJson.isEmpty) return null;
+  try {
+    return ExpenseDraft.fromJson(
+        jsonDecode(extractedJson) as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Secondary "when · what" line for a ready pending card, e.g. "£4.50 · 20 Jun".
+String _pendingMeta(ExpenseDraft d) {
+  final amount = '${currencySymbol(d.currency)}${formatAmount(d.total)}';
+  final when = _shortDate(d.date);
+  return when == null ? amount : '$amount · $when';
+}
+
+/// Formats YYYY-MM-DD → "20 Jun"; returns null on unparseable input.
+String? _shortDate(String iso) {
+  final parts = iso.split('-');
+  if (parts.length != 3) return null;
+  final day = int.tryParse(parts[2]);
+  final month = int.tryParse(parts[1]);
+  if (day == null || month == null || month < 1 || month > 12) return null;
+  const months = [
+    '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '$day ${months[month]}';
+}
 
 /// The in-app navigation shell — everything after onboarding.
 ///
@@ -116,6 +152,9 @@ class AppShell extends ConsumerWidget {
       data: (rows) => rows.map((r) {
         final ready = r.status == PendingStatus.awaitingConfirmation.name;
         final failed = r.status == PendingStatus.failed.name;
+        // Surface the LLM-extracted merchant/date/total on ready cards so the
+        // label reads "where · when · what" instead of a generic "Receipt".
+        final draft = ready ? _parseDraft(r.extractedJson) : null;
         return LedgerPending(
           id: r.id,
           ready: ready,
@@ -131,8 +170,8 @@ class AppShell extends ConsumerWidget {
               : failed
                   ? 0
                   : 50,
-          merchant: null,
-          total: null,
+          merchant: draft?.merchant,
+          total: draft == null ? null : _pendingMeta(draft),
         );
       }).toList(),
       orElse: () => <LedgerPending>[],
