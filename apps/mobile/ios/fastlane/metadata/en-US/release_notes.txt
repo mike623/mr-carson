@@ -1,8 +1,5 @@
 What's new in this build:
-- New look: Mr. Carson now wears a service-bell mark — the brand glyph across the app, and a new brass-on-ink app icon.
-- New: tag an expense with more than one category. When confirming a receipt or adding by hand, pick as many categories as apply; the expense detail shows them all.
-- Changed: theme (Livery) selection removed from Settings — the app is brass-locked.
-- Changed: on an expense's detail page, the receipt photo now sits at the foot of the page.
-- Fixed: the welcome screen shows only on a fresh install, not on every launch.
+- New: edit a logged expense. Open any expense and tap Edit to amend the merchant, amount, date, and categories; line items stay as filed.
+- New: delete an expense. The expense detail now has a Delete button, guarded by a confirmation since removal is permanent.
 
-Please test: confirm a receipt and tick several categories, then open its detail and check every tag shows; add an expense by hand with multiple categories; open Settings and confirm there is no theme picker; open an expense and scroll to the receipt at the bottom; relaunch the app and confirm onboarding does not reappear.
+Please test: open an expense, tap Edit, change the merchant/amount/date and toggle a few categories, save, and confirm the detail and ledger both update; open an expense and delete it, confirm the prompt, and check it disappears from the ledger.
