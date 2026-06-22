@@ -50,6 +50,24 @@ class _RecordingReceiptImageStore extends ReceiptImageStore {
 }
 
 // ---------------------------------------------------------------------------
+// Per-path store — hash == path, so each picked file dedups independently
+// ---------------------------------------------------------------------------
+
+class _PerPathReceiptImageStore extends ReceiptImageStore {
+  final List<String> deletedPaths = [];
+
+  @override
+  Future<ReceiptImageCopy> copyReceipt(String sourcePath) async {
+    return ReceiptImageCopy(path: sourcePath, imageHash: sourcePath);
+  }
+
+  @override
+  Future<void> deleteReceipt(String filePath) async {
+    deletedPaths.add(filePath);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Recording pipeline — tracks reject calls for F-B test
 // ---------------------------------------------------------------------------
 
@@ -167,6 +185,8 @@ class _FailingRejectPipeline extends ReceiptPipelineService {
   bool pickerThrows = false,
   AppDatabase? db,
   PendingRepository? repo,
+  List<XFile>? pickedFiles,
+  ReceiptImageStore? imageStore,
 }) {
   // db/repo are positional only to avoid capturing late vars from outer scope;
   // callers pass them explicitly.
@@ -176,11 +196,15 @@ class _FailingRejectPipeline extends ReceiptPipelineService {
       if (repo != null) pendingRepositoryProvider.overrideWithValue(repo),
       receiptPipelineProvider.overrideWithValue(pipeline),
       receiptImageStoreProvider.overrideWithValue(
-        const _FakeReceiptImageStore('/stable/receipt.jpg'),
+        imageStore ?? const _FakeReceiptImageStore('/stable/receipt.jpg'),
       ),
       imagePickerFnProvider.overrideWithValue((source) async {
         if (pickerThrows) throw Exception('picker error');
         return pickedFile;
+      }),
+      multiImagePickerFnProvider.overrideWithValue(() async {
+        if (pickerThrows) throw Exception('picker error');
+        return pickedFiles ?? const <XFile>[];
       }),
     ],
   );
@@ -498,5 +522,94 @@ void main() {
     expect(state.toast, contains('discard'));
     // Screen should not have navigated away (still ask, the default)
     expect(state.screen, equals(ShellScreen.ask));
+  });
+
+  // Drains N sequential awaits in the detached batch loop.
+  Future<void> pumpSettled() async {
+    for (var i = 0; i < 12; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+  }
+
+  test('BATCH — 3 picked, 1 duplicate: processes 2, summary toast', () async {
+    // Seed an existing expense whose imageHash == '/tmp/b.jpg' (the dup).
+    await db.insertExpense(
+      const ExpenseDraft(
+        merchant: 'Old',
+        date: '2026-01-01',
+        currency: 'EUR',
+        total: 1,
+        items: [],
+      ),
+      imageHash: '/tmp/b.jpg',
+    );
+
+    final pipeline = _FakePipeline(
+      db: db,
+      repo: pendingRepo,
+      processResult: ReceiptResult.success(
+        'pid',
+        const ExpenseDraft(
+          merchant: 'X',
+          date: '2026-01-01',
+          currency: 'EUR',
+          total: 1,
+          items: [],
+        ),
+      ),
+    );
+    final (:container, :sub) = buildContainer(
+      pipeline: pipeline,
+      pickedFiles: [XFile('/tmp/a.jpg'), XFile('/tmp/b.jpg'), XFile('/tmp/c.jpg')],
+      db: db,
+      repo: pendingRepo,
+      imageStore: _PerPathReceiptImageStore(),
+    );
+    addTearDown(sub.close);
+    addTearDown(container.dispose);
+
+    final vm = container.read(shellViewModelProvider.notifier);
+    await vm.startUpload();
+    await pumpSettled();
+
+    expect(pipeline.processCallCount, 2); // a + c, b skipped
+    expect(container.read(shellViewModelProvider).screen, ShellScreen.ledger);
+    expect(
+      container.read(shellViewModelProvider).toast,
+      contains('skipped 1 duplicate'),
+    );
+  });
+
+  test('BATCH — 2 picked, all new: processes 2, "read 2" summary', () async {
+    final pipeline = _FakePipeline(
+      db: db,
+      repo: pendingRepo,
+      processResult: ReceiptResult.success(
+        'pid',
+        const ExpenseDraft(
+          merchant: 'X',
+          date: '2026-01-01',
+          currency: 'EUR',
+          total: 1,
+          items: [],
+        ),
+      ),
+    );
+    final (:container, :sub) = buildContainer(
+      pipeline: pipeline,
+      pickedFiles: [XFile('/tmp/a.jpg'), XFile('/tmp/b.jpg')],
+      db: db,
+      repo: pendingRepo,
+      imageStore: _PerPathReceiptImageStore(),
+    );
+    addTearDown(sub.close);
+    addTearDown(container.dispose);
+
+    final vm = container.read(shellViewModelProvider.notifier);
+    await vm.startUpload();
+    await pumpSettled();
+
+    expect(pipeline.processCallCount, 2);
+    expect(container.read(shellViewModelProvider).toast, contains('read 2'));
   });
 }

@@ -201,8 +201,54 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
   /// "Take a photograph" — pick via camera, copy, process.
   Future<void> capturePhoto() => _pickAndProcess(ImageSource.camera);
 
-  /// "Upload from library" — pick via gallery, copy, process.
-  Future<void> startUpload() => _pickAndProcess(ImageSource.gallery);
+  /// "Upload from library" — pick one OR many via gallery; each picked image
+  /// becomes its own pending card via the existing confirm flow.
+  Future<void> startUpload() async {
+    final pick = ref.read(multiImagePickerFnProvider);
+    List<XFile> files;
+    try {
+      files = await pick();
+    } catch (_) {
+      showToast('Could not access the image, sir.');
+      return;
+    }
+    if (files.isEmpty) return; // user cancelled
+
+    // Navigate + optimistic toast immediately; processing runs detached.
+    showToast('Very good, sir. Reading ${files.length} in the background.');
+    go(ShellScreen.ledger);
+    unawaited(_processBatch(files));
+  }
+
+  /// Sequentially preps + OCRs each picked file (sequential to avoid thrashing
+  /// local Ollama), then shows one summary toast. Per-file OCR failures are
+  /// surfaced per-row by [_runProcess]; the summary only tallies prep outcomes.
+  // ponytail: sequential; parallelize if throughput ever matters.
+  Future<void> _processBatch(List<XFile> files) async {
+    var read = 0, dup = 0, err = 0;
+    for (final file in files) {
+      final prep = await _copyAndCheckDuplicate(file);
+      switch (prep.outcome) {
+        case _PrepOutcome.ready:
+          read++;
+          await _runProcess(prep.stablePath!); // await → sequential OCR
+        case _PrepOutcome.duplicate:
+          dup++;
+        case _PrepOutcome.error:
+          err++;
+      }
+    }
+    showToast(_batchSummary(read, dup, err));
+  }
+
+  /// Builds the end-of-batch summary toast from prep tallies.
+  String _batchSummary(int read, int dup, int err) {
+    final parts = <String>[];
+    if (read > 0) parts.add('read $read');
+    if (dup > 0) parts.add('skipped $dup ${dup == 1 ? 'duplicate' : 'duplicates'}');
+    if (err > 0) parts.add('$err could not be saved');
+    return 'Done, sir — ${parts.join(', ')}.';
+  }
 
   // --- internal pick + process flow ----------------------------------------
 
