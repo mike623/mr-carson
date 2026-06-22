@@ -25,6 +25,17 @@ final imagePickerFnProvider = Provider<ImagePickerFn>((_) {
   return (source) => picker.pickImage(source: source);
 });
 
+/// Signature for a multi-image gallery pick.
+typedef MultiImagePickerFn = Future<List<XFile>> Function();
+
+/// Provider for the [MultiImagePickerFn] used by [ShellViewModel.startUpload].
+///
+/// Override this in tests to supply fake files without the platform picker.
+final multiImagePickerFnProvider = Provider<MultiImagePickerFn>((_) {
+  final picker = ImagePicker();
+  return () => picker.pickMultiImage();
+});
+
 // ---------------------------------------------------------------------------
 // Screen enum
 // ---------------------------------------------------------------------------
@@ -206,47 +217,54 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
     }
     if (file == null) return; // user cancelled
 
+    final prep = await _copyAndCheckDuplicate(file);
+    switch (prep.outcome) {
+      case _PrepOutcome.error:
+        showToast('Could not save the image, sir.');
+        return;
+      case _PrepOutcome.duplicate:
+        showToast('I already have that receipt, sir.');
+        go(ShellScreen.ledger);
+        return;
+      case _PrepOutcome.ready:
+        // Navigate + toast immediately; OCR runs detached (fire-and-forget).
+        showToast('Very good, sir. Reading it in the background.');
+        go(ShellScreen.ledger);
+        unawaited(_runProcess(prep.stablePath!));
+        return;
+    }
+  }
+
+  /// Copies a picked file into the receipt store and hash-dedups it against
+  /// committed expenses. No toast, no navigation, no OCR — pure prep so both
+  /// the single and batch paths can reuse it.
+  Future<_Prep> _copyAndCheckDuplicate(XFile file) async {
     final store = ref.read(receiptImageStoreProvider);
-    late final String stablePath;
     try {
       final copy = await store.copyReceipt(file.path);
-      // Duplicate guard: if an expense with this exact image already exists,
-      // skip OCR and drop the just-made copy. Only catches byte-identical
-      // re-uploads against committed expenses — a re-photographed receipt has
-      // different bytes and is caught later by soft-duplicate at confirm.
       final existing =
           await ref.read(appDatabaseProvider).findByImageHash(copy.imageHash);
       if (existing != null) {
         await store.deleteReceipt(copy.path);
-        showToast('I already have that receipt, sir.');
-        go(ShellScreen.ledger);
-        return;
+        return const _Prep(_PrepOutcome.duplicate);
       }
-      stablePath = copy.path;
+      return _Prep(_PrepOutcome.ready, copy.path);
     } catch (_) {
-      showToast('Could not save the image, sir.');
-      return;
+      return const _Prep(_PrepOutcome.error);
     }
+  }
 
-    // Navigate to ledger and show toast — processing runs in the background.
-    // The pending card driven by pendingReceiptsProvider will appear; the user
-    // opens ConfirmScreen by tapping its "Review" button.
-    showToast('Very good, sir. Reading it in the background.');
-    go(ShellScreen.ledger);
-
-    // Fire-and-forget: errors are surfaced via toast; the pending row's failed
-    // status is reflected in the ledger automatically via pendingReceiptsProvider.
-    unawaited(() async {
-      try {
-        final result =
-            await ref.read(receiptPipelineProvider).processReceipt(stablePath);
-        if (!result.ok) {
-          _showReceiptError(result.error);
-        }
-      } catch (e) {
-        _showReceiptError(e.toString());
-      }
-    }());
+  /// Runs OCR for a prepared receipt. Surfaces failures via [_showReceiptError].
+  /// Camera path calls this `unawaited`; the batch loop `await`s it to keep
+  /// OCR sequential.
+  Future<void> _runProcess(String stablePath) async {
+    try {
+      final result =
+          await ref.read(receiptPipelineProvider).processReceipt(stablePath);
+      if (!result.ok) _showReceiptError(result.error);
+    } catch (e) {
+      _showReceiptError(e.toString());
+    }
   }
 
   /// Re-runs OCR on a previously-failed pending receipt, reusing its stored
@@ -322,3 +340,14 @@ class ShellViewModel extends AutoDisposeNotifier<ShellState> {
 /// Provider for [ShellViewModel].
 final shellViewModelProvider =
     AutoDisposeNotifierProvider<ShellViewModel, ShellState>(ShellViewModel.new);
+
+/// Outcome of preparing one picked file for processing.
+enum _PrepOutcome { ready, duplicate, error }
+
+/// Result of [_copyAndCheckDuplicate]: an outcome plus the stable copy path
+/// (non-null only when [outcome] is [_PrepOutcome.ready]).
+class _Prep {
+  const _Prep(this.outcome, [this.stablePath]);
+  final _PrepOutcome outcome;
+  final String? stablePath;
+}
