@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_gemma/flutter_gemma.dart'
     show
         FunctionCallResponse,
@@ -588,6 +589,93 @@ class ChatService {
         },
         'required': <String>[],
       };
+
+  // --- addExpense draft coercion --------------------------------------------
+
+  /// Builds an [ExpenseDraft]-shaped JSON map from loose `addExpense` tool
+  /// [args]. [today] is 'YYYY-MM-DD'. Tolerant of missing/loose fields so the
+  /// draft is always parseable; completeness is judged by the caller, not here.
+  @visibleForTesting
+  static Map<String, dynamic> buildExpenseDraftJson(
+    Map<String, dynamic> args,
+    String today,
+  ) {
+    final merchant = _addStr(args['merchant']);
+    final total = _addNum(args['total']);
+    final category = _addCategory(args['category']);
+    final currency = _addCurrency(args['currency']);
+    final date = _addDate(args['date'], today);
+
+    final rawItems = args['items'];
+    final List<Map<String, dynamic>> items =
+        (rawItems is List && rawItems.isNotEmpty)
+            ? rawItems.whereType<Map>().map((it) {
+                return <String, dynamic>{
+                  'name': _addStr(it['name']).isEmpty
+                      ? 'Item'
+                      : _addStr(it['name']),
+                  'amount': _addNum(it['amount']),
+                  'category': _addCategory(it['category'] ?? category),
+                };
+              }).toList()
+            : [
+                {
+                  'name': merchant.isEmpty ? 'Expense' : merchant,
+                  'amount': total,
+                  'category': category,
+                },
+              ];
+
+    return {
+      'merchant': merchant,
+      'date': date,
+      'currency': currency,
+      'total': total,
+      'vat': 0,
+      'items': items,
+      'categories': [category],
+    };
+  }
+
+  static String _addStr(Object? v) =>
+      (v is String) ? v.trim() : (v == null ? '' : v.toString().trim());
+
+  static double _addNum(Object? v) {
+    if (v is num) return v.toDouble();
+    final cleaned = '${v ?? ''}'.replaceAll(RegExp(r'[^0-9.\-]'), '');
+    return double.tryParse(cleaned) ?? 0.0;
+  }
+
+  /// Returns a category from [kDefaultCategories] (case-insensitive match),
+  /// else 'Other'.
+  static String _addCategory(Object? v) {
+    final raw = _addStr(v);
+    for (final c in kDefaultCategories) {
+      if (c.toLowerCase() == raw.toLowerCase()) return c;
+    }
+    return 'Other';
+  }
+
+  static String _addCurrency(Object? v) {
+    final cur = _addStr(v).toUpperCase();
+    return cur.length == 3 ? cur : kDefaultCurrency;
+  }
+
+  /// Maps 'today' / 'yesterday' / a 'YYYY-MM-DD' string to an ISO date,
+  /// defaulting to [today] for anything else.
+  static String _addDate(Object? v, String today) {
+    final raw = _addStr(v).toLowerCase();
+    if (raw.isEmpty || raw == 'today') return today;
+    if (raw == 'yesterday') {
+      final t = DateTime.parse(today).subtract(const Duration(days: 1));
+      final y = t.year.toString().padLeft(4, '0');
+      final m = t.month.toString().padLeft(2, '0');
+      final d = t.day.toString().padLeft(2, '0');
+      return '$y-$m-$d';
+    }
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(raw)) return raw;
+    return today;
+  }
 }
 
 // ---------------------------------------------------------------------------
