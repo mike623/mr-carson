@@ -40,7 +40,7 @@
     <div style="flex:1;display:flex;flex-direction:column;animation:mcUp .5s ease both;">
       <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">
         <div style="width:78px;height:78px;border-radius:50%;border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 6px var(--accent-soft);">
-          <span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:46px;color:var(--accent);line-height:1;padding-top:4px;">C</span>
+          <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg>
         </div>
         <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:52px;letter-spacing:0.5px;margin-top:26px;line-height:1;">Mr. Carson</div>
         <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:23px;color:var(--accent);margin-top:8px;">At your service.</div>
@@ -50,42 +50,7 @@
         <span style="width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);"></span>
         Nothing ever leaves your phone.
       </div>
-      <button onClick="{{ beginOnb }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-family:'Hanken Grotesk';font-size:17px;font-weight:600;letter-spacing:0.2px;cursor:pointer;" style-hover="filter:brightness(1.06)" style-active="transform:scale(0.985)">Begin</button>
-    </div>
-    </sc-if>
-
-    <!-- step 1 — privacy / permission -->
-    <sc-if value="{{ onbStep1 }}" hint-placeholder-val="{{ false }}">
-    <div style="flex:1;display:flex;flex-direction:column;animation:mcUp .45s ease both;">
-      <div style="font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:600;line-height:1.08;letter-spacing:0.3px;">On your phone.<br>Only.</div>
-      <div style="font-size:15.5px;color:var(--ink-2);line-height:1.6;margin-top:14px;max-width:300px;">A word on discretion, sir, before we begin.</div>
-      <div style="display:flex;flex-direction:column;gap:2px;margin-top:30px;">
-        <sc-for list="{{ assurances }}" as="a" hint-placeholder-count="3">
-          <div style="display:flex;gap:15px;align-items:flex-start;padding:17px 0;border-bottom:1px solid var(--line);">
-            <span style="width:22px;height:22px;border-radius:50%;border:1.5px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;">
-              <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2 6.5l2.6 2.6L10 3.2" stroke="var(--accent)" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            <span style="font-size:15.5px;line-height:1.5;color:var(--ink);">{{ a.text }}</span>
-          </div>
-        </sc-for>
-      </div>
-      <div style="flex:1;"></div>
-      <div style="background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px 18px 20px;margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <span style="width:40px;height:40px;border-radius:11px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg width="20" height="18" viewBox="0 0 22 20"><rect x="1" y="4" width="20" height="14" rx="3.5" fill="none" stroke="var(--accent)" stroke-width="1.6"/><circle cx="11" cy="11" r="3.6" fill="none" stroke="var(--accent)" stroke-width="1.6"/><path d="M7.5 4l1.6-2.4h3.8L14.5 4" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/></svg>
-          </span>
-          <div>
-            <div style="font-size:15.5px;font-weight:600;">Camera access</div>
-            <div style="font-size:13px;color:var(--ink-3);margin-top:1px;">To read receipts — on device.</div>
-          </div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;color:var(--ink-3);font-size:12.5px;margin:0 2px 14px;">
-        <span style="width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0;"></span>
-        <span>No download just yet — I come aboard only when you first call on me.</span>
-      </div>
-      <button onClick="{{ finishOnb }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:600;cursor:pointer;" style-active="transform:scale(0.985)">Allow &amp; enter</button>
+      <button onClick="{{ finishOnb }}" style="width:100%;height:56px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-family:'Hanken Grotesk';font-size:17px;font-weight:600;letter-spacing:0.2px;cursor:pointer;" style-hover="filter:brightness(1.06)" style-active="transform:scale(0.985)">Begin</button>
     </div>
     </sc-if>
 
@@ -99,7 +64,7 @@
     <div style="padding:60px 20px 14px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--line);background:var(--bg);">
       <div style="display:flex;gap:12px;align-items:center;">
         <span style="width:40px;height:40px;border-radius:50%;border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:24px;color:var(--accent);padding-top:3px;">C</span>
+          <svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg>
         </span>
         <div>
           <div style="font-family:'Cormorant Garamond',serif;font-size:25px;font-weight:600;line-height:1;white-space:nowrap;">Mr. Carson</div>
@@ -140,7 +105,7 @@
         <sc-if value="{{ m.isCarson }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;gap:10px;max-width:96%;animation:mcUp .3s ease both;">
           <span style="width:28px;height:28px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:2px;">
-            <span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:16px;color:var(--accent);padding-top:2px;">C</span>
+            <svg width="16" height="16" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg>
           </span>
           <div style="background:var(--surface);border:1px solid var(--line);border-radius:5px 18px 18px 18px;padding:13px 16px;min-width:54px;">
             <sc-if value="{{ m.thinking }}" hint-placeholder-val="{{ false }}">
@@ -206,7 +171,7 @@
       <sc-if value="{{ askLocked }}" hint-placeholder-val="{{ true }}">
       <div style="background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:17px 17px 18px;animation:mcUp .35s ease both;">
         <div style="display:flex;gap:12px;align-items:flex-start;">
-          <span style="width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;"><span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:17px;color:var(--accent);padding-top:2px;">C</span></span>
+          <span style="width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;"><svg width="18" height="18" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg></span>
           <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16.5px;line-height:1.42;color:var(--ink-2);">To answer your questions, I'll need a moment to set up my mind — a one-time download. Shall I?</span>
         </div>
         <button onClick="{{ setupFromAsk }}" style="width:100%;height:52px;margin-top:15px;border:none;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-size:16px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="filter:brightness(1.06)" style-active="transform:scale(0.985)">Set up Mr. Carson</button>
@@ -233,8 +198,15 @@
   <sc-if value="{{ showExpenses }}" hint-placeholder-val="{{ false }}">
   <div style="display:flex;flex-direction:column;height:100%;">
     <div style="padding:60px 20px 14px;border-bottom:1px solid var(--line);background:var(--bg);">
-      <div style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:600;line-height:1;">The Ledger</div>
-      <div style="font-size:12.5px;color:var(--ink-3);margin-top:4px;">June 2026 · all on device</div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:600;line-height:1;white-space:nowrap;">The Ledger</div>
+        <button onClick="{{ openPeriod }}" data-comment-anchor="fd17d0c0d9-div" style="display:flex;align-items:center;gap:7px;background:var(--accent-soft);border:1px solid var(--line);border-radius:12px;padding:7px 11px 7px 12px;cursor:pointer;font-family:'Hanken Grotesk';flex-shrink:0;" style-hover="border-color:var(--accent)" style-active="transform:scale(0.97)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><line x1="3.5" y1="9" x2="20.5" y2="9"/><line x1="8" y1="2.5" x2="8" y2="6"/><line x1="16" y1="2.5" x2="16" y2="6"/></svg>
+          <span style="font-size:13px;font-weight:600;color:var(--accent);white-space:nowrap;">{{ periodLabel }}</span>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5L9 4.5"/></svg>
+        </button>
+      </div>
+      <div style="font-size:12.5px;color:var(--ink-3);margin-top:5px;">{{ rangeLabel }}</div>
     </div>
     <div class="mc-scroll" style="flex:1;overflow:auto;padding:20px 18px 110px;">
       <!-- summary card -->
@@ -242,7 +214,7 @@
         <div style="position:relative;width:104px;height:104px;flex-shrink:0;border-radius:50%;background:{{ donut }};">
           <div style="position:absolute;inset:15px;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;">
             <span style="font-size:9.5px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);">Spent</span>
-            <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;line-height:1.1;">{{ chartTotal }}</span>
+            <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;line-height:1.1;">{{ ledgerTotal }}</span>
           </div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
@@ -310,6 +282,11 @@
             <span style="font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;">{{ e.total }}</span>
           </button>
         </sc-for>
+        <sc-if value="{{ ledgerEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:30px 18px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;">
+          <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:var(--ink-3);line-height:1.5;">No receipts filed for this period, sir. The summary above reflects the full account.</span>
+        </div>
+        </sc-if>
       </div>
     </div>
   </div>
@@ -323,28 +300,20 @@
         <svg width="11" height="18" viewBox="0 0 12 20"><path d="M10 2L2 10l8 8" stroke="var(--ink-2)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div style="flex:1;font-size:16px;font-weight:600;">Expense</div>
-      <button style="height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.96)">Edit</button>
+      <button onClick="{{ openEdit }}" style="height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.96)">Edit</button>
     </div>
     <div class="mc-scroll" style="flex:1;overflow:auto;padding:22px 18px 120px;">
-      <!-- receipt / by-hand -->
-      <sc-if value="{{ dHasReceipt }}" hint-placeholder-val="{{ true }}">
-      <div style="height:158px;border-radius:18px;border:1px solid var(--line);overflow:hidden;position:relative;background:repeating-linear-gradient(135deg,var(--surface) 0 11px,var(--surface-2) 11px 22px);display:flex;align-items:center;justify-content:center;">
-        <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:1px;color:var(--ink-3);text-transform:uppercase;background:var(--bg);padding:6px 12px;border-radius:8px;border:1px solid var(--line);">receipt photo</span>
-      </div>
-      </sc-if>
-      <sc-if value="{{ dIsManual }}" hint-placeholder-val="{{ false }}">
-      <div style="height:96px;border-radius:18px;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:center;gap:11px;">
-        <svg width="19" height="19" viewBox="0 0 24 24"><path d="M4 20.5l4.2-1 10-10-3.2-3.2-10 10-1 4.2Z" fill="none" stroke="var(--ink-3)" stroke-width="1.6" stroke-linejoin="round"/><path d="M13.6 5.1l3.2 3.2" stroke="var(--ink-3)" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;color:var(--ink-3);">Entered by hand, sir — no receipt.</span>
-      </div>
-      </sc-if>
-      <div style="text-align:center;margin-top:22px;">
+      <div style="text-align:center;margin-top:4px;">
         <div style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600;line-height:1.05;">{{ d.merchant }}</div>
         <div style="font-size:13px;color:var(--ink-3);margin-top:4px;">{{ d.date }}</div>
         <div style="font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:600;line-height:1;margin-top:14px;font-variant-numeric:tabular-nums;">{{ d.total }}</div>
-        <div style="display:inline-flex;align-items:center;gap:7px;margin-top:14px;background:var(--accent-soft);border:1px solid var(--line);padding:7px 14px;border-radius:11px;">
-          <span style="width:8px;height:8px;border-radius:3px;background:{{ d.color }};"></span>
-          <span style="font-size:13.5px;font-weight:600;color:var(--ink);">{{ d.cat }}</span>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px;">
+          <sc-for list="{{ dCatsView }}" as="c" hint-placeholder-count="1">
+            <div style="display:inline-flex;align-items:center;gap:7px;background:var(--accent-soft);border:1px solid var(--line);padding:7px 14px;border-radius:11px;">
+              <span style="width:8px;height:8px;border-radius:3px;background:{{ c.color }};"></span>
+              <span style="font-size:13.5px;font-weight:600;color:var(--ink);">{{ c.label }}</span>
+            </div>
+          </sc-for>
         </div>
       </div>
 
@@ -366,6 +335,154 @@
         <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:18px;color:var(--accent);line-height:1;">“</span>
         <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:var(--ink-2);line-height:1.5;">{{ d.note }}</span>
       </div>
+
+      <!-- receipt photo / by-hand -->
+      <sc-if value="{{ dHasReceipt }}" hint-placeholder-val="{{ true }}">
+      <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-3);margin:30px 4px 10px;">Receipt</div>
+      <div style="border-radius:18px;overflow:hidden;border:1px solid var(--line);background:radial-gradient(120% 90% at 50% 0%,var(--surface-2),var(--surface));padding:28px 0 30px;display:flex;justify-content:center;">
+        <div style="width:186px;background:#fbfaf6;border-radius:3px;padding:18px 18px 20px;box-shadow:0 16px 32px -10px rgba(0,0,0,0.4),0 2px 5px rgba(0,0,0,0.16);transform:rotate(-2.2deg);font-family:ui-monospace,Menlo,monospace;color:#2b2724;">
+          <div style="text-align:center;font-size:12.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">{{ d.merchant }}</div>
+          <div style="text-align:center;font-size:9px;color:#9a948b;margin-top:3px;letter-spacing:0.5px;">{{ d.date }}</div>
+          <div style="border-top:1px dashed #cdc8bf;margin:13px 0;"></div>
+          <sc-for list="{{ d.items }}" as="it" hint-placeholder-count="3">
+            <div style="display:flex;justify-content:space-between;gap:10px;font-size:10px;margin-bottom:7px;">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ it.name }}</span>
+              <span style="flex-shrink:0;">{{ it.price }}</span>
+            </div>
+          </sc-for>
+          <div style="border-top:1px dashed #cdc8bf;margin:11px 0;"></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;"><span>TOTAL</span><span>{{ d.total }}</span></div>
+          <div style="text-align:center;font-size:8px;color:#aaa49b;margin-top:14px;letter-spacing:2px;">THANK YOU</div>
+        </div>
+      </div>
+      </sc-if>
+      <sc-if value="{{ dIsManual }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:26px;height:96px;border-radius:18px;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:center;gap:11px;">
+        <svg width="19" height="19" viewBox="0 0 24 24"><path d="M4 20.5l4.2-1 10-10-3.2-3.2-10 10-1 4.2Z" fill="none" stroke="var(--ink-3)" stroke-width="1.6" stroke-linejoin="round"/><path d="M13.6 5.1l3.2 3.2" stroke="var(--ink-3)" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;color:var(--ink-3);">Entered by hand, sir — no receipt.</span>
+      </div>
+      </sc-if>
+      <button onClick="{{ deleteExpense }}" style="width:100%;margin-top:30px;height:50px;border-radius:14px;border:1px solid var(--line);background:transparent;color:var(--ink-3);font-size:14.5px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';display:flex;align-items:center;justify-content:center;gap:9px;" style-active="transform:scale(0.98)" style-hover="color:#D8A45E;border-color:rgba(216,164,94,0.5)">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5a1 1 0 011-1h2a1 1 0 011 1v2M6 7l1 13a1 1 0 001 1h8a1 1 0 001-1l1-13" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Delete expense
+      </button>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ EDIT EXPENSE ============ -->
+  <sc-if value="{{ showEdit }}" hint-placeholder-val="{{ false }}" data-screen-label="Edit Expense">
+  <div style="display:flex;flex-direction:column;height:100%;">
+    <div style="padding:58px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);background:var(--bg);">
+      <button onClick="{{ cancelEdit }}" style="width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style-active="transform:scale(0.92)">
+        <svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div style="flex:1;"><div style="font-size:16px;font-weight:600;">Edit expense</div><div style="font-size:12px;color:var(--ink-3);">{{ efSubtitle }}</div></div>
+    </div>
+    <div class="mc-scroll" style="flex:1;overflow:auto;padding:18px 18px 130px;">
+      <div style="display:flex;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 15px;animation:mcUp .4s ease both;">
+        <span style="width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg width="18" height="18" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg></span>
+        <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15.5px;line-height:1.45;color:var(--ink-2);">Amend whatever you wish, sir — I shall re-file it the moment you're done.</span>
+      </div>
+
+      <div style="margin-top:18px;display:flex;flex-direction:column;gap:13px;">
+        <!-- merchant -->
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+          <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);">Merchant</div>
+          <input value="{{ efMerchant }}" onChange="{{ setEditMerchant }}" placeholder="The establishment…" style="width:100%;border:none;outline:none;background:transparent;color:var(--ink);font-size:18px;font-weight:600;font-family:'Hanken Grotesk';margin-top:8px;" />
+        </div>
+
+        <!-- amount + date -->
+        <div style="display:flex;gap:13px;">
+          <div style="flex:1.4;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+            <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;">Amount</div>
+            <sc-if value="{{ efHasItems }}" hint-placeholder-val="{{ false }}">
+              <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);">{{ editTotalDisplay }}</div>
+              <div style="font-size:11px;color:var(--ink-3);margin-top:4px;">Totted up from the particulars.</div>
+            </sc-if>
+            <sc-if value="{{ efNoItems }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:baseline;gap:4px;">
+                <span style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--ink-3);">{{ currencySymbol }}</span>
+                <input value="{{ efAmount }}" onChange="{{ setEditAmount }}" placeholder="0.00" inputMode="decimal" style="flex:1;min-width:0;border:none;outline:none;background:transparent;color:var(--ink);font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;" />
+              </div>
+            </sc-if>
+          </div>
+          <div style="position:relative;flex:1;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+            <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;">Date</div>
+            <div style="display:flex;align-items:center;gap:7px;">
+              <span style="font-size:15px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ efDate }}</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex-shrink:0;"><rect x="3.5" y="5" width="17" height="15" rx="2.5" fill="none" stroke="var(--ink-3)" stroke-width="1.6"/><path d="M3.5 9.5h17M8 3.5v3M16 3.5v3" stroke="var(--ink-3)" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <div style="font-size:11px;color:var(--ink-3);margin-top:3px;">{{ efDateSub }}</div>
+            <input type="date" value="{{ efDateISO }}" onChange="{{ setEditDateISO }}" aria-label="Pick a date" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;background:transparent;cursor:pointer;font-size:16px;-webkit-appearance:none;" />
+          </div>
+        </div>
+
+        <!-- category -->
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
+            <span style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);">Category</span>
+            <span style="font-size:11px;color:var(--ink-3);font-style:italic;font-family:'Cormorant Garamond',serif;">Choose as many as apply, sir</span>
+          </div>
+          <div class="mc-scroll" style="display:flex;gap:8px;overflow-x:auto;">
+            <sc-for list="{{ editCategoriesView }}" as="c" hint-placeholder-count="5">
+              <button onClick="{{ c.onClick }}" style="flex:0 0 auto;display:flex;align-items:center;gap:7px;white-space:nowrap;font-size:13.5px;padding:8px 13px;border-radius:11px;cursor:pointer;font-family:'Hanken Grotesk';font-weight:600;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.color }};" style-active="transform:scale(0.96)">
+                <span style="width:15px;height:15px;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1.5px solid {{ c.tickBorder }};background:{{ c.tickBg }};"><svg width="9" height="9" viewBox="0 0 12 12" style="opacity:{{ c.tickOpacity }};"><path d="M2 6.5l2.5 2.5L10 3" fill="none" stroke="var(--accent-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                {{ c.label }}
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- particulars / line items -->
+        <sc-if value="{{ efNoItems }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ addEditParticulars }}" style="display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:50px;border:1.5px dashed var(--line);border-radius:16px;background:transparent;color:var(--ink-2);font-size:14.5px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="border-color:var(--accent);color:var(--accent)" style-active="transform:scale(0.99)">
+            <svg width="15" height="15" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Itemise the particulars
+          </button>
+        </sc-if>
+        <sc-if value="{{ efHasItems }}" hint-placeholder-val="{{ true }}">
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;">
+            <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);padding:14px 16px 8px;">The particulars</div>
+            <sc-for list="{{ editItemsView }}" as="it" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 14px 10px 16px;border-top:1px solid var(--line);">
+                <input value="{{ it.name }}" onChange="{{ it.onName }}" placeholder="Item" style="flex:1;min-width:0;border:none;outline:none;background:transparent;color:var(--ink);font-size:15px;font-family:'Hanken Grotesk';" />
+                <span style="font-size:13px;color:var(--ink-3);">×</span>
+                <input value="{{ it.qty }}" onChange="{{ it.onQty }}" inputMode="numeric" style="width:26px;text-align:center;border:none;outline:none;background:transparent;color:var(--ink-2);font-size:15px;font-family:'Hanken Grotesk';" />
+                <span style="font-size:14px;color:var(--ink-3);">{{ currencySymbol }}</span>
+                <input value="{{ it.price }}" onChange="{{ it.onPrice }}" placeholder="0.00" inputMode="decimal" style="width:58px;text-align:right;border:none;outline:none;background:transparent;color:var(--ink);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;font-family:'Hanken Grotesk';" />
+                <button onClick="{{ it.onRemove }}" style="width:24px;height:24px;flex-shrink:0;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-active="transform:scale(0.9)">
+                  <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--ink-3)" stroke-width="1.7" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+            </sc-for>
+            <button onClick="{{ addEditItem }}" style="display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;border:none;border-top:1px solid var(--line);background:transparent;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.99)">
+              <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Add another
+            </button>
+            <sc-if value="{{ editHasService }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:1px solid var(--line);font-size:13.5px;color:var(--ink-2);">
+                <span>Service</span><span style="font-variant-numeric:tabular-nums;">{{ editServiceDisplay }}</span>
+              </div>
+            </sc-if>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-top:1px solid var(--line);background:var(--bg);">
+              <span style="font-size:14px;font-weight:600;color:var(--ink);">Total</span>
+              <span style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);">{{ editTotalDisplay }}</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- note -->
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+          <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);">Note <span style="color:var(--ink-3);opacity:0.7;text-transform:none;letter-spacing:0;">· optional</span></div>
+          <input value="{{ efNote }}" onChange="{{ setEditNote }}" placeholder="A word, if you like…" style="width:100%;border:none;outline:none;background:transparent;color:var(--ink);font-size:15px;font-family:'Hanken Grotesk';margin-top:8px;" />
+        </div>
+      </div>
+    </div>
+
+    <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 18px 30px;background:linear-gradient(to top,var(--bg) 70%,transparent);display:flex;gap:12px;">
+      <button onClick="{{ cancelEdit }}" style="flex:1;height:54px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font-size:16px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.98)">Cancel</button>
+      <button onClick="{{ saveEdit }}" style="flex:2;height:54px;border-radius:16px;border:none;background:{{ editSaveBg }};color:{{ editSaveColor }};font-size:16px;font-weight:600;cursor:{{ editSaveCursor }};font-family:'Hanken Grotesk';" style-active="transform:scale(0.98)">Save changes</button>
     </div>
   </div>
   </sc-if>
@@ -382,7 +499,7 @@
     <div class="mc-scroll" style="flex:1;overflow:auto;padding:18px 18px 130px;">
       <!-- carson note -->
       <div style="display:flex;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 15px;animation:mcUp .4s ease both;">
-        <span style="width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:17px;color:var(--accent);padding-top:2px;">C</span></span>
+        <span style="width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg width="18" height="18" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg></span>
         <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15.5px;line-height:1.45;color:var(--ink-2);">{{ confirmNote }}</span>
       </div>
 
@@ -462,7 +579,7 @@
       <!-- seal / ring -->
       <sc-if value="{{ engageIsCta }}" hint-placeholder-val="{{ true }}">
         <div style="width:118px;height:118px;border-radius:50%;border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 8px var(--accent-soft);animation:mcUp .5s ease both;">
-          <span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:66px;color:var(--accent);line-height:1;padding-top:6px;">C</span>
+          <svg width="62" height="62" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg>
         </div>
       </sc-if>
       <sc-if value="{{ engageIsProgress }}" hint-placeholder-val="{{ false }}">
@@ -541,7 +658,7 @@
 
       <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-3);margin:0 4px 12px;">Mr. Carson's mind</div>
       <button onClick="{{ goModelMgmt }}" style="display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="border-color:var(--accent)" style-active="transform:scale(0.99)">
-        <span style="width:46px;height:46px;border-radius:13px;border:1.5px solid var(--accent);background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:27px;color:var(--accent);padding-top:3px;">C</span></span>
+        <span style="width:46px;height:46px;border-radius:13px;border:1.5px solid var(--accent);background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="26" height="26" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg></span>
         <span style="flex:1;min-width:0;"><span style="display:block;font-size:15.5px;font-weight:600;color:var(--ink);">The model</span><span style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:{{ settingsStatusColor }};margin-top:3px;"><span style="width:6px;height:6px;border-radius:50%;background:{{ settingsStatusColor }};flex-shrink:0;"></span>{{ settingsStatus }}</span></span>
         <svg width="9" height="15" viewBox="0 0 10 16" style="flex-shrink:0;"><path d="M2 2l6 6-6 6" stroke="var(--ink-3)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -572,17 +689,6 @@
         </div>
       </div>
 
-      <!-- appearance / themes -->
-      <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-3);margin:26px 4px 12px;">Livery</div>
-      <div style="display:flex;gap:11px;">
-        <sc-for list="{{ themesView }}" as="t" hint-placeholder-count="3">
-          <button onClick="{{ t.onClick }}" style="flex:1;background:var(--surface);border:{{ t.border }};border-radius:16px;padding:13px 10px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:9px;box-shadow:{{ t.ring }};" style-active="transform:scale(0.97)">
-            <span style="width:34px;height:34px;border-radius:50%;background:{{ t.swatch }};border:1px solid var(--line);"></span>
-            <span style="font-size:12px;font-weight:600;color:var(--ink-2);text-align:center;line-height:1.2;">{{ t.label }}</span>
-          </button>
-        </sc-for>
-      </div>
-
       <div style="text-align:center;font-size:11.5px;color:var(--ink-3);margin-top:28px;letter-spacing:0.3px;">Mr. Carson · on-device · v1.0</div>
     </div>
   </div>
@@ -601,7 +707,7 @@
 
       <sc-if value="{{ mmShowSeal }}" hint-placeholder-val="{{ true }}">
         <div style="width:96px;height:96px;border-radius:26px;border:1.5px solid var(--accent);background:var(--accent-soft);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 7px var(--accent-soft);animation:mcUp .45s ease both;">
-          <span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:54px;color:var(--accent);line-height:1;padding-top:5px;">C</span>
+          <svg width="50" height="50" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg>
         </div>
       </sc-if>
       <sc-if value="{{ mDownloading }}" hint-placeholder-val="{{ false }}">
@@ -675,7 +781,7 @@
     </div>
     <div class="mc-scroll" style="flex:1;overflow:auto;padding:18px 18px 130px;">
       <div style="display:flex;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 15px;animation:mcUp .4s ease both;">
-        <span style="width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:17px;color:var(--accent);padding-top:2px;">C</span></span>
+        <span style="width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg width="18" height="18" viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="var(--accent)" stroke="none"/></svg></span>
         <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15.5px;line-height:1.45;color:var(--ink-2);">The figures whenever you're ready, sir — I shall file them at once.</span>
       </div>
 
@@ -702,10 +808,14 @@
               <div style="font-size:11px;color:var(--accent);margin-top:4px;">reconciled from the particulars</div>
             </sc-if>
           </div>
-          <div style="flex:1;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
+          <div style="position:relative;flex:1;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;">
             <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;">Date</div>
-            <div style="font-size:15.5px;font-weight:600;line-height:1.2;">{{ mfDate }}</div>
-            <div style="font-size:11px;color:var(--ink-3);margin-top:3px;">Today</div>
+            <div style="display:flex;align-items:center;gap:7px;">
+              <span style="font-size:15px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ mfDate }}</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex-shrink:0;"><rect x="3.5" y="5" width="17" height="15" rx="2.5" fill="none" stroke="var(--ink-3)" stroke-width="1.6"/><path d="M3.5 9.5h17M8 3.5v3M16 3.5v3" stroke="var(--ink-3)" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <div style="font-size:11px;color:var(--ink-3);margin-top:3px;">{{ mfDateSub }}</div>
+            <input type="date" value="{{ mfDateISO }}" onChange="{{ setManualDateISO }}" aria-label="Pick a date" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;background:transparent;cursor:pointer;font-size:16px;-webkit-appearance:none;" />
           </div>
         </div>
 
@@ -792,14 +902,14 @@
   <div style="position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;justify-content:flex-end;pointer-events:none;animation:mcFade .22s ease both;">
     <div style="pointer-events:auto;display:flex;align-items:center;justify-content:space-around;background:var(--surface);border-top:1px solid var(--line);padding:12px 24px 30px;box-shadow:0 -8px 24px rgba(0,0,0,0.28);">
       <button onClick="{{ goAsk }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;padding:0;">
-        <svg width="23" height="23" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="4" fill="none" stroke="{{ askColor }}" stroke-width="1.8"/><path d="M8 20l4-3" stroke="{{ askColor }}" stroke-width="1.8" stroke-linecap="round"/><circle cx="8.5" cy="10.5" r="1.1" fill="{{ askColor }}"/><circle cx="12" cy="10.5" r="1.1" fill="{{ askColor }}"/><circle cx="15.5" cy="10.5" r="1.1" fill="{{ askColor }}"/></svg>
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="{{ askColor }}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 23h20a10 10 0 0 0-9-9.95V11a1 1 0 0 0-2 0v2.05A10 10 0 0 0 6 23Z"/><line x1="3.5" y1="23" x2="28.5" y2="23"/><path d="M13.4 26.4a2.7 2.7 0 0 0 5.2 0"/><circle cx="16" cy="8.6" r="1.3" fill="{{ askColor }}" stroke="none"/></svg>
         <span style="font-size:10.5px;font-weight:600;color:{{ askColor }};">Ask</span>
       </button>
       <button onClick="{{ goAdd }}" style="background:var(--accent);border:none;cursor:pointer;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:-26px;box-shadow:0 8px 20px var(--accent-soft);flex-shrink:0;" style-active="transform:scale(0.93)">
         <svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"/></svg>
       </button>
       <button onClick="{{ goExpenses }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;padding:0;position:relative;">
-        <svg width="23" height="23" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9" stroke="{{ expColor }}" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="{{ expColor }}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5h16v22H8z"/><path d="M16 5v22"/><line x1="11" y1="11" x2="13.5" y2="11"/><line x1="18.5" y1="11" x2="21" y2="11"/><line x1="11" y1="16" x2="13.5" y2="16"/><line x1="18.5" y1="16" x2="21" y2="16"/></svg>
         <sc-if value="{{ hasPending }}" hint-placeholder-val="{{ false }}">
           <span style="position:absolute;top:-3px;right:4px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:1.5px solid var(--surface);"></span>
         </sc-if>
@@ -849,6 +959,84 @@
         </button>
       </div>
       <button onClick="{{ closeSheet }}" style="width:100%;height:50px;margin-top:14px;border-radius:14px;border:none;background:transparent;color:var(--ink-2);font-size:15.5px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-active="transform:scale(0.98)">Not just now</button>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ PERIOD SHEET ============ -->
+  <sc-if value="{{ showPeriodSheet }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closePeriod }}" style="position:absolute;inset:0;z-index:96;background:rgba(0,0,0,0.55);display:flex;flex-direction:column;justify-content:flex-end;animation:mcFade .2s ease both;">
+    <div onClick="{{ stop }}" style="background:var(--surface);border-top:1px solid var(--line);border-radius:26px 26px 0 0;padding:12px 18px 30px;max-height:88%;overflow:auto;animation:mcUp .3s cubic-bezier(.22,.9,.3,1) both;">
+      <div style="width:38px;height:4px;border-radius:3px;background:var(--ink-3);opacity:0.5;margin:0 auto 16px;"></div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;line-height:1;">Choose a period</div>
+          <div style="font-size:13px;color:var(--ink-3);margin-top:5px;">{{ rangeSummary }}</div>
+        </div>
+        <button onClick="{{ closePeriod }}" style="width:34px;height:34px;border-radius:11px;border:1px solid var(--line);background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style-active="transform:scale(0.92)">
+          <svg width="13" height="13" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <!-- presets -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">
+        <sc-for list="{{ periodOptions }}" as="o" hint-placeholder-count="5">
+          <button onClick="{{ o.onClick }}" style="display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:{{ o.bg }};border:1px solid {{ o.border }};border-radius:14px;padding:13px 15px;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="border-color:var(--accent)" style-active="transform:scale(0.99)">
+            <span style="width:20px;height:20px;border-radius:50%;border:1.6px solid {{ o.ringColor }};flex-shrink:0;display:flex;align-items:center;justify-content:center;"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent);opacity:{{ o.dotOpacity }};"></span></span>
+            <span style="flex:1;min-width:0;">
+              <span style="display:block;font-size:15.5px;font-weight:600;color:var(--ink);">{{ o.label }}</span>
+              <span style="display:block;font-size:12px;color:var(--ink-3);margin-top:2px;">{{ o.sub }}</span>
+            </span>
+            <span style="font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:600;color:{{ o.totalColor }};font-variant-numeric:tabular-nums;flex-shrink:0;">{{ o.total }}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <!-- divider -->
+      <div style="display:flex;align-items:center;gap:12px;margin:20px 2px 14px;">
+        <span style="flex:1;height:1px;background:var(--line);"></span>
+        <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:14px;color:var(--ink-3);">or a particular range</span>
+        <span style="flex:1;height:1px;background:var(--line);"></span>
+      </div>
+
+      <!-- calendar -->
+      <div style="background:var(--bg);border:1px solid var(--line);border-radius:18px;padding:14px 14px 16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <button onClick="{{ calPrev }}" style="width:32px;height:32px;border-radius:10px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-active="transform:scale(0.92)" style-hover="border-color:var(--accent)">
+            <svg width="9" height="14" viewBox="0 0 10 16"><path d="M8 2L2 8l6 6" stroke="var(--ink-2)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <span style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;">{{ calMonthLabel }}</span>
+          <button onClick="{{ calNext }}" style="width:32px;height:32px;border-radius:10px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-active="transform:scale(0.92)" style-hover="border-color:var(--accent)">
+            <svg width="9" height="14" viewBox="0 0 10 16"><path d="M2 2l6 6-6 6" stroke="var(--ink-2)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+          <div style="text-align:center;font-size:10.5px;font-weight:600;letter-spacing:0.5px;color:var(--ink-3);padding:4px 0;">M</div>
+          <div style="text-align:center;font-size:10.5px;font-weight:600;letter-spacing:0.5px;color:var(--ink-3);padding:4px 0;">T</div>
+          <div style="text-align:center;font-size:10.5px;font-weight:600;letter-spacing:0.5px;color:var(--ink-3);padding:4px 0;">W</div>
+          <div style="text-align:center;font-size:10.5px;font-weight:600;letter-spacing:0.5px;color:var(--ink-3);padding:4px 0;">T</div>
+          <div style="text-align:center;font-size:10.5px;font-weight:600;letter-spacing:0.5px;color:var(--ink-3);padding:4px 0;">F</div>
+          <div style="text-align:center;font-size:10.5px;font-weight:600;letter-spacing:0.5px;color:var(--ink-3);padding:4px 0;">S</div>
+          <div style="text-align:center;font-size:10.5px;font-weight:600;letter-spacing:0.5px;color:var(--ink-3);padding:4px 0;">S</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
+          <sc-for list="{{ calCells }}" as="c" hint-placeholder-count="35">
+            <sc-if value="{{ c.empty }}" hint-placeholder-val="{{ false }}">
+              <div style="height:38px;"></div>
+            </sc-if>
+            <sc-if value="{{ c.day }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ c.onClick }}" style="position:relative;height:38px;border:none;cursor:pointer;font-family:'Hanken Grotesk';font-size:14px;font-weight:{{ c.cellWeight }};background:{{ c.cellBg }};color:{{ c.cellColor }};border-radius:{{ c.cellRadius }};display:flex;align-items:center;justify-content:center;" style-active="transform:scale(0.94)">
+                {{ c.day }}
+                <sc-if value="{{ c.hasDot }}" hint-placeholder-val="{{ false }}">
+                  <span style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:3.5px;height:3.5px;border-radius:50%;background:var(--accent);"></span>
+                </sc-if>
+              </button>
+            </sc-if>
+          </sc-for>
+        </div>
+      </div>
+
+      <button onClick="{{ closePeriod }}" style="width:100%;height:52px;margin-top:16px;border-radius:14px;border:none;background:var(--accent);color:var(--accent-ink);font-size:16px;font-weight:600;cursor:pointer;font-family:'Hanken Grotesk';" style-hover="filter:brightness(1.06)" style-active="transform:scale(0.985)">Apply</button>
     </div>
   </div>
   </sc-if>
@@ -904,6 +1092,47 @@ class Component extends DCLogic {
       items: [ { name: 'Cappuccino', qty: '×1', price: '£3.20' }, { name: 'Almond Croissant', qty: '×1', price: '£2.95' } ], subtotal: '£6.15', service: '£0.00', note: 'A modest interlude, sir. Filed and forgotten.' },
   };
 
+  // Aggregated ledger history (drives the summary donut + per-period totals).
+  // The five detailed receipts above are included here so figures reconcile.
+  _today = new Date(2026, 5, 11); // 11 June 2026
+  _monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  _history = [
+    // ---- June 2026 (sums to £1,284.60) ----
+    { day:'2 June 2026', cat:'Dining', amount:38.00 },   { day:'3 June 2026', cat:'Dining', amount:78.50 },
+    { day:'5 June 2026', cat:'Dining', amount:52.50 },   { day:'6 June 2026', cat:'Dining', amount:47.26 },
+    { day:'8 June 2026', cat:'Dining', amount:64.00 },   { day:'9 June 2026', cat:'Dining', amount:41.50 },
+    { day:'11 June 2026', cat:'Dining', amount:84.09 },  { day:'12 June 2026', cat:'Dining', amount:6.15 },
+    { day:'1 June 2026', cat:'Groceries', amount:47.00 },{ day:'4 June 2026', cat:'Groceries', amount:28.40 },
+    { day:'6 June 2026', cat:'Groceries', amount:86.00 },{ day:'7 June 2026', cat:'Groceries', amount:54.20 },
+    { day:'9 June 2026', cat:'Groceries', amount:39.00 },{ day:'10 June 2026', cat:'Groceries', amount:63.40 },
+    { day:'3 June 2026', cat:'Household', amount:42.00 },{ day:'5 June 2026', cat:'Household', amount:40.00 },
+    { day:'8 June 2026', cat:'Household', amount:74.00 },{ day:'11 June 2026', cat:'Household', amount:58.00 },
+    { day:'2 June 2026', cat:'Transport', amount:32.00 },{ day:'4 June 2026', cat:'Transport', amount:73.00 },
+    { day:'7 June 2026', cat:'Transport', amount:44.50 },{ day:'9 June 2026', cat:'Transport', amount:18.50 },
+    { day:'10 June 2026', cat:'Transport', amount:28.00 },
+    { day:'6 June 2026', cat:'Other', amount:24.60 },    { day:'8 June 2026', cat:'Other', amount:80.00 },
+    { day:'12 June 2026', cat:'Other', amount:40.00 },
+    // ---- earlier 2026 (so Year-to-date dwarfs the month) ----
+    { day:'15 January 2026', cat:'Dining', amount:320.00 },  { day:'15 January 2026', cat:'Groceries', amount:280.00 },
+    { day:'15 January 2026', cat:'Household', amount:160.00 },{ day:'15 January 2026', cat:'Transport', amount:150.00 },
+    { day:'15 January 2026', cat:'Other', amount:90.00 },
+    { day:'14 February 2026', cat:'Dining', amount:290.00 }, { day:'14 February 2026', cat:'Groceries', amount:310.00 },
+    { day:'14 February 2026', cat:'Household', amount:120.00 },{ day:'14 February 2026', cat:'Transport', amount:175.00 },
+    { day:'14 February 2026', cat:'Other', amount:110.00 },
+    { day:'15 March 2026', cat:'Dining', amount:360.00 },    { day:'15 March 2026', cat:'Groceries', amount:300.00 },
+    { day:'15 March 2026', cat:'Household', amount:200.00 }, { day:'15 March 2026', cat:'Transport', amount:160.00 },
+    { day:'15 March 2026', cat:'Other', amount:130.00 },
+    { day:'15 April 2026', cat:'Dining', amount:340.00 },    { day:'15 April 2026', cat:'Groceries', amount:290.00 },
+    { day:'15 April 2026', cat:'Household', amount:180.00 }, { day:'15 April 2026', cat:'Transport', amount:190.00 },
+    { day:'15 April 2026', cat:'Other', amount:100.00 },
+    { day:'15 May 2026', cat:'Dining', amount:400.00 },      { day:'15 May 2026', cat:'Groceries', amount:330.00 },
+    { day:'15 May 2026', cat:'Household', amount:210.00 },   { day:'15 May 2026', cat:'Transport', amount:205.00 },
+    { day:'15 May 2026', cat:'Other', amount:140.00 },
+    // ---- a little 2025, so All time exceeds Year-to-date ----
+    { day:'18 December 2025', cat:'Dining', amount:96.00 },  { day:'12 December 2025', cat:'Household', amount:240.00 },
+    { day:'3 November 2025', cat:'Groceries', amount:180.00 },
+  ];
+
   state = {
     onboarded: false, onbStep: 0,
     model: { status: 'absent', pct: 0, paused: false },
@@ -911,7 +1140,8 @@ class Component extends DCLogic {
     screen: 'ask',
     theme: 'brass',
     messages: [], draft: '', streaming: false, chartGrown: false, askFocused: false,
-    detailId: 'wolseley', savedNero: false,
+    detailId: 'wolseley', savedNero: false, deletedIds: [],
+    period: 'month', periodSheet: false, rangeStart: null, rangeEnd: null, calMonth: 5, calYear: 2026,
     confirm: {
       merchant: { val: 'Caffè Nero', low: true },
       date: '12 June 2026', total: '£6.15', category: 'Dining',
@@ -922,10 +1152,63 @@ class Component extends DCLogic {
     sheet: false, pending: [], reviewingId: null,
     currency: '£', manualIds: [], confirmRemove: false, manualReturn: 'expenses',
     manual: { merchant: '', amount: '', date: '14 June 2026', category: 'Dining', itemsOpen: false, items: [{ name: '', qty: '1', price: '' }], note: '' },
+    edit: { merchant: '', amount: '', date: '', categories: ['Dining'], note: '', items: [], service: '0', hasItems: false },
   };
   _freshManual = () => ({ merchant: '', amount: '', date: '14 June 2026', category: 'Dining', itemsOpen: false, items: [{ name: '', qty: '1', price: '' }], note: '' });
   _catColor = (cat) => ({ Dining: 'var(--accent)', Groceries: 'var(--grocery)', Transport: 'var(--transport)', Household: 'var(--house)', Other: 'var(--ink-3)' }[cat] || 'var(--accent)');
   _manualSubtotal = (m) => m.items.reduce((sum, it) => sum + (parseFloat(it.price) || 0), 0);
+
+  // ---- dates & periods ----
+  _parseDate = (str) => {
+    if (!str) return null;
+    const m = String(str).trim().match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+    if (!m) return null;
+    const mi = this._monthNames.findIndex(n => n.toLowerCase().startsWith(m[2].toLowerCase().slice(0, 3)));
+    if (mi < 0) return null;
+    return new Date(+m[3], mi, +m[1]);
+  };
+  _amt = (str) => parseFloat(String(str).replace(/[^0-9.\-]/g, '')) || 0;
+  _primaryCat = (cat) => String(cat || 'Other').split('·')[0].trim();
+  _fmtMoney = (n) => '£' + n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  _fmtDay = (d) => d.getDate() + ' ' + this._monthNames[d.getMonth()];
+  _fmtFull = (d) => d.getDate() + ' ' + this._monthNames[d.getMonth()] + ' ' + d.getFullYear();
+  _dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  _isoFromDisplay = (str) => { const d = this._parseDate(str); if (!d) return ''; return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  _displayFromISO = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? this._fmtFull(new Date(+m[1], +m[2] - 1, +m[3])) : ''; };
+  _dateSub = (str) => { const d = this._parseDate(str); if (!d) return ''; return this._sameDay(d, this._today) ? 'Today' : this._dayNames[d.getDay()]; };
+  _sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  _startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  _startOfWeek = (d) => { const x = this._startOfDay(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+  _periodRange = (period, s) => {
+    const t = this._today;
+    if (period === 'today') return { start: this._startOfDay(t), end: this._startOfDay(t) };
+    if (period === 'week')  { const a = this._startOfWeek(t); const b = new Date(a); b.setDate(a.getDate() + 6); return { start: a, end: b }; }
+    if (period === 'month') return { start: new Date(t.getFullYear(), t.getMonth(), 1), end: new Date(t.getFullYear(), t.getMonth() + 1, 0) };
+    if (period === 'ytd')   return { start: new Date(t.getFullYear(), 0, 1), end: this._startOfDay(t) };
+    if (period === 'custom' && s.rangeStart && s.rangeEnd) return { start: new Date(s.rangeStart), end: new Date(s.rangeEnd) };
+    if (period === 'custom' && s.rangeStart) return { start: new Date(s.rangeStart), end: new Date(s.rangeStart) };
+    return null; // all time
+  };
+  _inRange = (d, range) => { if (!range) return true; if (!d) return true; const x = d.getTime(); return x >= range.start.getTime() && x <= (range.end.getTime() + 86399999); };
+  _periodTotal = (period, s) => {
+    const range = this._periodRange(period, s);
+    return this._history.reduce((sum, h) => sum + (this._inRange(this._parseDate(h.day), range) ? h.amount : 0), 0);
+  };
+
+  // ---- period picker ----
+  openPeriod = () => this.setState(s => ({ periodSheet: true, calMonth: this._today.getMonth(), calYear: this._today.getFullYear() }));
+  closePeriod = () => this.setState({ periodSheet: false });
+  setPeriod = (p) => this.setState({ period: p, periodSheet: false });
+  calPrev = () => this.setState(s => { let m = s.calMonth - 1, y = s.calYear; if (m < 0) { m = 11; y--; } return { calMonth: m, calYear: y }; });
+  calNext = () => this.setState(s => { let m = s.calMonth + 1, y = s.calYear; if (m > 11) { m = 0; y++; } return { calMonth: m, calYear: y }; });
+  pickDay = (day) => this.setState(s => {
+    const picked = new Date(s.calYear, s.calMonth, day);
+    let rs = s.rangeStart ? new Date(s.rangeStart) : null;
+    const hasBoth = s.rangeStart && s.rangeEnd;
+    if (!rs || hasBoth) return { rangeStart: picked, rangeEnd: null, period: 'custom' };
+    if (picked < rs) return { rangeStart: picked, rangeEnd: rs, period: 'custom' };
+    return { rangeEnd: picked, period: 'custom' };
+  });
 
   _draftFor = () => ({
     merchant: { val: 'Caffè Nero', low: true },
@@ -1016,6 +1299,7 @@ class Component extends DCLogic {
   setManualMerchant = (e) => { const v = e.target.value; this.setState(s => ({ manual: { ...s.manual, merchant: v } })); };
   setManualAmount = (e) => { const v = e.target.value; this.setState(s => ({ manual: { ...s.manual, amount: v } })); };
   setManualNote = (e) => { const v = e.target.value; this.setState(s => ({ manual: { ...s.manual, note: v } })); };
+  setManualDateISO = (e) => { const disp = this._displayFromISO(e.target.value); if (disp) this.setState(s => ({ manual: { ...s.manual, date: disp } })); };
   setManualCat = (cat) => this.setState(s => ({ manual: { ...s.manual, category: cat } }));
   openParticulars = () => this.setState(s => ({ manual: { ...s.manual, itemsOpen: true, items: s.manual.items.length ? s.manual.items : [{ name: '', qty: '1', price: '' }] } }));
   closeParticulars = () => this.setState(s => ({ manual: { ...s.manual, itemsOpen: false } }));
@@ -1171,6 +1455,77 @@ class Component extends DCLogic {
     this.toast('Discarded, sir.');
   };
 
+  // ---- edit expense ----
+  openEdit = () => {
+    const d = this._expenses[this.state.detailId] || this._expenses.wolseley;
+    const hasItems = Array.isArray(d.items) && d.items.length > 0;
+    this.setState({ edit: {
+      merchant: d.merchant,
+      amount: String(d.total).replace(/[^0-9.]/g, ''),
+      date: d.date,
+      categories: Array.isArray(d.cats) ? [...d.cats] : [d.cat],
+      note: d.note || '',
+      hasItems,
+      items: hasItems ? d.items.map(it => ({
+        name: it.name,
+        qty: (String(it.qty || '').replace(/[^0-9]/g, '') || '1'),
+        price: String(it.price || '').replace(/[^0-9.]/g, ''),
+      })) : [],
+      service: String(d.service || '').replace(/[^0-9.]/g, '') || '0',
+    }, screen: 'edit' });
+  };
+  cancelEdit = () => this.setState({ screen: 'detail' });
+  deleteExpense = () => {
+    const id = this.state.detailId;
+    this.setState(s => ({ deletedIds: [...s.deletedIds, id], screen: 'expenses' }));
+    this.toast('Removed from the ledger, sir.');
+  };
+  setEditMerchant = (e) => { const v = e.target.value; this.setState(s => ({ edit: { ...s.edit, merchant: v } })); };
+  setEditAmount = (e) => { const v = e.target.value; this.setState(s => ({ edit: { ...s.edit, amount: v } })); };
+  setEditDate = (e) => { const v = e.target.value; this.setState(s => ({ edit: { ...s.edit, date: v } })); };
+  setEditDateISO = (e) => { const disp = this._displayFromISO(e.target.value); if (disp) this.setState(s => ({ edit: { ...s.edit, date: disp } })); };
+  setEditNote = (e) => { const v = e.target.value; this.setState(s => ({ edit: { ...s.edit, note: v } })); };
+  setEditCategory = (cat) => this.setState(s => {
+    const has = s.edit.categories.includes(cat);
+    let next = has ? s.edit.categories.filter(c => c !== cat) : [...s.edit.categories, cat];
+    if (next.length === 0) next = [cat];
+    return { edit: { ...s.edit, categories: next } };
+  });
+  setEditItem = (i, field, val) => this.setState(s => ({ edit: { ...s.edit, items: s.edit.items.map((it, idx) => idx === i ? { ...it, [field]: val } : it) } }));
+  addEditItem = () => this.setState(s => ({ edit: { ...s.edit, hasItems: true, items: [...s.edit.items, { name: '', qty: '1', price: '' }] } }));
+  removeEditItem = (i) => this.setState(s => { const items = s.edit.items.filter((_, idx) => idx !== i); return { edit: { ...s.edit, items, hasItems: items.length > 0 } }; });
+  addEditParticulars = () => this.setState(s => ({ edit: { ...s.edit, hasItems: true, items: s.edit.items.length ? s.edit.items : [{ name: '', qty: '1', price: '' }] } }));
+  saveEdit = () => {
+    const ed = this.state.edit, id = this.state.detailId, sym = this.state.currency;
+    const liveItems = (ed.items || []).filter(it => (it.name || '').trim() || parseFloat(it.price));
+    const useItems = ed.hasItems && liveItems.length > 0;
+    const subtotalNum = liveItems.reduce((sum, it) => sum + (parseFloat(it.price) || 0), 0);
+    const serviceNum = parseFloat(ed.service) || 0;
+    const totalNum = useItems ? subtotalNum + serviceNum : (parseFloat(ed.amount) || 0);
+    if (!ed.merchant.trim() || !(totalNum > 0)) return;
+    const total = sym + totalNum.toFixed(2);
+    const cats = ed.categories.length ? ed.categories : ['Other'];
+    const items = useItems
+      ? liveItems.map(it => ({ name: (it.name || '').trim() || 'Item', qty: '×' + (parseInt(it.qty) || 1), price: sym + (parseFloat(it.price) || 0).toFixed(2) }))
+      : [];
+    this._expenses[id] = {
+      ...this._expenses[id],
+      merchant: ed.merchant.trim(),
+      cat: cats.join(' · '),
+      cats,
+      date: ed.date.trim() || this._expenses[id].date,
+      total,
+      items: useItems ? items : (ed.hasItems ? [] : this._expenses[id].items),
+      subtotal: useItems ? sym + subtotalNum.toFixed(2) : this._expenses[id].subtotal,
+      service: useItems ? sym + serviceNum.toFixed(2) : this._expenses[id].service,
+      note: ed.note.trim(),
+      color: this._catColor(cats[0]),
+      initial: ed.merchant.trim().charAt(0).toUpperCase() || this._expenses[id].initial,
+    };
+    this.setState({ screen: 'detail' });
+    this.toast('Amended. Very good, sir.');
+  };
+
   renderVals() {
     const s = this.state;
     const onboarding = !s.onboarded;
@@ -1220,16 +1575,91 @@ class Component extends DCLogic {
       onClick: () => this.setTheme(t.key),
     }));
 
-    const legend = this._chart.map(r => ({ label: r.label, color: r.color, amount: '£' + Math.round(r.amount) }));
-    const donut = 'conic-gradient(var(--accent) 0 32%, var(--grocery) 0 57%, var(--house) 0 74%, var(--transport) 0 89%, var(--ink-3) 0 100%)';
+    // ---- period-aware ledger ----
+    const period = s.period || 'month';
+    const range = this._periodRange(period, s);
+    const catOrder = [ ['Dining','var(--accent)'], ['Groceries','var(--grocery)'], ['Household','var(--house)'], ['Transport','var(--transport)'], ['Other','var(--ink-3)'] ];
+    const catColor = Object.fromEntries(catOrder.map(([k, c]) => [k, c]));
 
-    const order = [ ...s.manualIds, ...(s.savedNero ? ['nero'] : []), 'wolseley', 'waitrose', 'uber', 'fortnum' ];
+    // summary donut + legend from aggregated history within the period
+    const sums = {}; let grand = 0;
+    this._history.forEach(h => { if (!this._inRange(this._parseDate(h.day), range)) return; const c = this._primaryCat(h.cat); sums[c] = (sums[c] || 0) + h.amount; grand += h.amount; });
+    const legend = catOrder.filter(([k]) => (sums[k] || 0) > 0).map(([k, color]) => ({ label: k, color, amount: this._fmtMoney(sums[k]) }));
+    let acc = 0; const segs = [];
+    catOrder.forEach(([k, color]) => { const v = sums[k] || 0; if (v <= 0) return; acc += v; segs.push(color + ' 0 ' + (grand > 0 ? (acc / grand * 100) : 0).toFixed(2) + '%'); });
+    const donut = grand > 0 ? ('conic-gradient(' + segs.join(', ') + ')') : 'conic-gradient(var(--surface-2) 0 100%)';
+    const ledgerTotal = this._fmtMoney(grand);
+
+    // recent (detailed receipts) filtered to the period
+    const order = [ ...s.manualIds, ...(s.savedNero ? ['nero'] : []), 'wolseley', 'waitrose', 'uber', 'fortnum' ].filter(id => !s.deletedIds.includes(id) && this._inRange(this._parseDate(this._expenses[id].date), range));
     const expensesView = order.map(id => { const e = this._expenses[id]; return { merchant: e.merchant, cat: e.cat, date: e.date, total: e.total, initial: e.initial, color: e.color, onClick: () => this.openDetail(id) }; });
+    const ledgerEmpty = expensesView.length === 0;
+
+    // period labels
+    const periodLabels = { today: 'Today', week: 'This week', month: 'This month', ytd: 'Year to date', all: 'All time', custom: 'Custom range' };
+    const periodLabel = periodLabels[period] || 'This month';
+    let rangeLabel;
+    if (period === 'all') rangeLabel = 'Every record on file';
+    else if (period === 'month') rangeLabel = this._monthNames[range.start.getMonth()] + ' ' + range.start.getFullYear();
+    else if (this._sameDay(range && range.start, range && range.end)) rangeLabel = this._fmtFull(range.start);
+    else if (range) rangeLabel = this._fmtDay(range.start) + ' – ' + this._fmtFull(range.end);
+    else rangeLabel = '';
+
+    // period sheet: presets with their totals
+    const presetKeys = ['today', 'week', 'month', 'ytd', 'all'];
+    const periodOptions = presetKeys.map(k => {
+      const r = this._periodRange(k, s);
+      let sub;
+      if (k === 'all') sub = 'Everything on file';
+      else if (k === 'month') sub = this._monthNames[r.start.getMonth()] + ' ' + r.start.getFullYear();
+      else if (this._sameDay(r.start, r.end)) sub = this._fmtFull(r.start);
+      else sub = this._fmtDay(r.start) + ' – ' + this._fmtFull(r.end);
+      return { key: k, label: periodLabels[k], sub, total: this._fmtMoney(this._periodTotal(k, s)), selected: period === k,
+        bg: period === k ? 'var(--accent-soft)' : 'var(--bg)',
+        border: period === k ? 'var(--accent)' : 'var(--line)',
+        ringColor: period === k ? 'var(--accent)' : 'var(--ink-3)',
+        dotOpacity: period === k ? '1' : '0',
+        totalColor: period === k ? 'var(--accent)' : 'var(--ink-2)',
+        onClick: () => this.setPeriod(k) };
+    });
+
+    // calendar grid for the picker
+    const calFirst = new Date(s.calYear, s.calMonth, 1);
+    const lead = (calFirst.getDay() + 6) % 7; // Monday-first
+    const daysInMonth = new Date(s.calYear, s.calMonth + 1, 0).getDate();
+    const dotDays = new Set();
+    this._history.forEach(h => { const d = this._parseDate(h.day); if (d && d.getMonth() === s.calMonth && d.getFullYear() === s.calYear) dotDays.add(d.getDate()); });
+    const calCells = [];
+    for (let i = 0; i < lead; i++) calCells.push({ empty: true, key: 'e' + i });
+    for (let day = 1; day <= daysInMonth; day++) {
+      const cur = new Date(s.calYear, s.calMonth, day);
+      const isStart = range && this._sameDay(cur, range.start);
+      const isEnd = range && this._sameDay(cur, range.end);
+      const inBand = !!(range && period !== 'all' && cur > range.start && cur < range.end);
+      const onEnds = isStart || isEnd;
+      calCells.push({
+        empty: false, key: 'd' + day, day,
+        hasDot: dotDays.has(day) && !onEnds,
+        isToday: this._sameDay(cur, this._today),
+        cellBg: onEnds ? 'var(--accent)' : (inBand ? 'var(--accent-soft)' : 'transparent'),
+        cellColor: onEnds ? 'var(--accent-ink)' : 'var(--ink)',
+        cellWeight: onEnds ? '700' : (this._sameDay(cur, this._today) ? '700' : '500'),
+        cellRadius: isStart && isEnd ? '11px' : (isStart ? '11px 4px 4px 11px' : (isEnd ? '4px 11px 11px 4px' : (inBand ? '0' : '11px'))),
+        onClick: () => this.pickDay(day),
+      });
+    }
+    const calMonthLabel = this._monthNames[s.calMonth] + ' ' + s.calYear;
+    let rangeSummary;
+    if (period === 'custom' && s.rangeStart && !s.rangeEnd) rangeSummary = 'Choose an end date, sir.';
+    else rangeSummary = rangeLabel;
+
 
     const d = this._expenses[s.detailId] || this._expenses.wolseley;
     const dIsManual = !!d.isManual;
     const dHasReceipt = !dIsManual;
     const dHasItems = !!(d.items && d.items.length);
+    const dCats = Array.isArray(d.cats) ? d.cats : [d.cat];
+    const dCatsView = dCats.map(cat => ({ label: cat, color: this._catColor(cat) }));
 
     // ---- settings + model management ----
     const mError = model.status === 'error';
@@ -1268,6 +1698,30 @@ class Component extends DCLogic {
       onRemove: () => this.removeManualItem(i),
     }));
     const manualTotalDisplay = s.currency + manualSubtotalNum.toFixed(2);
+
+    // ---- edit expense ----
+    const ed = s.edit;
+    const editItems = Array.isArray(ed.items) ? ed.items : [];
+    const editHasItems = !!ed.hasItems && editItems.length > 0;
+    const editSubtotalNum = editItems.reduce((sum, it) => sum + (parseFloat(it.price) || 0), 0);
+    const editServiceNum = parseFloat(ed.service) || 0;
+    const editTotalNum = editHasItems ? editSubtotalNum + editServiceNum : (parseFloat(ed.amount) || 0);
+    const editCanSave = !!ed.merchant.trim() && (editTotalNum > 0);
+    const editSubtotalDisplay = s.currency + editSubtotalNum.toFixed(2);
+    const editServiceDisplay = s.currency + editServiceNum.toFixed(2);
+    const editTotalDisplay = s.currency + editTotalNum.toFixed(2);
+    const editHasService = editServiceNum > 0;
+    const editItemsView = editItems.map((it, i) => ({
+      name: it.name, qty: it.qty, price: it.price,
+      onName: (e) => this.setEditItem(i, 'name', e.target.value),
+      onQty: (e) => this.setEditItem(i, 'qty', e.target.value),
+      onPrice: (e) => this.setEditItem(i, 'price', e.target.value),
+      onRemove: () => this.removeEditItem(i),
+    }));
+    const editCategoriesView = this._cats.map(cat => {
+      const on = ed.categories.includes(cat);
+      return { label: cat, onClick: () => this.setEditCategory(cat), border: on ? 'var(--accent)' : 'var(--line)', bg: on ? 'var(--accent-soft)' : 'transparent', color: on ? 'var(--accent)' : 'var(--ink-2)', tickBorder: on ? 'var(--accent)' : 'var(--ink-3)', tickBg: on ? 'var(--accent)' : 'transparent', tickOpacity: on ? 1 : 0 };
+    });
 
     // pending receipts (background processing)
     const pendingView = s.pending.map(p => ({
@@ -1350,6 +1804,7 @@ class Component extends DCLogic {
       showManual: s.onboarded && s.screen === 'manual',
       openManual: this.openManual, cancelManual: this.cancelManual, saveManual: this.saveManual,
       mfMerchant: m.merchant, mfAmount: m.amount, mfDate: m.date, mfNote: m.note,
+      mfDateISO: this._isoFromDisplay(m.date), mfDateSub: this._dateSub(m.date), setManualDateISO: this.setManualDateISO,
       setManualMerchant: this.setManualMerchant, setManualAmount: this.setManualAmount, setManualNote: this.setManualNote,
       manualItemsOpen: m.itemsOpen, manualItemsClosed: !m.itemsOpen,
       openParticulars: this.openParticulars, closeParticulars: this.closeParticulars, addManualItem: this.addManualItem,
@@ -1357,6 +1812,22 @@ class Component extends DCLogic {
       manualSaveBg: manualCanSave ? 'var(--accent)' : 'var(--surface-2)',
       manualSaveColor: manualCanSave ? 'var(--accent-ink)' : 'var(--ink-3)',
       manualSaveCursor: manualCanSave ? 'pointer' : 'default',
+
+      // EDIT EXPENSE screen
+      showEdit: s.onboarded && s.screen === 'edit',
+      openEdit: this.openEdit, cancelEdit: this.cancelEdit, saveEdit: this.saveEdit,
+      efMerchant: ed.merchant, efAmount: ed.amount, efDate: ed.date, efNote: ed.note,
+      efDateISO: this._isoFromDisplay(ed.date), efDateSub: this._dateSub(ed.date), setEditDateISO: this.setEditDateISO,
+      efSubtitle: ed.merchant || 'This expense',
+      efHasItems: editHasItems,
+      efNoItems: !editHasItems,
+      setEditMerchant: this.setEditMerchant, setEditAmount: this.setEditAmount, setEditDate: this.setEditDate, setEditNote: this.setEditNote,
+      editItemsView, addEditItem: this.addEditItem, addEditParticulars: this.addEditParticulars,
+      editSubtotalDisplay, editServiceDisplay, editTotalDisplay, editHasService,
+      editCategoriesView,
+      editSaveBg: editCanSave ? 'var(--accent)' : 'var(--surface-2)',
+      editSaveColor: editCanSave ? 'var(--accent-ink)' : 'var(--ink-3)',
+      editSaveCursor: editCanSave ? 'pointer' : 'default',
 
       // header status (Ask)
       headerStatus, headerDotColor,
@@ -1378,7 +1849,13 @@ class Component extends DCLogic {
 
       // expenses
       showExpenses: inApp('expenses'),
-      legend, donut, expensesView,
+      legend, donut, expensesView, ledgerTotal, ledgerEmpty,
+      periodLabel, rangeLabel, openPeriod: this.openPeriod,
+      // period sheet
+      showPeriodSheet: s.onboarded && s.periodSheet,
+      closePeriod: this.closePeriod, periodOptions,
+      calMonthLabel, calCells, calPrev: this.calPrev, calNext: this.calNext,
+      rangeSummary,
       pendingView, hasPending, anyReady,
 
       // add sheet
@@ -1388,7 +1865,8 @@ class Component extends DCLogic {
 
       // detail
       showDetail: inApp('detail'),
-      d, dIsManual, dHasReceipt, dHasItems,
+      d, dIsManual, dHasReceipt, dHasItems, dCatsView,
+      deleteExpense: this.deleteExpense,
 
       // confirm
       showConfirm: inApp('confirm'),

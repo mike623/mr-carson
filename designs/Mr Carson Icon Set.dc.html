@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body{ margin:0; }
+  ::-webkit-scrollbar{ width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb{ background:rgba(205,166,106,0.22); border-radius:0; }
+</style>
+</helmet>
+<div style="min-height:100vh;background:radial-gradient(120% 80% at 50% -10%, #241B14 0%, #1A1411 55%);color:#F4EDDE;font-family:'Hanken Grotesk',system-ui,sans-serif;padding:64px 56px 80px;box-sizing:border-box;">
+<div style="max-width:1180px;margin:0 auto;">
+
+  <!-- ============ MASTHEAD ============ -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:40px;border-bottom:1px solid rgba(205,166,106,0.18);padding-bottom:30px;">
+    <div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <span style="position:relative;width:50px;height:50px;border:1.5px solid #CDA66A;border-radius:7px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 34px rgba(205,166,106,0.22);">
+          <span style="position:absolute;inset:0;border-radius:6px;background:radial-gradient(circle at 50% 38%, rgba(205,166,106,0.16), transparent 70%);"></span>
+          <span style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:30px;color:#CDA66A;line-height:1;padding-top:3px;position:relative;">C</span>
+        </span>
+        <div>
+          <div style="display:flex;align-items:center;gap:11px;">
+            <svg width="34" height="20" viewBox="0 0 32 20" fill="none" stroke="#CDA66A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 10 4 5v10z"/><path d="M18 10 28 5v10z"/><rect x="13.4" y="7.4" width="5.2" height="5.2" rx="1"/></svg>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:17px;letter-spacing:3px;text-transform:uppercase;color:rgba(244,237,222,0.55);">Mr. Carson</div>
+          </div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:40px;font-weight:600;line-height:1.05;margin-top:5px;white-space:nowrap;">The Iconography</div>
+        </div>
+      </div>
+      <div style="font-size:15.5px;line-height:1.6;color:rgba(244,237,222,0.64);max-width:580px;margin-top:18px;">Ten marks for your valet — drawn by a single attentive hand. Each is pressed into a softly-cornered plate, the way a calling card is set on a tray: warm, personal, and offered rather than stamped.</div>
+    </div>
+    <div style="flex-shrink:0;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);line-height:1.9;letter-spacing:0.5px;">
+      v1.1 — JUNE 2026<br>10 GLYPHS · LINE<br>CANDLELIGHT &amp; BRASS
+    </div>
+  </div>
+
+  <!-- ============ THE SYSTEM ============ -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(205,166,106,0.18);border:1px solid rgba(205,166,106,0.18);border-radius:6px;overflow:hidden;margin-top:46px;">
+
+    <div style="background:#241C16;padding:22px 22px 24px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#CDA66A;">01 — Grid</div>
+      <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;height:88px;">
+        <svg width="84" height="84" viewBox="0 0 32 32" fill="none">
+          <rect x="3" y="3" width="26" height="26" rx="3" stroke="rgba(244,237,222,0.16)" stroke-width="0.6"/>
+          <rect x="6" y="6" width="20" height="20" rx="2" stroke="rgba(205,166,106,0.4)" stroke-width="0.6" stroke-dasharray="1.5 1.5"/>
+          <circle cx="16" cy="16" r="9" stroke="rgba(244,237,222,0.16)" stroke-width="0.6"/>
+          <path d="M6 16h20M16 6v20" stroke="rgba(244,237,222,0.1)" stroke-width="0.6"/>
+        </svg>
+      </div>
+      <div style="font-size:13px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:8px;">32-unit keyline, glyphs inset to a 20-unit live area for even, considered weight.</div>
+    </div>
+
+    <div style="background:#241C16;padding:22px 22px 24px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#CDA66A;">02 — Stroke</div>
+      <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;height:88px;gap:14px;">
+        <svg width="60" height="60" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 7h12l6 6v12H7z"/><path d="M19 7v6h6"/>
+        </svg>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.5);line-height:1.7;">1.6 px<br>round cap<br>round join</div>
+      </div>
+      <div style="font-size:13px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:8px;">One uniform weight, softened ends — gentle on the eye, never mechanical.</div>
+    </div>
+
+    <div style="background:#241C16;padding:22px 22px 24px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#CDA66A;">03 — The dot</div>
+      <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;height:88px;">
+        <svg width="60" height="60" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="16" cy="16" r="10"/>
+          <circle cx="16" cy="16" r="2.4" fill="#CDA66A" stroke="none"/>
+        </svg>
+      </div>
+      <div style="font-size:13px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:8px;">One warm brass dot recurs — clapper, lens, keyhole, pin — the set's quiet, personal flourish.</div>
+    </div>
+
+    <div style="background:#241C16;padding:22px 22px 24px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#CDA66A;">04 — At your service</div>
+      <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;height:88px;gap:18px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:7px;">
+          <svg width="44" height="44" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><circle cx="16" cy="19.4" r="1.1" fill="#CDA66A" stroke="none"/></svg>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#CDA66A;">ATTENDING</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:7px;">
+          <svg width="44" height="44" viewBox="0 0 32 32" fill="none" stroke="rgba(244,237,222,0.34)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/></svg>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(244,237,222,0.34);">AT REST</span>
+        </div>
+      </div>
+      <div style="font-size:13px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:8px;">Warm brass #CDA66A when attending you; muted ink at rest. Nothing else changes.</div>
+    </div>
+  </div>
+
+  <!-- why warm -->
+  <div style="display:flex;gap:13px;align-items:flex-start;margin-top:26px;padding:18px 22px;border-left:2px solid #CDA66A;background:#241C16;border-radius:0 6px 6px 0;">
+    <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;color:#CDA66A;line-height:1;">“</span>
+    <span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;line-height:1.5;color:rgba(244,237,222,0.8);max-width:880px;">A softly-cornered plate, set on candlelit ground, reads as something <span style="color:#CDA66A;">personal and handed to you</span> — the warmth of a household, so each mark feels offered by a valet rather than stamped by a machine.</span>
+  </div>
+
+  <!-- ============ THE TEN ============ -->
+  <div style="display:flex;align-items:center;gap:16px;margin:54px 0 24px;">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#CDA66A;white-space:nowrap;">The Ten Marks</span>
+    <span style="flex:1;height:1px;background:rgba(205,166,106,0.18);"></span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:rgba(205,166,106,0.18);border:1px solid rgba(205,166,106,0.18);border-radius:6px;overflow:hidden;">
+
+    <!-- 01 BELL -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><path d="M13.6 25a2.4 2.4 0 0 0 4.8 0"/><circle cx="16" cy="19.4" r="1.15" fill="#CDA66A" stroke="none"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">01</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">Service Bell</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">Ask · Summon</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">The whole metaphor's heart — a soft chime calls your valet to attend. The clapper carries the brass dot.</div>
+      </div>
+    </div>
+
+    <!-- 02 CAMERA -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="24" height="14" rx="2.5"/><rect x="8" y="8" width="6" height="3" rx="1"/><circle cx="15.5" cy="18" r="4.8"/><circle cx="15.5" cy="18" r="1.2" fill="#CDA66A" stroke="none"/><line x1="23" y1="14.5" x2="24.5" y2="14.5"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">02</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">Camera</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">Capture receipt</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">The primary input — kept literal so it never reads as anything but "hand it to me." The lens repeats the dot.</div>
+      </div>
+    </div>
+
+    <!-- 03 LEDGER -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="18" height="20" rx="1.5"/><line x1="11" y1="6" x2="11" y2="26"/><path d="M18.5 6v8l1.75-1.5L22 14V6"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">03</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">The Ledger</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">Expenses</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">An open account book — ruled columns say "a faithful record, kept on your behalf," in Carson's own words.</div>
+      </div>
+    </div>
+
+    <!-- 04 CLOCHE -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 24h22"/><path d="M7.5 24a8.5 8.5 0 0 1 17 0"/><path d="M13.8 15.5a2.2 2.2 0 0 1 4.4 0"/><circle cx="16" cy="15.8" r="1.2" fill="#CDA66A" stroke="none"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">04</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">Cloche</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">Dining</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">A silver serving dome, lifted with a flourish — unmistakably the valet's world, warmer than a fork-and-knife cliché.</div>
+      </div>
+    </div>
+
+    <!-- 05 BASKET -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13h18l-2.4 12H9.4z"/><path d="M10.5 13a5.5 5.5 0 0 1 11 0"/><line x1="12.6" y1="16" x2="13.2" y2="22"/><line x1="16" y1="16" x2="16" y2="22"/><line x1="19.4" y1="16" x2="18.8" y2="22"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">05</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">Market Basket</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">Groceries</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">A woven basket reads as provisioning the household larder — warm and in-period, never a sterile cart.</div>
+      </div>
+    </div>
+
+    <!-- 06 WHEEL -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="10"/><circle cx="16" cy="16" r="2.6"/><path d="M16 6v7.4M16 18.6V26M18.25 17.3l6.41 3.7M13.75 14.7L7.34 11M13.75 17.3l-6.41 3.7M18.25 14.7l6.41-3.7"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">06</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">Carriage Wheel</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">Transport</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">A spoked wheel nods to the estate carriage brought round for you — plainly travel, with the hub weighted at centre.</div>
+      </div>
+    </div>
+
+    <!-- 07 KEY -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="9" r="4"/><circle cx="16" cy="9" r="1.3" fill="#CDA66A" stroke="none"/><line x1="16" y1="13" x2="16" y2="25"/><line x1="16" y1="21.5" x2="20" y2="21.5"/><line x1="16" y1="25" x2="19" y2="25"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">07</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">Estate Key</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">Household</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">A classic key stands for the home and its keeping. The bow carries the brass dot as a keyhole.</div>
+      </div>
+    </div>
+
+    <!-- 08 TAG -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5l5 5v14a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 11 24V10z"/><circle cx="16" cy="9.5" r="1.4" fill="#CDA66A" stroke="none"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">08</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">Sundry Tag</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">Other</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">A hanging label files anything uncategorised — a tidy catch-all that still belongs to the household set.</div>
+      </div>
+    </div>
+
+    <!-- 09 PADLOCK -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="13.5" width="19" height="13.5" rx="3"/><path d="M10 13.5v-2.5a6 6 0 0 1 12 0v2.5"/><circle cx="16" cy="19" r="1.6" fill="#CDA66A" stroke="none"/><path d="M14.9 24.5l1.1-3.5 1.1 3.5z"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">09</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">Padlock</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">On device</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">The valet's discretion made visible — a solid shackle for "what you share stays in this house." The pin is the dot.</div>
+      </div>
+    </div>
+
+    <!-- 10 QUILL -->
+    <div style="background:#241C16;padding:26px 28px;display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex-shrink:0;width:78px;height:78px;border:1px solid rgba(205,166,106,0.3);border-radius:7px;background:#1A1411;display:flex;align-items:center;justify-content:center;">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 25l1.6-4.6 11-11a2 2 0 0 1 3 3l-11 11z"/><line x1="18" y1="9.5" x2="22.5" y2="14"/><line x1="7" y1="25" x2="10.4" y2="21.6"/><circle cx="9.2" cy="22.8" r="0.9" fill="#CDA66A" stroke="none"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(244,237,222,0.34);">10</span><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;white-space:nowrap;">Quill</span></div>
+        <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#CDA66A;margin-top:3px;">Carson's notes</div>
+        <div style="font-size:13.5px;line-height:1.55;color:rgba(244,237,222,0.64);margin-top:9px;">For the warm, italic remarks Carson pens beside each expense — a nib ties to the serif, hand-kept voice.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ ENGRAVED STRIP — cohesion at a glance ============ -->
+  <div style="display:flex;align-items:center;gap:16px;margin:54px 0 22px;">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#CDA66A;white-space:nowrap;">One Hand · The Full Plate</span>
+    <span style="flex:1;height:1px;background:rgba(205,166,106,0.18);"></span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:1px;background:rgba(205,166,106,0.18);border:1px solid rgba(205,166,106,0.18);border-radius:6px;overflow:hidden;">
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a2 2 0 0 1 4 0"/><line x1="16" y1="8" x2="16" y2="11"/><path d="M9 23C9 16 11 11 16 11s7 5 7 12"/><line x1="6.5" y1="23" x2="25.5" y2="23"/><circle cx="16" cy="19.4" r="1.1" fill="#CDA66A" stroke="none"/></svg></div>
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="24" height="14" rx="2.5"/><rect x="8" y="8" width="6" height="3" rx="1"/><circle cx="15.5" cy="18" r="4.8"/><circle cx="15.5" cy="18" r="1.2" fill="#CDA66A" stroke="none"/><line x1="23" y1="14.5" x2="24.5" y2="14.5"/></svg></div>
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="18" height="20" rx="1.5"/><line x1="11" y1="6" x2="11" y2="26"/><path d="M18.5 6v8l1.75-1.5L22 14V6"/></svg></div>
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 24h22"/><path d="M7.5 24a8.5 8.5 0 0 1 17 0"/><path d="M13.8 15.5a2.2 2.2 0 0 1 4.4 0"/><circle cx="16" cy="15.8" r="1.2" fill="#CDA66A" stroke="none"/></svg></div>
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13h18l-2.4 12H9.4z"/><path d="M10.5 13a5.5 5.5 0 0 1 11 0"/><line x1="12.6" y1="16" x2="13.2" y2="22"/><line x1="16" y1="16" x2="16" y2="22"/><line x1="19.4" y1="16" x2="18.8" y2="22"/></svg></div>
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="10"/><circle cx="16" cy="16" r="2.6"/><path d="M16 6v7.4M16 18.6V26M18.25 17.3l6.41 3.7M13.75 14.7L7.34 11M13.75 17.3l-6.41 3.7M18.25 14.7l6.41-3.7"/></svg></div>
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="9" r="4"/><circle cx="16" cy="9" r="1.3" fill="#CDA66A" stroke="none"/><line x1="16" y1="13" x2="16" y2="25"/><line x1="16" y1="21.5" x2="20" y2="21.5"/><line x1="16" y1="25" x2="19" y2="25"/></svg></div>
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5l5 5v14a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 11 24V10z"/><circle cx="16" cy="9.5" r="1.4" fill="#CDA66A" stroke="none"/></svg></div>
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="13.5" width="19" height="13.5" rx="3"/><path d="M10 13.5v-2.5a6 6 0 0 1 12 0v2.5"/><circle cx="16" cy="19" r="1.6" fill="#CDA66A" stroke="none"/><path d="M14.9 24.5l1.1-3.5 1.1 3.5z"/></svg></div>
+    <div style="background:#1A1411;aspect-ratio:1;display:flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#CDA66A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 25l1.6-4.6 11-11a2 2 0 0 1 3 3l-11 11z"/><line x1="18" y1="9.5" x2="22.5" y2="14"/><line x1="7" y1="25" x2="10.4" y2="21.6"/><circle cx="9.2" cy="22.8" r="0.9" fill="#CDA66A" stroke="none"/></svg></div>
+  </div>
+  <div style="font-size:13px;color:rgba(244,237,222,0.34);margin-top:14px;font-family:'JetBrains Mono',monospace;letter-spacing:0.5px;">Same weight, same inset, same dot — set on warm #1A1411 in their softly-cornered plates.</div>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>
