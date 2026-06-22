@@ -262,24 +262,70 @@ class _ReceiptImage extends StatelessWidget {
     // If a source file path exists, show the image; otherwise show the
     // striped placeholder that matches the original design.
     if (sourceFile != null) {
-      return Container(
-        height: 158,
-        decoration: BoxDecoration(
-          color: MrCarsonColors.surface2,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: MrCarsonColors.line, width: 1),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(17),
-          child: Image.file(
-            File(sourceFile!),
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const _ReceiptPlaceholder(),
+      final path = sourceFile!;
+      return GestureDetector(
+        onTap: () => _openFullscreen(context, path),
+        child: Container(
+          height: 158,
+          decoration: BoxDecoration(
+            color: MrCarsonColors.surface2,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: MrCarsonColors.line, width: 1),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(17),
+            child: Hero(
+              tag: 'receipt:$path',
+              child: Image.file(
+                File(path),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const _ReceiptPlaceholder(),
+              ),
+            ),
           ),
         ),
       );
     }
     return const _ReceiptPlaceholder();
+  }
+
+  void _openFullscreen(BuildContext context, String path) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        pageBuilder: (_, __, ___) => _FullscreenReceipt(path: path),
+      ),
+    );
+  }
+}
+
+/// Fullscreen receipt viewer — pinch/pan to zoom, tap anywhere to dismiss.
+class _FullscreenReceipt extends StatelessWidget {
+  const _FullscreenReceipt({required this.path});
+
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: SizedBox.expand(
+          child: InteractiveViewer(
+            minScale: 1,
+            maxScale: 5,
+            child: Center(
+              child: Hero(
+                tag: 'receipt:$path',
+                child: Image.file(File(path)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
