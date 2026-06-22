@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../domain/models/ai_models.dart';
 import '../../theme/app_theme.dart';
+import '../../ui/core/utils/app_date.dart';
 import '../../ui/core/utils/currency_format.dart';
 import '../../ui/core/widgets/carson_monogram.dart';
 import '../settings/currency_provider.dart';
@@ -42,6 +43,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
 
   String _merchant = '';
   String _amount = '';
+  String _date = todayIso();
   final Set<String> _selectedCategories = {};
   bool _particularsOpen = false;
   final List<_ManualItem> _items = [];
@@ -149,7 +151,7 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
 
     final draft = ExpenseDraft(
       merchant: _merchant.trim(),
-      date: _todayIso(),
+      date: _date,
       currency: iso,
       total: _effectiveAmount,
       vat: 0,
@@ -167,12 +169,9 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
     }
   }
 
-  static String _todayIso() {
-    final now = DateTime.now();
-    final y = now.year.toString().padLeft(4, '0');
-    final m = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
+  Future<void> _pickDate() async {
+    final picked = await pickDate(context, _date);
+    if (picked != null) setState(() => _date = picked);
   }
 
   @override
@@ -206,6 +205,8 @@ class _ManualEntryScreenState extends ConsumerState<ManualEntryScreen> {
                         onAmountChanged: (v) => setState(() => _amount = v),
                         particularsOpen: _particularsOpen,
                         subtotalDisplay: subtotalDisplay,
+                        dateIso: _date,
+                        onPickDate: _pickDate,
                       ),
                       const SizedBox(height: 13),
                       _CategoryField(
@@ -439,6 +440,8 @@ class _AmountDateRow extends StatelessWidget {
     required this.onAmountChanged,
     required this.particularsOpen,
     required this.subtotalDisplay,
+    required this.dateIso,
+    required this.onPickDate,
   });
 
   final String currency;
@@ -446,6 +449,8 @@ class _AmountDateRow extends StatelessWidget {
   final ValueChanged<String> onAmountChanged;
   final bool particularsOpen;
   final String subtotalDisplay;
+  final String dateIso;
+  final VoidCallback onPickDate;
 
   @override
   Widget build(BuildContext context) {
@@ -509,17 +514,36 @@ class _AmountDateRow extends StatelessWidget {
         const SizedBox(width: 13),
         Expanded(
           flex: 10,
-          child: _SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _fieldLabel('DATE'),
-                const SizedBox(height: 6),
-                Text('Today',
-                    style: MrCarsonType.ui(size: 15.5, weight: FontWeight.w600, height: 1.2)),
-                const SizedBox(height: 3),
-                Text('Today', style: MrCarsonType.ui(size: 11, color: MrCarsonColors.ink3)),
-              ],
+          child: GestureDetector(
+            onTap: onPickDate,
+            child: _SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _fieldLabel('DATE'),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          formatLongDate(dateIso),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: MrCarsonType.ui(
+                              size: 15.5, weight: FontWeight.w600, height: 1.2),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 15, color: MrCarsonColors.ink3),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(relativeDateLabel(dateIso),
+                      style:
+                          MrCarsonType.ui(size: 11, color: MrCarsonColors.ink3)),
+                ],
+              ),
             ),
           ),
         ),
