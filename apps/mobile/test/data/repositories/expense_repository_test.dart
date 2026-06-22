@@ -96,6 +96,40 @@ void main() {
       expect(detail.items.first.name, equals('Milk'));
     });
 
+    test(
+        'editing category re-tags the ledger list and donut, not just detail',
+        () async {
+      // Item category ("Shopping") differs from what the user picks ("Dining").
+      final id = await db.insertExpense(
+        const ExpenseDraft(
+          merchant: "Stefano's Pizza",
+          date: '2024-03-15',
+          currency: 'GBP',
+          total: 12.95,
+          items: [
+            ExpenseItemDraft(name: 'Pizza', amount: 12.95, category: 'Shopping')
+          ],
+        ),
+      );
+
+      await db.updateExpense(
+        id,
+        merchant: "Stefano's Pizza",
+        total: 12.95,
+        date: '2024-03-15',
+        categories: ['Dining'],
+      );
+
+      // Ledger list shows the edited category, not the stale item category.
+      final list = await repo.watchRecentExpenses().first;
+      expect(list.single.category, equals('Dining'));
+
+      // Donut groups by the edited category and sums the expense total.
+      final summary = await repo.watchMonthlySummary(DateTime(2024, 3)).first;
+      expect(summary.buckets.single.category, equals('Dining'));
+      expect(summary.total, closeTo(12.95, 0.01));
+    });
+
     test('deleteExpense removes the expense and its items', () async {
       final id = await db.insertExpense(
         const ExpenseDraft(

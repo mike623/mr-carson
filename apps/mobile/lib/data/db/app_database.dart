@@ -378,9 +378,15 @@ class AppDatabase extends _$AppDatabase {
       SELECT
         e.id       AS id,
         e.merchant AS merchant,
-        COALESCE((SELECT i.category FROM expense_items i
-                  WHERE i.expense_id = e.id
-                  ORDER BY i.amount DESC LIMIT 1), 'Other') AS category,
+        -- Display category is the user-editable expense-level tag (first of the
+        -- categories JSON array). Falls back to the dominant line-item category
+        -- for legacy rows that predate expense-level categories.
+        COALESCE(
+          json_extract(e.categories, '\$[0]'),
+          (SELECT i.category FROM expense_items i
+           WHERE i.expense_id = e.id
+           ORDER BY i.amount DESC LIMIT 1),
+          'Other') AS category,
         e.total    AS total,
         e.currency AS currency,
         e.date     AS date
@@ -418,16 +424,25 @@ class AppDatabase extends _$AppDatabase {
       nextMonth.day.toString().padLeft(2, '0'),
     ].join('-');
 
+    // Group by the user-editable expense-level category (first tag) and sum the
+    // expense total, so the donut matches the ledger list and detail view.
+    // ponytail: a multi-category expense counts wholly under its primary
+    // category — we don't store per-category amounts to split it. Add a split
+    // here once line items carry the edited categories.
     return customSelect(
       '''
       SELECT
-        i.category                 AS category,
-        SUM(i.amount)              AS category_total,
-        MAX(e.currency)            AS currency
+        COALESCE(
+          json_extract(e.categories, '\$[0]'),
+          (SELECT i.category FROM expense_items i
+           WHERE i.expense_id = e.id
+           ORDER BY i.amount DESC LIMIT 1),
+          'Other')               AS category,
+        SUM(e.total)             AS category_total,
+        MAX(e.currency)          AS currency
       FROM expenses e
-      JOIN expense_items i ON i.expense_id = e.id
       WHERE e.date >= ? AND e.date < ?
-      GROUP BY i.category
+      GROUP BY category
       ORDER BY category_total DESC
       ''',
       variables: [Variable<String>(startDate), Variable<String>(nextMonthStr)],
