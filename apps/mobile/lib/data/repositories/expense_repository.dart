@@ -25,6 +25,19 @@ class ExpenseRepository {
   Stream<MonthlySummary> watchMonthlySummary(DateTime month) =>
       _db.watchMonthlySummary(month);
 
+  Stream<MonthlySummary> watchSummaryInRange(String startIso, String endIso) =>
+      _db.watchSummaryInRange(startIso, endIso);
+
+  Stream<List<ExpenseSummary>> watchExpensesInRange(
+    String startIso,
+    String endIso, {
+    int limit = 200,
+  }) =>
+      _db.watchExpensesInRange(startIso, endIso, limit: limit);
+
+  Stream<Map<String, double>> watchDailyTotals(String startIso, String endIso) =>
+      _db.watchDailyTotals(startIso, endIso);
+
   Stream<ExpenseDetail?> watchExpenseById(String id) =>
       _db.watchExpenseById(id);
 

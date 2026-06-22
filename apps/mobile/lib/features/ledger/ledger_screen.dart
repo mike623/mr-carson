@@ -3,7 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mr_carson/data/providers.dart';
+import 'package:mr_carson/features/ledger/ledger_period.dart';
+import 'package:mr_carson/features/ledger/period_sheet.dart';
 import 'package:mr_carson/domain/models/monthly_summary.dart';
 import 'package:mr_carson/domain/models/expense_summary.dart';
 import 'package:mr_carson/domain/models/ai_models.dart';
@@ -86,8 +87,8 @@ class LedgerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final summaryAsync = ref.watch(monthlySummaryProvider);
-    final expensesAsync = ref.watch(recentExpensesProvider);
+    final summaryAsync = ref.watch(periodSummaryProvider);
+    final expensesAsync = ref.watch(periodExpensesProvider);
 
     return Scaffold(
       backgroundColor: MrCarsonColors.bg,
@@ -117,8 +118,8 @@ class LedgerScreen extends ConsumerWidget {
       return ErrorRetryState(
         message: 'I could not fetch the ledger, sir.',
         onRetry: () {
-          ref.invalidate(recentExpensesProvider);
-          ref.invalidate(monthlySummaryProvider);
+          ref.invalidate(periodExpensesProvider);
+          ref.invalidate(periodSummaryProvider);
         },
       );
     }
@@ -142,11 +143,11 @@ class LedgerScreen extends ConsumerWidget {
 // Header
 // ---------------------------------------------------------------------------
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final monthName = _monthName(now.month);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final period = ref.watch(periodProvider);
+    final iso = period.resolve();
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 60, 20, 14),
       decoration: const BoxDecoration(
@@ -158,26 +159,72 @@ class _Header extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'The Ledger',
-            style: MrCarsonType.display(size: 34, weight: FontWeight.w600, height: 1),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  'The Ledger',
+                  style: MrCarsonType.display(
+                      size: 34, weight: FontWeight.w600, height: 1),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _PeriodButton(
+                label: period.label,
+                onTap: () => showPeriodSheet(context),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
           Text(
-            '$monthName ${now.year} · all on device',
+            '${formatRangeLabel(iso.start, iso.end)} · all on device',
             style: MrCarsonType.ui(size: 12.5, color: MrCarsonColors.ink3),
           ),
         ],
       ),
     );
   }
+}
 
-  static String _monthName(int month) {
-    const names = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
-    ];
-    return names[month];
+/// The brass period chip in the Ledger header — opens the period sheet.
+class _PeriodButton extends StatelessWidget {
+  const _PeriodButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 7, 11, 7),
+        decoration: BoxDecoration(
+          color: MrCarsonColors.accentSoft,
+          border: Border.all(color: MrCarsonColors.line),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_today_outlined,
+                size: 14, color: MrCarsonColors.accent),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: MrCarsonType.ui(
+                  size: 13,
+                  weight: FontWeight.w600,
+                  color: MrCarsonColors.accent),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down,
+                size: 16, color: MrCarsonColors.accent),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -8,6 +8,7 @@ import 'package:mr_carson/data/providers.dart';
 import 'package:mr_carson/data/repositories/expense_repository.dart';
 import 'package:mr_carson/data/repositories/pending_repository.dart';
 import 'package:mr_carson/domain/models/ai_models.dart';
+import 'package:mr_carson/features/ledger/ledger_period.dart';
 import 'package:mr_carson/features/ledger/ledger_screen.dart';
 import 'package:mr_carson/theme/app_theme.dart';
 import 'package:mr_carson/ui/core/widgets/empty_state.dart';
@@ -17,6 +18,13 @@ import 'package:mr_carson/ui/core/widgets/empty_state.dart';
 // ---------------------------------------------------------------------------
 
 AppDatabase _makeDb() => AppDatabase(NativeDatabase.memory());
+
+/// An ISO date in the current month (day 10), so it falls inside the default
+/// "This month" period the Ledger now filters by.
+String _thisMonthDate() {
+  final now = DateTime.now();
+  return '${now.year}-${now.month.toString().padLeft(2, '0')}-10';
+}
 
 Widget _wrap({
   required AppDatabase db,
@@ -63,8 +71,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          monthlySummaryProvider.overrideWith((_) => const Stream.empty()),
-          recentExpensesProvider.overrideWith((_) => const Stream.empty()),
+          periodSummaryProvider.overrideWith((_) => const Stream.empty()),
+          periodExpensesProvider.overrideWith((_) => const Stream.empty()),
         ],
         child: MaterialApp(
           theme: buildMrCarsonTheme(),
@@ -83,7 +91,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          recentExpensesProvider.overrideWith(
+          periodExpensesProvider.overrideWith(
             (_) => Stream.error(Exception('db gone')),
           ),
         ],
@@ -132,12 +140,12 @@ void main() {
     addTearDown(db.close);
 
     await db.insertExpense(
-      const ExpenseDraft(
+      ExpenseDraft(
         merchant: 'Tesco Express',
-        date: '2024-06-15',
+        date: _thisMonthDate(),
         currency: 'GBP',
         total: 18.50,
-        items: [
+        items: const [
           ExpenseItemDraft(name: 'Milk', amount: 18.50, category: 'Groceries'),
         ],
       ),
@@ -241,12 +249,12 @@ void main() {
     addTearDown(db.close);
 
     final id = await db.insertExpense(
-      const ExpenseDraft(
+      ExpenseDraft(
         merchant: 'Pret',
-        date: '2024-06-01',
+        date: _thisMonthDate(),
         currency: 'GBP',
         total: 7.50,
-        items: [
+        items: const [
           ExpenseItemDraft(name: 'Sandwich', amount: 7.50, category: 'Dining'),
         ],
       ),

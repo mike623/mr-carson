@@ -49,6 +49,12 @@ _Range _rangeFor(DateRange name, DateTime now) {
   }
 }
 
+/// Inclusive ISO (`YYYY-MM-DD`) start/end for a named [DateRange].
+({String start, String end}) isoRangeFor(DateRange name, {DateTime? now}) {
+  final r = _rangeFor(name, (now ?? DateTime.now()).toUtc());
+  return (start: r.start, end: r.end);
+}
+
 /// Returns null when no range is specified (caller leaves dates unbounded).
 ({String start, String end})? resolveDateRange(QueryExpensesArgs args,
     {DateTime? now}) {

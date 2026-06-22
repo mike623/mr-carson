@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../ui/core/utils/app_date.dart';
 import '../../ui/core/utils/currency_format.dart';
 import '../../ui/core/widgets/carson_monogram.dart';
 import '../../ui/core/widgets/empty_state.dart';
@@ -35,7 +35,6 @@ class EditExpenseScreen extends ConsumerStatefulWidget {
 class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   final _merchantController = TextEditingController();
   final _amountController = TextEditingController();
-  final _dateController = TextEditingController();
 
   String _merchant = '';
   String _amount = '';
@@ -71,8 +70,12 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   void dispose() {
     _merchantController.dispose();
     _amountController.dispose();
-    _dateController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await pickDate(context, _date);
+    if (picked != null) setState(() => _date = picked);
   }
 
   bool get _canSave =>
@@ -131,7 +134,6 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
             _date = detail.date;
             _merchantController.text = _merchant;
             _amountController.text = _amount;
-            _dateController.text = _date;
             _selectedCategories
               ..clear()
               ..addAll(detail.categories);
@@ -160,9 +162,9 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
                           _AmountDateRow(
                             currency: currency,
                             amountController: _amountController,
-                            dateController: _dateController,
+                            dateIso: _date,
                             onAmountChanged: (v) => setState(() => _amount = v),
-                            onDateChanged: (v) => _date = v,
+                            onPickDate: _pickDate,
                             hasItems: hasItems,
                           ),
                           const SizedBox(height: 13),
@@ -375,17 +377,17 @@ class _AmountDateRow extends StatelessWidget {
   const _AmountDateRow({
     required this.currency,
     required this.amountController,
-    required this.dateController,
+    required this.dateIso,
     required this.onAmountChanged,
-    required this.onDateChanged,
+    required this.onPickDate,
     required this.hasItems,
   });
 
   final String currency;
   final TextEditingController amountController;
-  final TextEditingController dateController;
+  final String dateIso;
   final ValueChanged<String> onAmountChanged;
-  final ValueChanged<String> onDateChanged;
+  final VoidCallback onPickDate;
   final bool hasItems;
 
   @override
@@ -448,32 +450,36 @@ class _AmountDateRow extends StatelessWidget {
         const SizedBox(width: 13),
         Expanded(
           flex: 10,
-          child: _SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _fieldLabel('DATE'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: dateController,
-                  onChanged: onDateChanged,
-                  cursorColor: MrCarsonColors.accent,
-                  keyboardType: TextInputType.datetime,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9-]')),
-                  ],
-                  style:
-                      MrCarsonType.ui(size: 15.5, weight: FontWeight.w600, height: 1.2),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    border: InputBorder.none,
-                    hintText: 'YYYY-MM-DD',
-                    hintStyle:
-                        MrCarsonType.ui(size: 15.5, weight: FontWeight.w600, color: MrCarsonColors.ink3),
+          child: GestureDetector(
+            onTap: onPickDate,
+            child: _SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _fieldLabel('DATE'),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          formatLongDate(dateIso),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: MrCarsonType.ui(
+                              size: 15.5, weight: FontWeight.w600, height: 1.2),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 15, color: MrCarsonColors.ink3),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 3),
+                  Text(relativeDateLabel(dateIso),
+                      style:
+                          MrCarsonType.ui(size: 11, color: MrCarsonColors.ink3)),
+                ],
+              ),
             ),
           ),
         ),

@@ -472,6 +472,107 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Category-bucketed summary for an inclusive ISO date range
+  /// (`startIso` and `endIso` are `YYYY-MM-DD`; lexicographic compare is safe).
+  Stream<MonthlySummary> watchSummaryInRange(String startIso, String endIso) {
+    return customSelect(
+      '''
+      SELECT
+        i.category      AS category,
+        SUM(i.amount)   AS category_total,
+        MAX(e.currency) AS currency
+      FROM expenses e
+      JOIN expense_items i ON i.expense_id = e.id
+      WHERE e.date >= ? AND e.date <= ?
+      GROUP BY i.category
+      ORDER BY category_total DESC
+      ''',
+      variables: [Variable<String>(startIso), Variable<String>(endIso)],
+      readsFrom: {expenses, expenseItems},
+    ).watch().map((rows) {
+      if (rows.isEmpty) {
+        return MonthlySummary(
+            month: startIso, total: 0, currency: 'GBP', buckets: []);
+      }
+      double total = 0;
+      final buckets = <CategoryBucket>[];
+      for (final r in rows) {
+        final t = (r.data['category_total'] as num).toDouble();
+        total += t;
+        buckets.add(CategoryBucket(
+          bucket: startIso,
+          category: r.data['category'] as String,
+          total: _round2(t),
+        ));
+      }
+      return MonthlySummary(
+        month: startIso,
+        total: _round2(total),
+        currency: rows.first.data['currency'] as String,
+        buckets: buckets,
+      );
+    });
+  }
+
+  /// Recent expenses within an inclusive ISO date range, newest first.
+  Stream<List<ExpenseSummary>> watchExpensesInRange(
+    String startIso,
+    String endIso, {
+    int limit = 200,
+  }) {
+    return customSelect(
+      '''
+      SELECT
+        e.id       AS id,
+        e.merchant AS merchant,
+        COALESCE((SELECT i.category FROM expense_items i
+                  WHERE i.expense_id = e.id
+                  ORDER BY i.amount DESC LIMIT 1), 'Other') AS category,
+        e.total    AS total,
+        e.currency AS currency,
+        e.date     AS date
+      FROM expenses e
+      WHERE e.date >= ? AND e.date <= ?
+      ORDER BY e.date DESC, e.created_at DESC
+      LIMIT ?
+      ''',
+      variables: [
+        Variable<String>(startIso),
+        Variable<String>(endIso),
+        Variable<int>(limit),
+      ],
+      readsFrom: {expenses, expenseItems},
+    ).watch().map((rows) => rows.map((r) {
+          final d = r.data;
+          return ExpenseSummary(
+            id: d['id'] as String,
+            merchant: d['merchant'] as String,
+            category: d['category'] as String,
+            total: (d['total'] as num).toDouble(),
+            currency: d['currency'] as String,
+            date: d['date'] as String,
+          );
+        }).toList());
+  }
+
+  /// Map of `YYYY-MM-DD` → daily spend total for an inclusive ISO range.
+  /// Powers the spending dots on the period calendar.
+  Stream<Map<String, double>> watchDailyTotals(String startIso, String endIso) {
+    return customSelect(
+      '''
+      SELECT e.date AS date, SUM(e.total) AS day_total
+      FROM expenses e
+      WHERE e.date >= ? AND e.date <= ?
+      GROUP BY e.date
+      ''',
+      variables: [Variable<String>(startIso), Variable<String>(endIso)],
+      readsFrom: {expenses},
+    ).watch().map((rows) => {
+          for (final r in rows)
+            r.data['date'] as String: (r.data['day_total'] as num).toDouble(),
+        });
+  }
+
   Stream<ExpenseDetail?> watchExpenseById(String id) {
     return customSelect(
       '''
