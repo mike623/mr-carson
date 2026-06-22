@@ -68,6 +68,25 @@ class _PerPathReceiptImageStore extends ReceiptImageStore {
 }
 
 // ---------------------------------------------------------------------------
+// Per-path store that throws copyReceipt for one path — exercises the batch
+// error branch (_PrepOutcome.error → "could not be saved" summary fragment).
+// ---------------------------------------------------------------------------
+
+class _FailOnPathReceiptImageStore extends ReceiptImageStore {
+  _FailOnPathReceiptImageStore(this.failPath);
+  final String failPath;
+
+  @override
+  Future<ReceiptImageCopy> copyReceipt(String sourcePath) async {
+    if (sourcePath == failPath) throw Exception('disk full');
+    return ReceiptImageCopy(path: sourcePath, imageHash: sourcePath);
+  }
+
+  @override
+  Future<void> deleteReceipt(String filePath) async {}
+}
+
+// ---------------------------------------------------------------------------
 // Recording pipeline — tracks reject calls for F-B test
 // ---------------------------------------------------------------------------
 
@@ -611,5 +630,42 @@ void main() {
 
     expect(pipeline.processCallCount, 2);
     expect(container.read(shellViewModelProvider).toast, contains('read 2'));
+  });
+
+  test('BATCH — 2 picked, 1 copy fails: processes 1, "could not be saved" summary',
+      () async {
+    final pipeline = _FakePipeline(
+      db: db,
+      repo: pendingRepo,
+      processResult: ReceiptResult.success(
+        'pid',
+        const ExpenseDraft(
+          merchant: 'X',
+          date: '2026-01-01',
+          currency: 'EUR',
+          total: 1,
+          items: [],
+        ),
+      ),
+    );
+    final (:container, :sub) = buildContainer(
+      pipeline: pipeline,
+      pickedFiles: [XFile('/tmp/a.jpg'), XFile('/tmp/b.jpg')],
+      db: db,
+      repo: pendingRepo,
+      imageStore: _FailOnPathReceiptImageStore('/tmp/b.jpg'),
+    );
+    addTearDown(sub.close);
+    addTearDown(container.dispose);
+
+    final vm = container.read(shellViewModelProvider.notifier);
+    await vm.startUpload();
+    await pumpSettled();
+
+    expect(pipeline.processCallCount, 1); // only /tmp/a.jpg processed
+    expect(
+      container.read(shellViewModelProvider).toast,
+      contains('1 could not be saved'),
+    );
   });
 }
