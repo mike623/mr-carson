@@ -16,8 +16,9 @@ import 'package:flutter_gemma/flutter_gemma.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
-import '../data/providers.dart' show appDatabaseProvider;
+import '../data/providers.dart' show appDatabaseProvider, pendingRepositoryProvider;
 import '../data/repositories/expense_repository.dart' show ChartData;
+import '../data/repositories/pending_repository.dart';
 import '../domain/models/ai_models.dart';
 import 'gemma_service.dart';
 import 'prompts.dart';
@@ -57,6 +58,15 @@ class ChartReady extends ChatEvent {
   final ChartData chart;
 }
 
+/// A draft the model produced via `addExpense` that needs the user's review
+/// (low-confidence extraction). Carries the id of the `awaitingConfirmation`
+/// pending row so the UI can open the Confirm screen prefilled.
+class DraftReady extends ChatEvent {
+  const DraftReady(this.pendingId);
+
+  final String pendingId;
+}
+
 /// A chunk of the model's internal reasoning ("thinking"). Surfaced so the UI
 /// can show it when the user opts in; otherwise the caller simply ignores it.
 class ThinkingDelta extends ChatEvent {
@@ -80,10 +90,15 @@ class ToolCallStarted extends ChatEvent {
 /// Result of executing one tool: the [response] map fed back to the model, plus
 /// (only for `chartSpending`) the [chart] payload surfaced to the UI.
 class _ToolOutcome {
-  const _ToolOutcome(this.response, {this.chart});
+  // ignore: unused_element_parameter
+  const _ToolOutcome(this.response, {this.chart, this.draftPendingId});
 
   final Map<String, dynamic> response;
   final ChartData? chart;
+
+  /// Set only by `addExpense` on the low-confidence branch — the id of the
+  /// pending row the UI should open for review.
+  final String? draftPendingId;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,11 +136,14 @@ const String _kAgentFallback =
 /// 2. [send] — stream the assistant's reply for one user message.
 /// 3. [dispose] — close the underlying inference session.
 class ChatService {
-  /// Creates a chat service over [gemma] (inference) and [db] (expense reads).
-  ChatService(this._gemma, this._db);
+  /// Creates a chat service over [gemma] (inference), [db] (expense reads/
+  /// writes) and [pending] (draft confirmation rows for low-confidence adds).
+  ChatService(this._gemma, this._db, this._pending);
 
   final GemmaService _gemma;
   final AppDatabase _db;
+  // ignore: unused_field
+  final PendingRepository _pending;
 
   InferenceChat? _chat;
 
@@ -841,11 +859,12 @@ class ToolCallEnvelopeFilter {
   }
 }
 
-/// Riverpod provider for [ChatService], wired from [gemmaServiceProvider] and
-/// [appDatabaseProvider].
+/// Riverpod provider for [ChatService], wired from [gemmaServiceProvider],
+/// [appDatabaseProvider], and [pendingRepositoryProvider].
 final chatServiceProvider = Provider<ChatService>((ref) {
   return ChatService(
     ref.watch(gemmaServiceProvider),
     ref.watch(appDatabaseProvider),
+    ref.watch(pendingRepositoryProvider),
   );
 });

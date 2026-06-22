@@ -215,6 +215,10 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
                   toolCalls: [...m.toolCalls, ToolCall(name: name, args: args)],
                 ),
               );
+            case DraftReady():
+              // Handled by the UI layer listening to chatServiceProvider;
+              // no ask-bubble update needed here.
+              break;
           }
         },
         onError: (_) {

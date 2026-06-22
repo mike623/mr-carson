@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mr_carson/ai/chat_service.dart';
 import 'package:mr_carson/ai/gemma_service.dart';
 import 'package:mr_carson/data/db/app_database.dart';
 import 'package:mr_carson/data/repositories/expense_repository.dart';
+import 'package:mr_carson/data/repositories/pending_repository.dart';
 import 'package:mr_carson/domain/models/ai_models.dart';
 import 'package:mr_carson/features/ask/ask_view_model.dart';
 
@@ -26,7 +28,7 @@ class _FakeGemmaService extends GemmaService {
 /// [start] and [send] are fully overridden the DB is never opened or used.
 class _FakeChatService extends ChatService {
   _FakeChatService(this._events)
-      : super(_NullGemmaService(), AppDatabase());
+      : super(_NullGemmaService(), AppDatabase(NativeDatabase.memory()), PendingRepository(AppDatabase(NativeDatabase.memory())));
 
   /// Events (or a [_StreamError]) to emit on [send].
   final List<Object> _events; // ChatEvent | _StreamError
