@@ -90,7 +90,6 @@ class ToolCallStarted extends ChatEvent {
 /// Result of executing one tool: the [response] map fed back to the model, plus
 /// (only for `chartSpending`) the [chart] payload surfaced to the UI.
 class _ToolOutcome {
-  // ignore: unused_element_parameter
   const _ToolOutcome(this.response, {this.chart, this.draftPendingId});
 
   final Map<String, dynamic> response;
@@ -142,7 +141,6 @@ class ChatService {
 
   final GemmaService _gemma;
   final AppDatabase _db;
-  // ignore: unused_field
   final PendingRepository _pending;
 
   InferenceChat? _chat;
@@ -171,6 +169,15 @@ class ChatService {
           'for a date range. Use for trend, breakdown, or "over time" questions. '
           'Returns the buckets so you can describe the trend in words.',
       parameters: _chartSpendingSchema(),
+    ),
+    Tool(
+      name: 'addExpense',
+      description:
+          "Record a NEW expense the user states in plain language (e.g. \"I "
+          "spent £12 on lunch at Wagamama yesterday\", \"add £4 coffee\", "
+          "\"log groceries 30 quid at Tesco\"). Provide merchant, total, and a "
+          'category from the allowed list. Never invent an amount.',
+      parameters: _addExpenseSchema(),
     ),
   ];
 
@@ -366,6 +373,8 @@ class ChatService {
             // the tool result and the UI chart payload line up exactly.
             chart: chart,
           );
+        case 'addExpense':
+          return _runAddExpense(args);
         default:
           return _ToolOutcome({'_tool': name, 'error': 'unknown tool: $name'});
       }
@@ -508,6 +517,60 @@ class ChatService {
     return Granularity.week;
   }
 
+  // --- addExpense tool handler ----------------------------------------------
+
+  /// Builds a draft from [args], then routes by completeness: a confident
+  /// extraction (merchant present AND total > 0) is inserted directly; an
+  /// incomplete one is parked as an `awaitingConfirmation` pending row for the
+  /// user to finish on the Confirm screen.
+  Future<_ToolOutcome> _runAddExpense(Map<String, dynamic> args) async {
+    final draftJson = buildExpenseDraftJson(_coerceArgsMap(args), _todayIso());
+    final draft = ExpenseDraft.fromJson(draftJson);
+
+    final confident = draft.merchant.trim().isNotEmpty && draft.total > 0;
+    if (confident) {
+      await _db.insertExpense(draft);
+      return _ToolOutcome({
+        '_tool': 'addExpense',
+        'saved': true,
+        'merchant': draft.merchant,
+        'total': draft.total,
+        'currency': draft.currency,
+        'category': draft.categories?.first ?? 'Other',
+      });
+    }
+
+    final pendingId = await _pending.create();
+    await _pending.setStatus(
+      pendingId,
+      PendingStatus.awaitingConfirmation,
+      extractedJson: jsonEncode(draft.toJson()),
+    );
+    return _ToolOutcome(
+      {'_tool': 'addExpense', 'needsReview': true},
+      draftPendingId: pendingId,
+    );
+  }
+
+  /// Today's date as 'YYYY-MM-DD'.
+  String _todayIso() {
+    final now = DateTime.now();
+    final y = now.year.toString().padLeft(4, '0');
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  /// Test seam: runs a tool by name and exposes the outcome (response map,
+  /// optional chart, optional draft pending id) without needing a live chat
+  /// session. Not used in production.
+  @visibleForTesting
+  Future<({Map<String, dynamic> response, ChartData? chart, String? draftPendingId})>
+      runToolDebug(String name, Map<String, dynamic> args) async {
+    final o = await _runTool(name, args);
+    return (response: o.response, chart: o.chart, draftPendingId: o.draftPendingId);
+  }
+
   // --- JSON-Schema tool parameter definitions -------------------------------
 
   static const Map<String, dynamic> _dateRangeProp = {
@@ -606,6 +669,34 @@ class ChatService {
           },
         },
         'required': <String>[],
+      };
+
+  Map<String, dynamic> _addExpenseSchema() => {
+        'type': 'object',
+        'properties': {
+          'merchant': {
+            'type': 'string',
+            'description': 'Store / vendor name, e.g. "Wagamama".',
+          },
+          'total': {
+            'type': 'number',
+            'description': 'Total amount paid.',
+          },
+          'category': {
+            'type': 'string',
+            'description': 'Expense category.',
+            'enum': kDefaultCategories,
+          },
+          'date': {
+            'type': 'string',
+            'description': 'today, yesterday, or YYYY-MM-DD. Defaults to today.',
+          },
+          'currency': {
+            'type': 'string',
+            'description': '3-letter ISO code. Defaults to the user default.',
+          },
+        },
+        'required': <String>['merchant', 'total'],
       };
 
   // --- addExpense draft coercion --------------------------------------------
