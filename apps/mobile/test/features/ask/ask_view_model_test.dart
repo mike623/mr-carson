@@ -10,6 +10,7 @@ import 'package:mr_carson/data/repositories/expense_repository.dart';
 import 'package:mr_carson/data/repositories/pending_repository.dart';
 import 'package:mr_carson/domain/models/ai_models.dart';
 import 'package:mr_carson/features/ask/ask_view_model.dart';
+import 'package:mr_carson/features/shell/shell_view_model.dart';
 
 /// A gemma fake whose [state] is fixed — lets us drive the Ask VM down the
 /// model-unavailable branch without any inference wiring.
@@ -233,6 +234,28 @@ void main() {
 
     const plain = ChatMessage(isUser: false, text: 'hello');
     expect(plain.chart, isNull);
+  });
+
+  group('DraftReady navigation', () {
+    test('a DraftReady event opens the Confirm screen for that pending id', () async {
+      final container = makeContainerWithChat([
+        const DraftReady('pending-123'),
+      ]);
+      // Observe the shell so its notifier is alive.
+      container.listen(shellViewModelProvider, (_, __) {}, fireImmediately: true);
+
+      final vm = container.read(askViewModelProvider.notifier);
+      vm.send('add lunch');
+
+      await pumpUntil(
+        container,
+        (_) => container.read(shellViewModelProvider).screen == ShellScreen.confirm,
+      );
+
+      final shell = container.read(shellViewModelProvider);
+      expect(shell.screen, ShellScreen.confirm);
+      expect(shell.reviewingId, 'pending-123');
+    });
   });
 
   test('model unavailable → honest "AI unavailable" message, not a canned reply',
