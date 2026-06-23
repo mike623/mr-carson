@@ -204,6 +204,9 @@ class ChatService {
     await chat.addQueryChunk(
       Message.text(text: kChatSystemPersona, isUser: false),
     );
+    await chat.addQueryChunk(
+      Message.text(text: "Today's date is ${_todayIso()}.", isUser: false),
+    );
     _chat = chat;
   }
 
