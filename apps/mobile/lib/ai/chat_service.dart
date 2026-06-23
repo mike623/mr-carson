@@ -289,6 +289,9 @@ class ChatService {
         if (outcome.chart != null) {
           yield ChartReady(outcome.chart!);
         }
+        if (outcome.draftPendingId != null) {
+          yield DraftReady(outcome.draftPendingId!);
+        }
       }
     }
 
