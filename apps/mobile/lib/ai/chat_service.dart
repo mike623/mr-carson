@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_gemma/flutter_gemma.dart'
     show
         FunctionCallResponse,
@@ -15,8 +16,9 @@ import 'package:flutter_gemma/flutter_gemma.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
-import '../data/providers.dart' show appDatabaseProvider;
+import '../data/providers.dart' show appDatabaseProvider, pendingRepositoryProvider;
 import '../data/repositories/expense_repository.dart' show ChartData;
+import '../data/repositories/pending_repository.dart';
 import '../domain/models/ai_models.dart';
 import 'gemma_service.dart';
 import 'prompts.dart';
@@ -56,6 +58,15 @@ class ChartReady extends ChatEvent {
   final ChartData chart;
 }
 
+/// A draft the model produced via `addExpense` that needs the user's review
+/// (low-confidence extraction). Carries the id of the `awaitingConfirmation`
+/// pending row so the UI can open the Confirm screen prefilled.
+class DraftReady extends ChatEvent {
+  const DraftReady(this.pendingId);
+
+  final String pendingId;
+}
+
 /// A chunk of the model's internal reasoning ("thinking"). Surfaced so the UI
 /// can show it when the user opts in; otherwise the caller simply ignores it.
 class ThinkingDelta extends ChatEvent {
@@ -79,10 +90,14 @@ class ToolCallStarted extends ChatEvent {
 /// Result of executing one tool: the [response] map fed back to the model, plus
 /// (only for `chartSpending`) the [chart] payload surfaced to the UI.
 class _ToolOutcome {
-  const _ToolOutcome(this.response, {this.chart});
+  const _ToolOutcome(this.response, {this.chart, this.draftPendingId});
 
   final Map<String, dynamic> response;
   final ChartData? chart;
+
+  /// Set only by `addExpense` on the low-confidence branch — the id of the
+  /// pending row the UI should open for review.
+  final String? draftPendingId;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,11 +135,13 @@ const String _kAgentFallback =
 /// 2. [send] — stream the assistant's reply for one user message.
 /// 3. [dispose] — close the underlying inference session.
 class ChatService {
-  /// Creates a chat service over [gemma] (inference) and [db] (expense reads).
-  ChatService(this._gemma, this._db);
+  /// Creates a chat service over [gemma] (inference), [db] (expense reads/
+  /// writes) and [pending] (draft confirmation rows for low-confidence adds).
+  ChatService(this._gemma, this._db, this._pending);
 
   final GemmaService _gemma;
   final AppDatabase _db;
+  final PendingRepository _pending;
 
   InferenceChat? _chat;
 
@@ -153,6 +170,15 @@ class ChatService {
           'Returns the buckets so you can describe the trend in words.',
       parameters: _chartSpendingSchema(),
     ),
+    Tool(
+      name: 'addExpense',
+      description:
+          "Record a NEW expense the user states in plain language (e.g. \"I "
+          "spent £12 on lunch at Wagamama yesterday\", \"add £4 coffee\", "
+          "\"log groceries 30 quid at Tesco\"). Provide merchant, total, and a "
+          'category from the allowed list. Never invent an amount.',
+      parameters: _addExpenseSchema(),
+    ),
   ];
 
   // --- lifecycle ------------------------------------------------------------
@@ -177,6 +203,9 @@ class ChatService {
     );
     await chat.addQueryChunk(
       Message.text(text: kChatSystemPersona, isUser: false),
+    );
+    await chat.addQueryChunk(
+      Message.text(text: "Today's date is ${_todayIso()}.", isUser: false),
     );
     _chat = chat;
   }
@@ -263,6 +292,9 @@ class ChatService {
         if (outcome.chart != null) {
           yield ChartReady(outcome.chart!);
         }
+        if (outcome.draftPendingId != null) {
+          yield DraftReady(outcome.draftPendingId!);
+        }
       }
     }
 
@@ -347,6 +379,8 @@ class ChatService {
             // the tool result and the UI chart payload line up exactly.
             chart: chart,
           );
+        case 'addExpense':
+          return _runAddExpense(args);
         default:
           return _ToolOutcome({'_tool': name, 'error': 'unknown tool: $name'});
       }
@@ -489,6 +523,60 @@ class ChatService {
     return Granularity.week;
   }
 
+  // --- addExpense tool handler ----------------------------------------------
+
+  /// Builds a draft from [args], then routes by completeness: a confident
+  /// extraction (merchant present AND total > 0) is inserted directly; an
+  /// incomplete one is parked as an `awaitingConfirmation` pending row for the
+  /// user to finish on the Confirm screen.
+  Future<_ToolOutcome> _runAddExpense(Map<String, dynamic> args) async {
+    final draftJson = buildExpenseDraftJson(_coerceArgsMap(args), _todayIso());
+    final draft = ExpenseDraft.fromJson(draftJson);
+
+    final confident = draft.merchant.trim().isNotEmpty && draft.total > 0;
+    if (confident) {
+      await _db.insertExpense(draft);
+      return _ToolOutcome({
+        '_tool': 'addExpense',
+        'saved': true,
+        'merchant': draft.merchant,
+        'total': draft.total,
+        'currency': draft.currency,
+        'category': draft.categories?.first ?? 'Other',
+      });
+    }
+
+    final pendingId = await _pending.create();
+    await _pending.setStatus(
+      pendingId,
+      PendingStatus.awaitingConfirmation,
+      extractedJson: jsonEncode(draft.toJson()),
+    );
+    return _ToolOutcome(
+      {'_tool': 'addExpense', 'needsReview': true},
+      draftPendingId: pendingId,
+    );
+  }
+
+  /// Today's date as 'YYYY-MM-DD'.
+  String _todayIso() {
+    final now = DateTime.now();
+    final y = now.year.toString().padLeft(4, '0');
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  /// Test seam: runs a tool by name and exposes the outcome (response map,
+  /// optional chart, optional draft pending id) without needing a live chat
+  /// session. Not used in production.
+  @visibleForTesting
+  Future<({Map<String, dynamic> response, ChartData? chart, String? draftPendingId})>
+      runToolDebug(String name, Map<String, dynamic> args) async {
+    final o = await _runTool(name, args);
+    return (response: o.response, chart: o.chart, draftPendingId: o.draftPendingId);
+  }
+
   // --- JSON-Schema tool parameter definitions -------------------------------
 
   static const Map<String, dynamic> _dateRangeProp = {
@@ -588,6 +676,121 @@ class ChatService {
         },
         'required': <String>[],
       };
+
+  Map<String, dynamic> _addExpenseSchema() => {
+        'type': 'object',
+        'properties': {
+          'merchant': {
+            'type': 'string',
+            'description': 'Store / vendor name, e.g. "Wagamama".',
+          },
+          'total': {
+            'type': 'number',
+            'description': 'Total amount paid.',
+          },
+          'category': {
+            'type': 'string',
+            'description': 'Expense category.',
+            'enum': kDefaultCategories,
+          },
+          'date': {
+            'type': 'string',
+            'description': 'today, yesterday, or YYYY-MM-DD. Defaults to today.',
+          },
+          'currency': {
+            'type': 'string',
+            'description': '3-letter ISO code. Defaults to the user default.',
+          },
+        },
+        'required': <String>['merchant', 'total'],
+      };
+
+  // --- addExpense draft coercion --------------------------------------------
+
+  /// Builds an [ExpenseDraft]-shaped JSON map from loose `addExpense` tool
+  /// [args]. [today] is 'YYYY-MM-DD'. Tolerant of missing/loose fields so the
+  /// draft is always parseable; completeness is judged by the caller, not here.
+  @visibleForTesting
+  static Map<String, dynamic> buildExpenseDraftJson(
+    Map<String, dynamic> args,
+    String today,
+  ) {
+    final merchant = _addStr(args['merchant']);
+    final total = _addNum(args['total']);
+    final category = _addCategory(args['category']);
+    final currency = _addCurrency(args['currency']);
+    final date = _addDate(args['date'], today);
+
+    final rawItems = args['items'];
+    final List<Map<String, dynamic>> items =
+        (rawItems is List && rawItems.isNotEmpty)
+            ? rawItems.whereType<Map>().map((it) {
+                return <String, dynamic>{
+                  'name': _addStr(it['name']).isEmpty
+                      ? 'Item'
+                      : _addStr(it['name']),
+                  'amount': _addNum(it['amount']),
+                  'category': _addCategory(it['category'] ?? category),
+                };
+              }).toList()
+            : [
+                {
+                  'name': merchant.isEmpty ? 'Expense' : merchant,
+                  'amount': total,
+                  'category': category,
+                },
+              ];
+
+    return {
+      'merchant': merchant,
+      'date': date,
+      'currency': currency,
+      'total': total,
+      'vat': 0,
+      'items': items,
+      'categories': [category],
+    };
+  }
+
+  static String _addStr(Object? v) =>
+      (v is String) ? v.trim() : (v == null ? '' : v.toString().trim());
+
+  static double _addNum(Object? v) {
+    if (v is num) return v.toDouble();
+    final cleaned = '${v ?? ''}'.replaceAll(RegExp(r'[^0-9.\-]'), '');
+    return double.tryParse(cleaned) ?? 0.0;
+  }
+
+  /// Returns a category from [kDefaultCategories] (case-insensitive match),
+  /// else 'Other'.
+  static String _addCategory(Object? v) {
+    final raw = _addStr(v);
+    for (final c in kDefaultCategories) {
+      if (c.toLowerCase() == raw.toLowerCase()) return c;
+    }
+    return 'Other';
+  }
+
+  static String _addCurrency(Object? v) {
+    final cur = _addStr(v).toUpperCase();
+    return cur.length == 3 ? cur : kDefaultCurrency;
+  }
+
+  /// Maps 'today' / 'yesterday' / a 'YYYY-MM-DD' string to an ISO date,
+  /// defaulting to [today] for anything else.
+  static String _addDate(Object? v, String today) {
+    final raw = _addStr(v).toLowerCase();
+    if (raw.isEmpty || raw == 'today') return today;
+    if (raw == 'yesterday') {
+      final t = DateTime.parse(today).subtract(const Duration(days: 1));
+      final y = t.year.toString().padLeft(4, '0');
+      final m = t.month.toString().padLeft(2, '0');
+      final d = t.day.toString().padLeft(2, '0');
+      return '$y-$m-$d';
+    }
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(raw)) return raw;
+    return today;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -753,11 +956,12 @@ class ToolCallEnvelopeFilter {
   }
 }
 
-/// Riverpod provider for [ChatService], wired from [gemmaServiceProvider] and
-/// [appDatabaseProvider].
+/// Riverpod provider for [ChatService], wired from [gemmaServiceProvider],
+/// [appDatabaseProvider], and [pendingRepositoryProvider].
 final chatServiceProvider = Provider<ChatService>((ref) {
   return ChatService(
     ref.watch(gemmaServiceProvider),
     ref.watch(appDatabaseProvider),
+    ref.watch(pendingRepositoryProvider),
   );
 });

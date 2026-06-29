@@ -24,14 +24,15 @@ class PendingRepository {
 
   /// Inserts a new pending receipt row with status [PendingStatus.received].
   ///
+  /// [filePath] is optional — chat-created drafts have no receipt image.
   /// Returns the generated UUID for the new row.
-  Future<String> create({required String filePath}) async {
+  Future<String> create({String? filePath}) async {
     final id = _uuid.v4();
     await _db.into(_db.pendingExpenses).insert(
           PendingExpensesCompanion.insert(
             id: id,
             status: PendingStatus.received.name,
-            filePath: Value(filePath),
+            filePath: Value.absentIfNull(filePath),
           ),
         );
     return id;

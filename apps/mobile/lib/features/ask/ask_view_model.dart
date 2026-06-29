@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../ai/chat_service.dart';
 import '../../ai/gemma_service.dart';
 import '../../data/repositories/expense_repository.dart' show ChartData;
+import '../shell/shell_view_model.dart';
 
 // Sentinel used by [ChatMessage.copyWith] so callers can explicitly clear
 // [ChatMessage.chart] to null by passing `chart: null`.
@@ -215,6 +216,8 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
                   toolCalls: [...m.toolCalls, ToolCall(name: name, args: args)],
                 ),
               );
+            case DraftReady(:final pendingId):
+              ref.read(shellViewModelProvider.notifier).reviewPending(pendingId);
           }
         },
         onError: (_) {
