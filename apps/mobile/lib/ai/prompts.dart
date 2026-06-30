@@ -111,3 +111,14 @@ you have and the user will be asked to complete it.
 - If spending data doesn't support a confident answer, say so — don't speculate beyond what the data shows.
 - Never expose internal IDs, file paths, or raw image data in replies.
 ''';
+
+/// One-line note telling the chat model where it runs, seeded after
+/// [kChatSystemPersona]. Reflects the user's resolved inference preference
+/// (offline / online) so Carson answers honestly if asked which model it is.
+String chatRuntimeNote({required bool online}) {
+  return online
+      ? 'You run in online mode via a cloud model. '
+          'If the user asks, tell them you are the online model.'
+      : 'You run fully on-device and offline. No data leaves the phone. '
+          'If the user asks, tell them you are the local offline model.';
+}

@@ -188,8 +188,11 @@ class ChatService {
   ///
   /// If a chat is already open (e.g. after a stream error left one behind),
   /// it is closed before the new one is created, preventing session leaks.
+  /// [online] reflects the user's resolved inference preference; it is seeded
+  /// into the prompt so Carson can honestly say which model it is.
+  ///
   /// Throws [StateError] if the Gemma model is not loaded.
-  Future<void> start() async {
+  Future<void> start({bool online = false}) async {
     final existing = _chat;
     if (existing != null) {
       _chat = null;
@@ -203,6 +206,9 @@ class ChatService {
     );
     await chat.addQueryChunk(
       Message.text(text: kChatSystemPersona, isUser: false),
+    );
+    await chat.addQueryChunk(
+      Message.text(text: chatRuntimeNote(online: online), isUser: false),
     );
     await chat.addQueryChunk(
       Message.text(text: "Today's date is ${_todayIso()}.", isUser: false),
