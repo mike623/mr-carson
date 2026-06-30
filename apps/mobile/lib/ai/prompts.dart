@@ -111,3 +111,12 @@ you have and the user will be asked to complete it.
 - If spending data doesn't support a confident answer, say so — don't speculate beyond what the data shows.
 - Never expose internal IDs, file paths, or raw image data in replies.
 ''';
+
+/// One-line note telling the chat model where it runs, seeded after
+/// [kChatSystemPersona]. The Flutter chat always uses the on-device Gemma
+/// model, so this is offline. If a cloud chat backend is ever added, make
+/// this a builder keyed on the resolved [Backend].
+// ponytail: constant offline — chat has no online backend yet; parameterize if one lands.
+const String kChatRuntimeNote =
+    'You run fully on-device and offline. No data leaves the phone. '
+    'If the user asks, tell them you are the local offline model.';
