@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mr_carson/ai/chat_service.dart';
 import 'package:mr_carson/ai/gemma_service.dart';
+import 'package:mr_carson/ai/model_mode.dart';
 import 'package:mr_carson/data/db/app_database.dart';
 import 'package:mr_carson/data/repositories/expense_repository.dart';
 import 'package:mr_carson/data/repositories/pending_repository.dart';
@@ -35,7 +36,7 @@ class _FakeChatService extends ChatService {
   final List<Object> _events; // ChatEvent | _StreamError
 
   @override
-  Future<void> start() async {}
+  Future<void> start({bool online = false}) async {}
 
   @override
   Stream<ChatEvent> send(String userMessage) async* {
@@ -84,6 +85,7 @@ void main() {
         gemmaServiceProvider
             .overrideWithValue(_FakeGemmaService(GemmaState.ready)),
         chatServiceProvider.overrideWithValue(_FakeChatService(events)),
+        resolvedBackendProvider.overrideWithValue(Backend.offline),
       ],
     );
     addTearDown(container.dispose);

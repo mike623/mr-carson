@@ -46,3 +46,13 @@ class ModelModeNotifier extends Notifier<ModelMode> {
 
 final modelModeProvider =
     NotifierProvider<ModelModeNotifier, ModelMode>(ModelModeNotifier.new);
+
+/// The concrete backend after applying device capability to the chosen mode.
+/// Read this (not [resolveBackend] directly) so consumers depend on one
+/// provider and tests can override it without wiring SharedPreferences.
+final resolvedBackendProvider = Provider<Backend>(
+  (ref) => resolveBackend(
+    ref.watch(modelModeProvider),
+    ref.watch(deviceCapabilityProvider),
+  ),
+);

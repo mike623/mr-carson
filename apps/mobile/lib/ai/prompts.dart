@@ -113,10 +113,12 @@ you have and the user will be asked to complete it.
 ''';
 
 /// One-line note telling the chat model where it runs, seeded after
-/// [kChatSystemPersona]. The Flutter chat always uses the on-device Gemma
-/// model, so this is offline. If a cloud chat backend is ever added, make
-/// this a builder keyed on the resolved [Backend].
-// ponytail: constant offline — chat has no online backend yet; parameterize if one lands.
-const String kChatRuntimeNote =
-    'You run fully on-device and offline. No data leaves the phone. '
-    'If the user asks, tell them you are the local offline model.';
+/// [kChatSystemPersona]. Reflects the user's resolved inference preference
+/// (offline / online) so Carson answers honestly if asked which model it is.
+String chatRuntimeNote({required bool online}) {
+  return online
+      ? 'You run in online mode via a cloud model. '
+          'If the user asks, tell them you are the online model.'
+      : 'You run fully on-device and offline. No data leaves the phone. '
+          'If the user asks, tell them you are the local offline model.';
+}

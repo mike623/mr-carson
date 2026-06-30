@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ai/chat_service.dart';
 import '../../ai/gemma_service.dart';
+import '../../ai/model_mode.dart';
 import '../../data/repositories/expense_repository.dart' show ChartData;
 import '../shell/shell_view_model.dart';
 
@@ -191,7 +192,8 @@ class AskViewModel extends AutoDisposeNotifier<AskState> {
     final chat = ref.read(chatServiceProvider);
     try {
       if (!_chatStarted) {
-        await chat.start();
+        final online = ref.read(resolvedBackendProvider) == Backend.online;
+        await chat.start(online: online);
         _chatStarted = true;
       }
 
