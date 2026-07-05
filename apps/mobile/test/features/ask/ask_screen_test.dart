@@ -149,7 +149,7 @@ void main() {
     expect(find.text('Set up Mr. Carson'), findsNothing);
   });
 
-  testWidgets('locked state shows the setup invitation, not the input',
+  testWidgets('absent state shows the composer, not a locked card',
       (tester) async {
     sizeView(tester);
     await tester.pumpWidget(
@@ -157,13 +157,51 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byType(TextField), findsNothing);
-    expect(find.text('Set up Mr. Carson'), findsOneWidget);
-    expect(find.text('2.4 GB · one-time'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Set up Mr. Carson'), findsNothing);
     expect(find.text('Awaiting your word'), findsOneWidget);
   });
 
-  testWidgets('locked CTA calls requireModel with the contextual reason',
+  testWidgets(
+      'sending while the model is absent shows the setup modal instead of '
+      'sending', (tester) async {
+    sizeView(tester);
+    final shell = _FakeShellVm();
+    await tester.pumpWidget(
+      buildSubject(
+        const ModelLifecycleState(phase: GemmaState.notDownloaded),
+        shell: shell,
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'How much this month?');
+    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('A mind is required, sir.'), findsOneWidget);
+    // The draft is preserved while the modal is up.
+    expect(find.text('How much this month?'), findsOneWidget);
+
+    await tester.tap(find.text('Set up Mr. Carson'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(shell.lastRequireReason, isNotNull);
+    expect(shell.lastRequireReason, contains('question'));
+    // The modal is dismissed.
+    expect(find.text('A mind is required, sir.'), findsNothing);
+
+    // Drop composer focus before teardown — AskScreen.dispose() unconditionally
+    // notifies the shell of the focus change, which (pre-existing, unrelated to
+    // this modal) throws during test-widget-tree teardown if the field is torn
+    // down still focused.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+  });
+
+  testWidgets('"Not now" dismisses the setup modal and keeps the draft',
       (tester) async {
     sizeView(tester);
     final shell = _FakeShellVm();
@@ -175,11 +213,22 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Set up Mr. Carson'));
+    await tester.enterText(find.byType(TextField), 'How much this month?');
+    await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
-    expect(shell.lastRequireReason, isNotNull);
-    expect(shell.lastRequireReason, contains('set up my mind'));
+    await tester.tap(find.text('Not now'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('A mind is required, sir.'), findsNothing);
+    expect(shell.lastRequireReason, isNull);
+    expect(find.text('How much this month?'), findsOneWidget);
+
+    // See the note in the previous test — drop focus before teardown.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
   });
 
   testWidgets('preparing state shows the top banner + setup card with percent',
@@ -199,16 +248,17 @@ void main() {
     expect(find.text('Preparing — 42%'), findsOneWidget); // header status
   });
 
-  testWidgets('error state shows the try-again invitation', (tester) async {
+  testWidgets('error state shows the composer, not a locked card',
+      (tester) async {
     sizeView(tester);
     await tester.pumpWidget(
       buildSubject(const ModelLifecycleState(phase: GemmaState.error)),
     );
     await tester.pump();
 
-    expect(find.text('Try again'), findsOneWidget);
     expect(find.text('Needs attention'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Try again'), findsNothing);
   });
 
   testWidgets('a message carrying ChartData renders an fl_chart with N bars',

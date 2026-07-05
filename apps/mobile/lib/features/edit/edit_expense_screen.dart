@@ -12,13 +12,13 @@ import '../../ui/core/widgets/loading_state.dart';
 import '../shell/shell_view_model.dart';
 
 /// Edit Expense — amend an existing committed expense's merchant, amount, date,
-/// and categories. Mirrors the design's EDIT EXPENSE screen
-/// (`designs/mr-carson/project/Mr Carson.dc.html`).
+/// categories, and line items ("the particulars"). Mirrors the design's EDIT
+/// EXPENSE screen (`designs/mr-carson/project/Mr Carson.dc.html`).
 ///
-/// Line items ("the particulars") are intentionally left as filed — only the
-/// expense-level fields are editable here, matching the design's hint. Save
-/// persists via [AppDatabase.updateExpense]; the DB-reactive detail/ledger
-/// streams reflect the change immediately.
+/// When the expense carries line items the Amount becomes a computed total,
+/// totted up from the particulars; with no items it stays a free-form amount
+/// input. Save persists via [AppDatabase.updateExpense]; the DB-reactive
+/// detail/ledger streams reflect the change immediately.
 ///
 /// ponytail: the design's optional "note" field is omitted — there is no note
 /// column on the expenses table, so the input would not persist. Add the field
@@ -40,6 +40,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   String _amount = '';
   String _date = '';
   final Set<String> _selectedCategories = {};
+  final List<_EditItem> _items = [];
   bool _initialized = false;
 
   static const _categories = [
@@ -78,8 +79,32 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
-  bool get _canSave =>
-      _merchant.trim().isNotEmpty && (double.tryParse(_amount.trim()) ?? 0) > 0;
+  // --- derived state --------------------------------------------------------
+
+  bool get _hasItems => _items.isNotEmpty;
+
+  // ponytail: no service column; total = sum(items)
+  double get _itemsTotal =>
+      _items.fold<double>(0, (sum, it) => sum + it.amount);
+
+  bool get _canSave {
+    if (_merchant.trim().isEmpty) return false;
+    if (_hasItems) {
+      final named = _items.any((it) => it.name.trim().isNotEmpty);
+      return named && _itemsTotal > 0;
+    }
+    return (double.tryParse(_amount.trim()) ?? 0) > 0;
+  }
+
+  // --- particulars ----------------------------------------------------------
+
+  void _itemise() => setState(() {
+        if (_items.isEmpty) _items.add(_EditItem());
+      });
+
+  void _addItem() => setState(() => _items.add(_EditItem()));
+
+  void _removeItem(int index) => setState(() => _items.removeAt(index));
 
   void _cancel() =>
       ref.read(shellViewModelProvider.notifier).go(ShellScreen.detail);
@@ -87,17 +112,40 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   Future<void> _save() async {
     if (!_canSave) return;
     final notifier = ref.read(shellViewModelProvider.notifier);
-    final total = double.tryParse(_amount.trim()) ?? 0;
     final cats =
         _selectedCategories.isEmpty ? ['Other'] : _selectedCategories.toList();
     try {
-      await ref.read(appDatabaseProvider).updateExpense(
-            widget.id,
-            merchant: _merchant.trim(),
-            total: total,
-            date: _date.trim(),
-            categories: cats,
-          );
+      if (_hasItems) {
+        // New rows inherit the expense's first selected category; prefilled
+        // rows keep the category they were filed under.
+        final fallbackCategory = cats.first;
+        final items = _items
+            .where((it) => it.name.trim().isNotEmpty)
+            .map((it) => (
+                  name: it.name.trim(),
+                  category: it.category ?? fallbackCategory,
+                  amount: it.amount,
+                ))
+            .toList();
+        final total = items.fold<double>(0, (sum, it) => sum + it.amount);
+        await ref.read(appDatabaseProvider).updateExpense(
+              widget.id,
+              merchant: _merchant.trim(),
+              total: total,
+              date: _date.trim(),
+              categories: cats,
+              items: items,
+            );
+      } else {
+        final total = double.tryParse(_amount.trim()) ?? 0;
+        await ref.read(appDatabaseProvider).updateExpense(
+              widget.id,
+              merchant: _merchant.trim(),
+              total: total,
+              date: _date.trim(),
+              categories: cats,
+            );
+      }
       notifier
         ..go(ShellScreen.detail)
         ..showToast('Amended. Very good, sir.');
@@ -137,9 +185,17 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
             _selectedCategories
               ..clear()
               ..addAll(detail.categories);
+            _items
+              ..clear()
+              ..addAll(detail.items.map((it) => _EditItem(
+                    name: it.name,
+                    price: formatAmount(it.amount),
+                    category: it.category,
+                  )));
           }
           final currency = currencySymbol(detail.currency);
-          final hasItems = detail.items.isNotEmpty;
+          final hasItems = _hasItems;
+          final totalDisplay = '$currency${formatAmount(_itemsTotal)}';
 
           return Stack(
             children: [
@@ -166,6 +222,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
                             onAmountChanged: (v) => setState(() => _amount = v),
                             onPickDate: _pickDate,
                             hasItems: hasItems,
+                            totalDisplay: totalDisplay,
                           ),
                           const SizedBox(height: 13),
                           _CategoryField(
@@ -178,6 +235,18 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
                               }
                             }),
                           ),
+                          const SizedBox(height: 13),
+                          if (hasItems)
+                            _ParticularsCard(
+                              items: _items,
+                              currency: currency,
+                              totalDisplay: totalDisplay,
+                              onAddItem: _addItem,
+                              onRemoveItem: _removeItem,
+                              onChanged: () => setState(() {}),
+                            )
+                          else
+                            _ItemiseButton(onTap: _itemise),
                         ],
                       ),
                     ),
@@ -381,6 +450,7 @@ class _AmountDateRow extends StatelessWidget {
     required this.onAmountChanged,
     required this.onPickDate,
     required this.hasItems,
+    required this.totalDisplay,
   });
 
   final String currency;
@@ -389,6 +459,7 @@ class _AmountDateRow extends StatelessWidget {
   final ValueChanged<String> onAmountChanged;
   final VoidCallback onPickDate;
   final bool hasItems;
+  final String totalDisplay;
 
   @override
   Widget build(BuildContext context) {
@@ -403,46 +474,57 @@ class _AmountDateRow extends StatelessWidget {
               children: [
                 _fieldLabel('AMOUNT'),
                 const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(currency,
-                        style: MrCarsonType.display(
-                            size: 26,
-                            weight: FontWeight.w600,
-                            color: MrCarsonColors.ink3)),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: TextField(
-                        controller: amountController,
-                        onChanged: onAmountChanged,
-                        cursorColor: MrCarsonColors.accent,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        style: MrCarsonType.display(size: 26, weight: FontWeight.w600)
-                            .copyWith(
-                                fontFeatures: const [FontFeature.tabularFigures()]),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                          border: InputBorder.none,
-                          hintText: '0.00',
-                          hintStyle: MrCarsonType.display(
-                            size: 26,
-                            weight: FontWeight.w600,
-                            color: MrCarsonColors.ink3,
+                if (hasItems) ...[
+                  // With line items the amount is not editable — it is totted
+                  // up from the particulars below.
+                  Text(
+                    totalDisplay,
+                    style: MrCarsonType.display(
+                            size: 26, weight: FontWeight.w600, height: 1)
+                        .copyWith(
+                            fontFeatures: const [FontFeature.tabularFigures()]),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Totted up from the particulars.',
+                      style: MrCarsonType.ui(size: 11, color: MrCarsonColors.ink3)),
+                ] else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(currency,
+                          style: MrCarsonType.display(
+                              size: 26,
+                              weight: FontWeight.w600,
+                              color: MrCarsonColors.ink3)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: TextField(
+                          controller: amountController,
+                          onChanged: onAmountChanged,
+                          cursorColor: MrCarsonColors.accent,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          style: MrCarsonType.display(
+                                  size: 26, weight: FontWeight.w600)
+                              .copyWith(fontFeatures: const [
+                            FontFeature.tabularFigures()
+                          ]),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                            border: InputBorder.none,
+                            hintText: '0.00',
+                            hintStyle: MrCarsonType.display(
+                              size: 26,
+                              weight: FontWeight.w600,
+                              color: MrCarsonColors.ink3,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                if (hasItems) ...[
-                  const SizedBox(height: 4),
-                  Text('Particulars stay as filed, sir.',
-                      style: MrCarsonType.ui(size: 11, color: MrCarsonColors.ink3)),
-                ],
+                    ],
+                  ),
               ],
             ),
           ),
@@ -684,6 +766,293 @@ class _EditFooter extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Line items (particulars)
+// ---------------------------------------------------------------------------
+
+/// A single editable line item. `qty` is captured for display only — the
+/// ExpenseItems schema has no qty column, so it is not persisted. `category` is
+/// preserved from the filed row (null for freshly-added rows, which inherit the
+/// expense's first category on save).
+class _EditItem {
+  _EditItem({this.name = '', this.price = '', this.category});
+
+  String name;
+  // ponytail: qty display-only, no ExpenseItems column to persist it
+  String qty = '1';
+  String price;
+  String? category;
+
+  double get amount => double.tryParse(price.trim()) ?? 0;
+}
+
+/// Dashed-look button shown when the expense has no line items — tapping it
+/// starts the first particular and flips into items mode.
+class _ItemiseButton extends StatelessWidget {
+  const _ItemiseButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 50,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: MrCarsonColors.line,
+            width: 1.5,
+            // Dashed look isn't a first-class Border; a solid hairline is the
+            // closest faithful match within the design system's palette.
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add, size: 16, color: MrCarsonColors.ink2),
+            const SizedBox(width: 9),
+            Text('Itemise the particulars',
+                style: MrCarsonType.ui(
+                    size: 14.5,
+                    weight: FontWeight.w600,
+                    color: MrCarsonColors.ink2)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ParticularsCard extends StatelessWidget {
+  const _ParticularsCard({
+    required this.items,
+    required this.currency,
+    required this.totalDisplay,
+    required this.onAddItem,
+    required this.onRemoveItem,
+    required this.onChanged,
+  });
+
+  final List<_EditItem> items;
+  final String currency;
+  final String totalDisplay;
+  final VoidCallback onAddItem;
+  final void Function(int) onRemoveItem;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: MrCarsonColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: MrCarsonColors.line, width: 1),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: _fieldLabel('THE PARTICULARS'),
+          ),
+          for (int i = 0; i < items.length; i++)
+            _ItemRow(
+              key: ObjectKey(items[i]),
+              item: items[i],
+              currency: currency,
+              onChanged: onChanged,
+              onRemove: () => onRemoveItem(i),
+            ),
+          GestureDetector(
+            onTap: onAddItem,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                border:
+                    Border(top: BorderSide(color: MrCarsonColors.line, width: 1)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.add, size: 14, color: MrCarsonColors.accent),
+                  const SizedBox(width: 8),
+                  Text('Add another',
+                      style: MrCarsonType.ui(
+                          size: 14,
+                          weight: FontWeight.w600,
+                          color: MrCarsonColors.accent)),
+                ],
+              ),
+            ),
+          ),
+          // ponytail: no service column; total = sum(items)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            decoration: const BoxDecoration(
+              color: MrCarsonColors.bg,
+              border:
+                  Border(top: BorderSide(color: MrCarsonColors.line, width: 1)),
+            ),
+            child: Row(
+              children: [
+                Text('Total',
+                    style: MrCarsonType.ui(size: 14, weight: FontWeight.w600)),
+                const Spacer(),
+                Text(
+                  totalDisplay,
+                  style: MrCarsonType.ui(
+                    size: 16,
+                    weight: FontWeight.w700,
+                    color: MrCarsonColors.accent,
+                  ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ItemRow extends StatefulWidget {
+  const _ItemRow({
+    super.key,
+    required this.item,
+    required this.currency,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final _EditItem item;
+  final String currency;
+  final VoidCallback onChanged;
+  final VoidCallback onRemove;
+
+  @override
+  State<_ItemRow> createState() => _ItemRowState();
+}
+
+class _ItemRowState extends State<_ItemRow> {
+  late final TextEditingController _name;
+  late final TextEditingController _qty;
+  late final TextEditingController _price;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.item.name);
+    _qty = TextEditingController(text: widget.item.qty);
+    _price = TextEditingController(text: widget.item.price);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _qty.dispose();
+    _price.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 14, 10),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: MrCarsonColors.line, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _name,
+              cursorColor: MrCarsonColors.accent,
+              style: MrCarsonType.ui(size: 15),
+              onChanged: (v) {
+                widget.item.name = v;
+                widget.onChanged();
+              },
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                hintText: 'Item',
+                hintStyle: MrCarsonType.ui(size: 15, color: MrCarsonColors.ink3),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text('×',
+              style: TextStyle(fontSize: 13, color: MrCarsonColors.ink3)),
+          const SizedBox(width: 4),
+          SizedBox(
+            width: 26,
+            child: TextField(
+              controller: _qty,
+              textAlign: TextAlign.center,
+              cursorColor: MrCarsonColors.accent,
+              keyboardType: TextInputType.number,
+              // ponytail: qty display-only, no ExpenseItems column to persist it
+              style: MrCarsonType.ui(size: 15, color: MrCarsonColors.ink2),
+              onChanged: (v) {
+                widget.item.qty = v;
+                widget.onChanged();
+              },
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(widget.currency,
+              style: MrCarsonType.ui(size: 14, color: MrCarsonColors.ink3)),
+          const SizedBox(width: 2),
+          SizedBox(
+            width: 58,
+            child: TextField(
+              controller: _price,
+              textAlign: TextAlign.right,
+              cursorColor: MrCarsonColors.accent,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: MrCarsonType.ui(size: 15, weight: FontWeight.w600)
+                  .copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+              onChanged: (v) {
+                widget.item.price = v;
+                widget.onChanged();
+              },
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                hintText: '0.00',
+                hintStyle: MrCarsonType.ui(size: 15, color: MrCarsonColors.ink3),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: widget.onRemove,
+            behavior: HitTestBehavior.opaque,
+            child: const SizedBox(
+              width: 24,
+              height: 24,
+              child: Icon(Icons.close, size: 12, color: MrCarsonColors.ink3),
             ),
           ),
         ],

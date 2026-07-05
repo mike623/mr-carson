@@ -91,9 +91,47 @@ void main() {
       expect(detail.total, equals(20.00));
       expect(detail.date, equals('2024-04-01'));
       expect(detail.categories, equals(['Groceries', 'Household']));
-      // Line items are left as filed.
+      // Omitting `items` leaves the particulars as filed.
       expect(detail.items, hasLength(1));
       expect(detail.items.first.name, equals('Milk'));
+    });
+
+    test('updateExpense with items replaces the particulars', () async {
+      final id = await db.insertExpense(
+        const ExpenseDraft(
+          merchant: 'Tesco',
+          date: '2024-03-15',
+          currency: 'GBP',
+          total: 12.50,
+          items: [
+            ExpenseItemDraft(name: 'Milk', amount: 12.50, category: 'Groceries')
+          ],
+          categories: ['Groceries'],
+        ),
+      );
+
+      await db.updateExpense(
+        id,
+        merchant: 'Tesco',
+        total: 9.00,
+        date: '2024-03-15',
+        categories: ['Groceries'],
+        items: [
+          (name: 'Bread', category: 'Groceries', amount: 4.00),
+          (name: 'Butter', category: 'Household', amount: 5.00),
+        ],
+      );
+
+      final detail = await db.watchExpenseById(id).first;
+      expect(detail, isNotNull);
+      expect(detail!.total, equals(9.00));
+      // Old 'Milk' row is gone; the two new rows replace it.
+      expect(detail.items, hasLength(2));
+      final names = detail.items.map((i) => i.name).toSet();
+      expect(names, equals({'Bread', 'Butter'}));
+      final butter = detail.items.firstWhere((i) => i.name == 'Butter');
+      expect(butter.category, equals('Household'));
+      expect(butter.amount, equals(5.00));
     });
 
     test(

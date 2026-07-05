@@ -106,17 +106,20 @@ class AppDatabase extends _$AppDatabase {
     return id;
   }
 
-  /// Amends the expense-level fields of an existing expense. Line items are left
-  /// untouched — the editor only changes merchant/total/date/categories (the
-  /// design's edit screen keeps "the particulars as filed, sir"). Also records
-  /// the (possibly new) merchant in the merchants table for autocomplete parity
-  /// with [insertExpense].
+  /// Amends the expense-level fields of an existing expense, and optionally
+  /// replaces its line items. When [items] is null the particulars are left as
+  /// filed and only merchant/total/date/categories change; when non-null the
+  /// existing line items are deleted and replaced with the given ones (fresh
+  /// uuids), and the caller is responsible for passing a [total] that matches
+  /// the sum of the new item amounts. Also records the (possibly new) merchant
+  /// in the merchants table for autocomplete parity with [insertExpense].
   Future<void> updateExpense(
     String id, {
     required String merchant,
     required double total,
     required String date,
     required List<String> categories,
+    List<({String name, String category, double amount})>? items,
   }) async {
     final trimmed = merchant.trim();
     await transaction(() async {
@@ -129,6 +132,18 @@ class AppDatabase extends _$AppDatabase {
               Value(categories.isEmpty ? null : jsonEncode(categories)),
         ),
       );
+      if (items != null) {
+        await (delete(expenseItems)..where((t) => t.expenseId.equals(id))).go();
+        for (final item in items) {
+          await into(expenseItems).insert(ExpenseItemsCompanion.insert(
+            id: _uuid.v4(),
+            expenseId: id,
+            name: item.name,
+            category: item.category,
+            amount: item.amount,
+          ));
+        }
+      }
       await into(merchants).insert(
         MerchantsCompanion.insert(
           name: trimmed,
