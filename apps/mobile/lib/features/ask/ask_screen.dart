@@ -71,8 +71,35 @@ class _AskScreenState extends ConsumerState<AskScreen> {
   void _send(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty || ref.read(askViewModelProvider).streaming) return;
+    if (!ref.read(modelLifecycleProvider).isReady) {
+      // No mind aboard yet — invite setup instead of sending. The draft is
+      // left in the composer so "Not now" doesn't lose the user's words.
+      _showSetupModal();
+      return;
+    }
     _inputController.clear();
     ref.read(askViewModelProvider.notifier).send(trimmed);
+  }
+
+  /// Shows the on-demand "A mind is required, sir." setup invitation. Tapping
+  /// "Set up Mr. Carson" dismisses the modal and routes to the full-screen
+  /// engage flow; "Not now" simply dismisses.
+  void _showSetupModal() {
+    showDialog<void>(
+      context: context,
+      barrierColor: const Color(0x99000000),
+      builder: (dialogContext) => _ModelSetupDialog(
+        onSetup: () {
+          Navigator.of(dialogContext).pop();
+          ref.read(shellViewModelProvider.notifier).requireModel(
+                reason:
+                    'You asked a question — allow me a moment to be ready '
+                    'for it.',
+              );
+        },
+        onNotNow: () => Navigator.of(dialogContext).pop(),
+      ),
+    );
   }
 
   void _stop() => ref.read(askViewModelProvider.notifier).stop();
@@ -161,10 +188,6 @@ class _AskScreenState extends ConsumerState<AskScreen> {
             focusNode: _inputFocus,
             onSend: _send,
             onStop: _stop,
-            onSetup: () => ref.read(shellViewModelProvider.notifier).requireModel(
-                  reason:
-                      'To answer your questions, I shall need a moment to set up my mind.',
-                ),
             onView: () => ref
                 .read(shellViewModelProvider.notifier)
                 .go(ShellScreen.modelMgmt),
@@ -1052,7 +1075,6 @@ class _Footer extends StatelessWidget {
     required this.focusNode,
     required this.onSend,
     required this.onStop,
-    required this.onSetup,
     required this.onView,
   });
 
@@ -1065,13 +1087,17 @@ class _Footer extends StatelessWidget {
   final FocusNode focusNode;
   final ValueChanged<String> onSend;
   final VoidCallback onStop;
-  final VoidCallback onSetup;
   final VoidCallback onView;
 
   @override
   Widget build(BuildContext context) {
     final Widget content;
-    if (model.isReady) {
+    if (model.isDownloading) {
+      content = _PreparingCard(pct: model.downloadPct, onView: onView);
+    } else {
+      // Ready, absent, or error — the composer is always shown; sending while
+      // the model isn't ready invites setup via a modal instead (see
+      // [_AskScreenState._send]).
       content = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1088,11 +1114,6 @@ class _Footer extends StatelessWidget {
           ),
         ],
       );
-    } else if (model.isDownloading) {
-      content = _PreparingCard(pct: model.downloadPct, onView: onView);
-    } else {
-      // Absent or error — both invite (re)setup.
-      content = _LockedCard(isError: model.isError, onSetup: onSetup);
     }
 
     return Container(
@@ -1113,121 +1134,103 @@ class _Footer extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Locked card — setup invitation (model absent / error)
+// Model setup modal — "A mind is required, sir." (on-demand, from Ask)
 // ---------------------------------------------------------------------------
 
-class _LockedCard extends StatelessWidget {
-  const _LockedCard({required this.isError, required this.onSetup});
+/// The on-demand setup invitation shown when the user tries to send a message
+/// while the model isn't ready. Styled to match the app's other modal dialogs
+/// (see `_RemoveDialog` in model_management_screen.dart): surface card,
+/// rounded 24, accent solid CTA + ghost dismiss.
+class _ModelSetupDialog extends StatelessWidget {
+  const _ModelSetupDialog({required this.onSetup, required this.onNotNow});
 
-  final bool isError;
   final VoidCallback onSetup;
+  final VoidCallback onNotNow;
 
   @override
   Widget build(BuildContext context) {
-    final copy = isError
-        ? 'Something went amiss — shall I try again?'
-        : "To answer your questions, I'll need a moment to set up my mind — "
-            'a one-time download. Shall I?';
-    return Container(
-      decoration: BoxDecoration(
-        color: MrCarsonColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: MrCarsonColors.line, width: 1),
-      ),
-      padding: const EdgeInsets.fromLTRB(17, 17, 17, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CarsonMonogram(size: 30, borderWidth: 1),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  copy,
-                  style: MrCarsonType.display(
-                    size: 16.5,
-                    weight: FontWeight.w500,
-                    color: MrCarsonColors.ink2,
-                    italic: true,
-                    height: 1.42,
-                  ),
-                ),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(30),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 330),
+        decoration: BoxDecoration(
+          color: MrCarsonColors.surface,
+          border: Border.all(color: MrCarsonColors.line, width: 1),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CarsonMonogram(size: 52, borderWidth: 1.5),
+            const SizedBox(height: 16),
+            Text(
+              'A mind is required, sir.',
+              style: MrCarsonType.display(
+                size: 26,
+                weight: FontWeight.w600,
+                height: 1.1,
               ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: GestureDetector(
-              onTap: onSetup,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: MrCarsonColors.accent,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(
-                  isError ? 'Try again' : 'Set up Mr. Carson',
-                  style: MrCarsonType.ui(
-                    size: 16,
-                    weight: FontWeight.w600,
-                    color: MrCarsonColors.accentInk,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "To answer your questions, I'll need a moment to set up my "
+              'mind — a one-time download of 2.4 GB, kept entirely on this '
+              'device.',
+              style: MrCarsonType.ui(
+                size: 14.5,
+                color: MrCarsonColors.ink2,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: GestureDetector(
+                onTap: onSetup,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: MrCarsonColors.accent,
+                    borderRadius: BorderRadius.circular(MrCarsonRadii.tile),
+                  ),
+                  child: Text(
+                    'Set up Mr. Carson',
+                    style: MrCarsonType.ui(
+                      size: 17,
+                      weight: FontWeight.w600,
+                      color: MrCarsonColors.accentInk,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          if (!isError) ...[
-            const SizedBox(height: 13),
-            const Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 18,
-              runSpacing: 6,
-              children: [
-                _MetaDot(
-                  color: MrCarsonColors.accent,
-                  label: '2.4 GB · one-time',
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: GestureDetector(
+                onTap: onNotNow,
+                behavior: HitTestBehavior.opaque,
+                child: Center(
+                  child: Text(
+                    'Not now',
+                    style: MrCarsonType.ui(
+                      size: 15.5,
+                      weight: FontWeight.w600,
+                      color: MrCarsonColors.ink2,
+                    ),
+                  ),
                 ),
-                _MetaDot(
-                  color: MrCarsonColors.grocery,
-                  label: 'Stays on device',
-                ),
-              ],
+              ),
             ),
           ],
-        ],
+        ),
       ),
-    );
-  }
-}
-
-class _MetaDot extends StatelessWidget {
-  const _MetaDot({required this.color, required this.label});
-
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 5,
-          height: 5,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: MrCarsonType.ui(size: 12, color: MrCarsonColors.ink3),
-        ),
-      ],
     );
   }
 }
